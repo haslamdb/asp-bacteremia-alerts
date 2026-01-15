@@ -45,6 +45,16 @@ class Config:
     ]
     ALERT_SMS_INCLUDE_PHI: bool = os.getenv("ALERT_SMS_INCLUDE_PHI", "true").lower() == "true"
 
+    # SMS via Email gateway settings (alternative to Twilio)
+    # Format: "phone:carrier,phone:carrier" e.g. "3145551234:att,5135559876:verizon"
+    SMS_EMAIL_RECIPIENTS: list[dict] = []
+    _sms_email_raw = os.getenv("SMS_EMAIL_RECIPIENTS", "")
+    if _sms_email_raw:
+        for entry in _sms_email_raw.split(","):
+            if ":" in entry:
+                phone, carrier = entry.strip().split(":", 1)
+                SMS_EMAIL_RECIPIENTS.append({"phone": phone.strip(), "carrier": carrier.strip()})
+
     # Polling settings
     POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL", "300"))
 

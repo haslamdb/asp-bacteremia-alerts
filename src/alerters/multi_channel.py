@@ -12,6 +12,7 @@ from .base import BaseAlerter
 from .console import ConsoleAlerter
 from .email import EmailAlerter
 from .sms import SMSAlerter
+from .sms_email import SMSEmailAlerter
 from ..models import AlertSeverity, CoverageAssessment
 from ..config import config
 
@@ -162,18 +163,34 @@ def create_alerter_from_config() -> BaseAlerter:
     otherwise returns ConsoleAlerter.
     """
     email_configured = bool(config.SMTP_SERVER and config.ALERT_EMAIL_TO)
-    sms_configured = bool(
+
+    # Check for Twilio SMS
+    twilio_configured = bool(
         config.TWILIO_ACCOUNT_SID and
         config.TWILIO_AUTH_TOKEN and
+        config.TWILIO_FROM_NUMBER and
         config.ALERT_SMS_TO_NUMBERS
     )
 
+    # Check for SMS-via-email (alternative to Twilio)
+    sms_email_configured = bool(config.SMTP_SERVER and config.SMS_EMAIL_RECIPIENTS)
+
+    sms_configured = twilio_configured or sms_email_configured
+
     if email_configured or sms_configured:
-        return MultiChannelAlerter(
+        alerter = MultiChannelAlerter(
             enable_console=True,
             enable_email=email_configured,
-            enable_sms=sms_configured,
+            enable_sms=twilio_configured,  # Twilio SMS
         )
+
+        # Add SMS-via-email if configured (uses SMTP, not Twilio)
+        if sms_email_configured and not twilio_configured:
+            sms_email = SMSEmailAlerter(recipients=config.SMS_EMAIL_RECIPIENTS)
+            alerter.sms = sms_email
+            print(f"SMS via email configured for {len(config.SMS_EMAIL_RECIPIENTS)} recipient(s)")
+
+        return alerter
     else:
         print("No email or SMS configured - using console alerter only")
         return ConsoleAlerter()
