@@ -66,7 +66,7 @@ asp-bacteremia-alerts/
 └── keys/                   # OAuth keys (gitignored)
 ```
 
-## Supported Organisms
+## Supported Organisms (Pilot)
 
 | Category | Examples | Key Antibiotics |
 |----------|----------|-----------------|
