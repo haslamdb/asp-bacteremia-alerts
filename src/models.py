@@ -6,6 +6,13 @@ from enum import Enum
 from typing import Optional
 
 
+class AlertSeverity(Enum):
+    """Severity level for routing alerts to appropriate channels."""
+    CRITICAL = "critical"  # Resistant organism + inadequate coverage
+    WARNING = "warning"    # Possible gap, needs review
+    INFO = "info"          # FYI, resolved, or daily summary
+
+
 class AlertStatus(Enum):
     """Status of a coverage alert."""
     PENDING = "pending"

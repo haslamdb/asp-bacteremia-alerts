@@ -8,7 +8,7 @@ if patients have adequate antibiotic coverage.
 import time
 from datetime import datetime, timedelta
 
-from .alerters.console import ConsoleAlerter
+from .alerters import create_alerter_from_config, MultiChannelAlerter
 from .fhir_client import get_fhir_client
 from .matcher import assess_coverage, should_alert
 from .models import Antibiotic, CultureResult, Patient
@@ -20,7 +20,7 @@ class BacteremiaMonitor:
 
     def __init__(self, alerter=None, lookback_hours: int = 24):
         self.fhir = get_fhir_client()
-        self.alerter = alerter or ConsoleAlerter()
+        self.alerter = alerter or create_alerter_from_config()
         self.lookback_hours = lookback_hours
         self.processed_cultures: set[str] = set()
 
@@ -254,7 +254,12 @@ def main():
     else:
         # Single run for testing
         monitor.run_once()
-        print(f"\nTotal alerts: {monitor.alerter.get_alert_count()}")
+
+        # Print summary
+        if isinstance(monitor.alerter, MultiChannelAlerter):
+            monitor.alerter.print_summary()
+        else:
+            print(f"\nTotal alerts: {monitor.alerter.get_alert_count()}")
 
 
 if __name__ == "__main__":

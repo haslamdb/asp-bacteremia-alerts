@@ -78,6 +78,17 @@ asp-bacteremia-alerts/
 
 See [docs/clinical-rules.md](docs/clinical-rules.md) for complete coverage rules.
 
+## Notifications
+
+Alerts are routed by severity:
+
+| Severity | Organisms | Channels |
+|----------|-----------|----------|
+| **CRITICAL** | MRSA, VRE, Pseudomonas, Candida | Console + Email + SMS |
+| **WARNING** | Other gram-negatives | Console + Email |
+
+See [docs/notifications.md](docs/notifications.md) for setup details.
+
 ## Configuration
 
 Copy `.env.template` to `.env` and configure:
@@ -91,8 +102,15 @@ EPIC_FHIR_BASE_URL=https://epicfhir.your-hospital.org/api/FHIR/R4
 EPIC_CLIENT_ID=your-client-id
 EPIC_PRIVATE_KEY_PATH=./keys/epic_private.pem
 
-# Monitoring
-POLL_INTERVAL=300
+# Email alerts
+SMTP_SERVER=smtp.hospital.org
+ALERT_EMAIL_TO=asp-team@hospital.org
+
+# SMS alerts (Twilio)
+TWILIO_ACCOUNT_SID=ACxxxx
+TWILIO_AUTH_TOKEN=xxxx
+TWILIO_FROM_NUMBER=+15135551234
+ALERT_SMS_TO_NUMBERS=+15135559876
 ```
 
 ## Documentation
@@ -100,6 +118,7 @@ POLL_INTERVAL=300
 - [Architecture](docs/architecture.md) - System design and components
 - [Setup Guide](docs/setup.md) - Installation and configuration
 - [Clinical Rules](docs/clinical-rules.md) - Coverage logic documentation
+- [Notifications](docs/notifications.md) - Email and SMS alert setup
 
 ## Development
 

@@ -26,9 +26,24 @@ class Config:
     EPIC_CLIENT_ID: str | None = os.getenv("EPIC_CLIENT_ID")
     EPIC_PRIVATE_KEY_PATH: str | None = os.getenv("EPIC_PRIVATE_KEY_PATH")
 
-    # Alerting settings
-    ALERT_EMAIL_TO: str = os.getenv("ALERT_EMAIL_TO", "")
-    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "localhost")
+    # Email settings
+    SMTP_SERVER: str | None = os.getenv("SMTP_SERVER")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str | None = os.getenv("SMTP_USERNAME")
+    SMTP_PASSWORD: str | None = os.getenv("SMTP_PASSWORD")
+    ALERT_EMAIL_FROM: str | None = os.getenv("ALERT_EMAIL_FROM")
+    ALERT_EMAIL_TO: list[str] = [
+        e.strip() for e in os.getenv("ALERT_EMAIL_TO", "").split(",") if e.strip()
+    ]
+
+    # Twilio SMS settings
+    TWILIO_ACCOUNT_SID: str | None = os.getenv("TWILIO_ACCOUNT_SID")
+    TWILIO_AUTH_TOKEN: str | None = os.getenv("TWILIO_AUTH_TOKEN")
+    TWILIO_FROM_NUMBER: str | None = os.getenv("TWILIO_FROM_NUMBER")
+    ALERT_SMS_TO_NUMBERS: list[str] = [
+        n.strip() for n in os.getenv("ALERT_SMS_TO_NUMBERS", "").split(",") if n.strip()
+    ]
+    ALERT_SMS_INCLUDE_PHI: bool = os.getenv("ALERT_SMS_INCLUDE_PHI", "true").lower() == "true"
 
     # Polling settings
     POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL", "300"))
