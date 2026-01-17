@@ -300,6 +300,61 @@ python -c "from common.channels.teams import test_webhook; test_webhook('YOUR_WE
 
 ---
 
+## Remote Access / Production Deployment
+
+If you need to access the dashboard remotely (e.g., from a laptop at work connecting to a home server), there are several options:
+
+### Option A: SSH Tunnel (Quick, Secure)
+
+From your remote machine:
+```bash
+ssh -L 5000:localhost:5000 -L 8081:localhost:8081 user@your-server-ip
+```
+Then access `http://localhost:5000` in your browser. This tunnels both the dashboard and FHIR server.
+
+### Option B: Production Deployment with Domain + SSL
+
+For a proper demo accessible from anywhere, deploy with nginx and SSL.
+
+**1. Run the setup script:**
+```bash
+cd asp-alerts/dashboard/deploy
+./setup_production.sh your-domain.com
+```
+
+**2. Set up SSL certificate:**
+```bash
+# If port 80 is accessible:
+./setup_ssl.sh your-domain.com your-email@example.com
+
+# If port 80 is blocked (use DNS challenge):
+./setup_ssl_dns.sh your-domain.com your-email@example.com
+```
+
+**3. Configure your router:**
+- Forward external port 443 → internal port 443 (HTTPS)
+- Forward external port 8081 → internal port 8081 (FHIR, if needed externally)
+
+**4. Update DNS:**
+- Add an A record pointing your domain to your external IP
+
+**Deployment files:**
+- `dashboard/deploy/asp-alerts.service` - Systemd service (runs on port 8082)
+- `dashboard/deploy/nginx-asp-alerts-local.conf` - Local/internal nginx config
+- `dashboard/deploy/nginx-asp-alerts-external.conf` - External nginx config with SSL
+- `dashboard/deploy/setup_production.sh` - Automated setup script
+- `dashboard/deploy/setup_ssl.sh` - Let's Encrypt setup (HTTP challenge)
+- `dashboard/deploy/setup_ssl_dns.sh` - Let's Encrypt setup (DNS challenge)
+
+**Service management:**
+```bash
+sudo systemctl status asp-alerts    # Check status
+sudo systemctl restart asp-alerts   # Restart
+sudo journalctl -u asp-alerts -f    # View logs
+```
+
+---
+
 ## Cleanup
 
 After the demo:

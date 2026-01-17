@@ -1,0 +1,25 @@
+[Unit]
+Description=ASP Alerts Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=david
+Group=david
+WorkingDirectory=/home/david/projects/asp-alerts/dashboard
+Environment=PATH=/home/david/miniforge3/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/home/david/projects/asp-alerts/dashboard/.env
+ExecStart=/home/david/miniforge3/bin/python -m flask run --host=127.0.0.1 --port=8082
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/home/david/projects/asp-alerts/dashboard/logs/asp-alerts.log
+StandardError=append:/home/david/projects/asp-alerts/dashboard/logs/asp-alerts-error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
