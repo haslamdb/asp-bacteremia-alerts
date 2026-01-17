@@ -1,4 +1,4 @@
-"""SMS alerter using Twilio.
+"""SMS alerter using Twilio via shared channel.
 
 HIPAA Considerations:
 - Standard SMS is not encrypted
@@ -14,11 +14,12 @@ from datetime import datetime
 
 from .base import BaseAlerter
 from ..models import CoverageAssessment
-from ..config import config
+from ..config import config  # This adds common to sys.path
+from common.channels import SMSChannel
 
 
 class SMSAlerter(BaseAlerter):
-    """Send SMS alerts via Twilio."""
+    """Send SMS alerts via Twilio using shared channel."""
 
     def __init__(
         self,
@@ -38,28 +39,20 @@ class SMSAlerter(BaseAlerter):
             to_numbers: List of phone numbers to alert (or from env ALERT_SMS_TO_NUMBERS)
             include_phi: Whether to include minimal PHI (MRN, location, organism)
         """
-        self.account_sid = account_sid or config.TWILIO_ACCOUNT_SID
-        self.auth_token = auth_token or config.TWILIO_AUTH_TOKEN
-        self.from_number = from_number or config.TWILIO_FROM_NUMBER
-        self.to_numbers = to_numbers or config.ALERT_SMS_TO_NUMBERS
-        self.include_phi = include_phi
+        sid = account_sid or config.TWILIO_ACCOUNT_SID
+        token = auth_token or config.TWILIO_AUTH_TOKEN
+        from_num = from_number or config.TWILIO_FROM_NUMBER
 
+        self.channel = SMSChannel(
+            account_sid=sid,
+            auth_token=token,
+            from_number=from_num,
+            to_numbers=to_numbers or config.ALERT_SMS_TO_NUMBERS,
+        ) if all([sid, token, from_num]) else None
+
+        self.include_phi = include_phi
         self.alert_count = 0
         self.alerts: list[dict] = []
-        self._client = None
-
-    @property
-    def client(self):
-        """Lazy-load Twilio client."""
-        if self._client is None:
-            try:
-                from twilio.rest import Client
-                self._client = Client(self.account_sid, self.auth_token)
-            except ImportError:
-                raise ImportError(
-                    "Twilio package not installed. Run: pip install twilio"
-                )
-        return self._client
 
     def _format_message(self, assessment: CoverageAssessment) -> str:
         """Format alert message for SMS."""
@@ -83,41 +76,21 @@ class SMSAlerter(BaseAlerter):
 
     def send_alert(self, assessment: CoverageAssessment) -> bool:
         """Send SMS alert to configured numbers."""
-        if not self.to_numbers:
-            print("  SMS: No recipient numbers configured")
-            return False
-
-        if not all([self.account_sid, self.auth_token, self.from_number]):
+        if not self.channel:
             print("  SMS: Twilio credentials not configured")
             return False
 
-        message_body = self._format_message(assessment)
+        message = self._format_message(assessment)
 
-        alert_record = {
-            "timestamp": datetime.now().isoformat(),
-            "mrn": assessment.patient.mrn,
-            "recipients": self.to_numbers,
-            "message_preview": message_body[:50] + "...",
-        }
-
-        success = True
-        for phone in self.to_numbers:
-            try:
-                self.client.messages.create(
-                    body=message_body,
-                    from_=self.from_number,
-                    to=phone,
-                )
-                print(f"  SMS sent to {phone[-4:].rjust(len(phone), '*')}")
-            except Exception as e:
-                print(f"  SMS failed to {phone[-4:].rjust(len(phone), '*')}: {e}")
-                success = False
-
-        if success:
+        if self.channel.send(message):
             self.alert_count += 1
-            self.alerts.append(alert_record)
-
-        return success
+            self.alerts.append({
+                "timestamp": datetime.now().isoformat(),
+                "mrn": assessment.patient.mrn,
+                "message_preview": message[:50] + "...",
+            })
+            return True
+        return False
 
     def get_alert_count(self) -> int:
         """Return number of alerts sent."""
@@ -125,9 +98,4 @@ class SMSAlerter(BaseAlerter):
 
     def is_configured(self) -> bool:
         """Check if SMS alerting is properly configured."""
-        return all([
-            self.account_sid,
-            self.auth_token,
-            self.from_number,
-            self.to_numbers,
-        ])
+        return self.channel is not None and self.channel.is_configured()

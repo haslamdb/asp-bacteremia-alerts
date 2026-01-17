@@ -1,8 +1,17 @@
 """Configuration management for ASP Bacteremia Alerts."""
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Project paths
+PROJECT_ROOT = Path(__file__).parent.parent  # asp-bacteremia-alerts/
+ASP_ALERTS_ROOT = PROJECT_ROOT.parent  # asp-alerts/
+
+# Add common module to path
+if str(ASP_ALERTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(ASP_ALERTS_ROOT))
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent / ".env"
@@ -54,6 +63,9 @@ class Config:
             if ":" in entry:
                 phone, carrier = entry.strip().split(":", 1)
                 SMS_EMAIL_RECIPIENTS.append({"phone": phone.strip(), "carrier": carrier.strip()})
+
+    # Teams webhook settings
+    TEAMS_WEBHOOK_URL: str | None = os.getenv("TEAMS_WEBHOOK_URL")
 
     # Polling settings
     POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL", "300"))

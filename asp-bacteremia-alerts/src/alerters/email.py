@@ -1,18 +1,16 @@
-"""Email alerter using SMTP."""
+"""Email alerter using shared email channel."""
 
-import smtplib
-import ssl
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 from .base import BaseAlerter
 from ..models import CoverageAssessment
-from ..config import config
+from ..config import config  # This adds common to sys.path
+from common.channels import EmailChannel
+from common.channels.email import EmailMessage
 
 
 class EmailAlerter(BaseAlerter):
-    """Send email alerts via SMTP."""
+    """Send email alerts via SMTP using shared channel."""
 
     def __init__(
         self,
@@ -25,7 +23,7 @@ class EmailAlerter(BaseAlerter):
         use_tls: bool = True,
     ):
         """
-        Initialize SMTP email alerter.
+        Initialize email alerter.
 
         Args:
             smtp_server: SMTP server hostname
@@ -36,13 +34,16 @@ class EmailAlerter(BaseAlerter):
             to_addresses: List of recipient email addresses
             use_tls: Whether to use STARTTLS
         """
-        self.smtp_server = smtp_server or config.SMTP_SERVER
-        self.smtp_port = smtp_port or config.SMTP_PORT
-        self.smtp_username = smtp_username or config.SMTP_USERNAME
-        self.smtp_password = smtp_password or config.SMTP_PASSWORD
-        self.from_address = from_address or config.ALERT_EMAIL_FROM
-        self.to_addresses = to_addresses or config.ALERT_EMAIL_TO
-        self.use_tls = use_tls
+        server = smtp_server or config.SMTP_SERVER
+        self.channel = EmailChannel(
+            smtp_server=server,
+            smtp_port=smtp_port or config.SMTP_PORT,
+            smtp_username=smtp_username or config.SMTP_USERNAME,
+            smtp_password=smtp_password or config.SMTP_PASSWORD,
+            from_address=from_address or config.ALERT_EMAIL_FROM,
+            to_addresses=to_addresses or config.ALERT_EMAIL_TO,
+            use_tls=use_tls,
+        ) if server else None
 
         self.alert_count = 0
         self.alerts: list[dict] = []
@@ -50,7 +51,6 @@ class EmailAlerter(BaseAlerter):
     def _format_subject(self, assessment: CoverageAssessment) -> str:
         """Format email subject line."""
         organism = assessment.culture.organism or "Unknown organism"
-        # Truncate organism name if too long
         if len(organism) > 40:
             organism = organism[:37] + "..."
         return f"[ASP Alert] Bacteremia Coverage - {assessment.patient.mrn} - {organism}"
@@ -59,8 +59,6 @@ class EmailAlerter(BaseAlerter):
         """Format email body as HTML."""
         current_abx = [a.medication_name for a in assessment.current_antibiotics]
         abx_list = ", ".join(current_abx) if current_abx else "<em>None</em>"
-
-        missing = ", ".join(assessment.missing_coverage) if assessment.missing_coverage else "N/A"
 
         html = f"""
         <html>
@@ -173,58 +171,25 @@ This is an automated alert from ASP Bacteremia Monitor
 
     def send_alert(self, assessment: CoverageAssessment) -> bool:
         """Send email alert to configured addresses."""
-        if not self.to_addresses:
-            print("  Email: No recipient addresses configured")
-            return False
-
-        if not self.smtp_server:
+        if not self.channel:
             print("  Email: SMTP server not configured")
             return False
 
-        # Create message
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = self._format_subject(assessment)
-        msg["From"] = self.from_address or f"asp-alerts@{self.smtp_server}"
-        msg["To"] = ", ".join(self.to_addresses)
+        message = EmailMessage(
+            subject=self._format_subject(assessment),
+            text_body=self._format_text_body(assessment),
+            html_body=self._format_html_body(assessment),
+        )
 
-        # Attach both plain text and HTML versions
-        text_part = MIMEText(self._format_text_body(assessment), "plain")
-        html_part = MIMEText(self._format_html_body(assessment), "html")
-        msg.attach(text_part)
-        msg.attach(html_part)
-
-        alert_record = {
-            "timestamp": datetime.now().isoformat(),
-            "mrn": assessment.patient.mrn,
-            "subject": msg["Subject"],
-            "recipients": self.to_addresses,
-        }
-
-        try:
-            if self.smtp_port == 465:
-                # SSL connection
-                context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
-                    if self.smtp_username and self.smtp_password:
-                        server.login(self.smtp_username, self.smtp_password)
-                    server.sendmail(msg["From"], self.to_addresses, msg.as_string())
-            else:
-                # Plain or STARTTLS connection
-                with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                    if self.use_tls:
-                        server.starttls()
-                    if self.smtp_username and self.smtp_password:
-                        server.login(self.smtp_username, self.smtp_password)
-                    server.sendmail(msg["From"], self.to_addresses, msg.as_string())
-
+        if self.channel.send(message):
             self.alert_count += 1
-            self.alerts.append(alert_record)
-            print(f"  Email sent to {len(self.to_addresses)} recipient(s)")
+            self.alerts.append({
+                "timestamp": datetime.now().isoformat(),
+                "mrn": assessment.patient.mrn,
+                "subject": message.subject,
+            })
             return True
-
-        except Exception as e:
-            print(f"  Email failed: {e}")
-            return False
+        return False
 
     def get_alert_count(self) -> int:
         """Return number of alerts sent."""
@@ -232,4 +197,4 @@ This is an automated alert from ASP Bacteremia Monitor
 
     def is_configured(self) -> bool:
         """Check if email alerting is properly configured."""
-        return bool(self.smtp_server and self.to_addresses)
+        return self.channel is not None and self.channel.is_configured()
