@@ -7,7 +7,7 @@ Antimicrobial Stewardship Program (ASP) clinical decision support tool that moni
 - **FHIR-native**: Queries blood cultures and medications via HL7 FHIR R4 API
 - **Dual-environment**: Develop locally with HAPI FHIR, deploy to Epic with zero code changes
 - **Clinical rules engine**: Extensible organism/antibiotic coverage matching
-- **Pluggable alerting**: Console, email, SMS (extensible)
+- **Pluggable alerting**: Console, email, Teams (extensible)
 - **Comprehensive test suite**: Unit tests and integration test scenarios
 
 ## Quick Start
@@ -84,8 +84,8 @@ Alerts are routed by severity:
 
 | Severity | Organisms | Channels |
 |----------|-----------|----------|
-| **CRITICAL** | MRSA, VRE, Pseudomonas, Candida | Console + Email + SMS |
-| **WARNING** | Other gram-negatives | Console + Email |
+| **CRITICAL** | MRSA, VRE, Pseudomonas, Candida | Console + Email + Teams |
+| **WARNING** | Other gram-negatives | Console + Email + Teams |
 
 See [docs/notifications.md](docs/notifications.md) for setup details.
 
@@ -106,11 +106,8 @@ EPIC_PRIVATE_KEY_PATH=./keys/epic_private.pem
 SMTP_SERVER=smtp.hospital.org
 ALERT_EMAIL_TO=asp-team@hospital.org
 
-# SMS alerts (Twilio)
-TWILIO_ACCOUNT_SID=ACxxxx
-TWILIO_AUTH_TOKEN=xxxx
-TWILIO_FROM_NUMBER=+15135551234
-ALERT_SMS_TO_NUMBERS=+15135559876
+# Teams alerts (Workflows webhook)
+TEAMS_WEBHOOK_URL=https://prod-XX.westus.logic.azure.com/...
 ```
 
 ## Documentation
@@ -118,7 +115,7 @@ ALERT_SMS_TO_NUMBERS=+15135559876
 - [Architecture](docs/architecture.md) - System design and components
 - [Setup Guide](docs/setup.md) - Installation and configuration
 - [Clinical Rules](docs/clinical-rules.md) - Coverage logic documentation
-- [Notifications](docs/notifications.md) - Email and SMS alert setup
+- [Notifications](docs/notifications.md) - Email and Teams alert setup
 
 ## Development
 

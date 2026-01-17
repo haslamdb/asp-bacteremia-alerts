@@ -10,10 +10,8 @@ Always enabled. Prints alerts to stdout for development and logging.
 ### Email (SMTP)
 Sends formatted HTML/plain-text emails with full alert details.
 
-### SMS (Twilio)
-Sends text messages for critical alerts. Supports HIPAA-conscious options:
-- **With PHI**: Includes MRN, location, organism (default)
-- **Without PHI**: Just "check Epic" notification
+### Microsoft Teams (Workflows Webhook)
+Sends Adaptive Card alerts to Teams channels via Power Automate Workflows.
 
 ## Severity-Based Routing
 
@@ -21,8 +19,8 @@ Alerts are automatically classified by severity:
 
 | Severity | Criteria | Channels |
 |----------|----------|----------|
-| **CRITICAL** | MRSA, VRE, Pseudomonas, Candida, ESBL, CRE | Console + Email + SMS |
-| **WARNING** | Other organisms with inadequate coverage | Console + Email |
+| **CRITICAL** | MRSA, VRE, Pseudomonas, Candida, ESBL, CRE | Console + Email + Teams |
+| **WARNING** | Other organisms with inadequate coverage | Console + Email + Teams |
 | **INFO** | Informational (future: daily summaries) | Console + Email |
 
 ## Configuration
@@ -40,38 +38,22 @@ ALERT_EMAIL_FROM=asp-alerts@hospital.org
 ALERT_EMAIL_TO=asp-team@hospital.org,pharmacist@hospital.org
 ```
 
-### SMS Setup (Twilio)
+### Teams Setup (Workflows Webhook)
 
-1. Create account at [twilio.com](https://twilio.com)
-2. Get Account SID and Auth Token from console
-3. Purchase a phone number
+1. In your Teams channel, click `...` > **Workflows**
+2. Search for "Post to a channel when a webhook request is received"
+3. Select team/channel and click **Add workflow**
+4. Copy the webhook URL
 
 ```bash
 # .env
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_FROM_NUMBER=+15135551234
-
-# Recipient phone numbers (E.164 format)
-ALERT_SMS_TO_NUMBERS=+15135559876,+15135555555
-
-# Set to false for HIPAA-safe "check Epic" messages
-ALERT_SMS_INCLUDE_PHI=true
+TEAMS_WEBHOOK_URL=https://prod-XX.westus.logic.azure.com:443/workflows/...
 ```
 
-**Twilio pricing**: ~$0.0079 per SMS. For 10 alerts/day = ~$2.40/month.
-
-## HIPAA Considerations
-
-Standard SMS is not encrypted. Options:
-
-1. **No PHI (safest)**: Set `ALERT_SMS_INCLUDE_PHI=false`
-   - Message: "ASP Alert: New bacteremia coverage concern detected. Check Epic In Basket for details."
-
-2. **Minimal PHI (common practice)**: Set `ALERT_SMS_INCLUDE_PHI=true`
-   - Message includes: MRN, location, organism, current antibiotics
-
-3. **HIPAA-compliant SMS**: Use services like TigerConnect, Imprivata Cortext, or OhMD instead of Twilio.
+**Test your webhook:**
+```bash
+python test_teams_webhook.py "YOUR_WEBHOOK_URL"
+```
 
 ## Example Alert Messages
 
@@ -95,21 +77,18 @@ Subject: [ASP Alert] Bacteremia Coverage - TEST001 - MRSA
 └─────────────────────────────────────────────┘
 ```
 
-### SMS (with PHI)
+### Teams (Adaptive Card)
 
 ```
-ASP Bacteremia Alert
-MRN: TEST001
-Loc: 5NW
-Organism: MRSA
-Abx: Cefazolin 2g IV
-Action: Add vancomycin or daptomycin for MRSA coverage
-```
+🔴 BACTEREMIA COVERAGE ALERT
+───────────────────────────────
+Patient:      Alice Johnson (TEST001)
+Location:     5NW
+Organism:     MRSA
+Current Abx:  Cefazolin 2g IV
+Status:       ⚠️ INADEQUATE
 
-### SMS (without PHI)
-
-```
-ASP Alert: New bacteremia coverage concern detected. Check Epic In Basket for details.
+Recommendation: Add vancomycin or daptomycin for MRSA coverage
 ```
 
 ## Testing Notifications
@@ -134,15 +113,14 @@ alerter = EmailAlerter()
 alerter.send_alert(assessment)
 ```
 
-### Test SMS
-```python
-from src.alerters.sms import SMSAlerter
+### Test Teams
+```bash
+# Quick test with URL
+python test_teams_webhook.py "YOUR_WEBHOOK_URL"
 
-alerter = SMSAlerter()
-if alerter.is_configured():
-    alerter.send_alert(assessment)
-else:
-    print("SMS not configured")
+# Or from Python
+from src.alerters.teams import test_webhook
+test_webhook("YOUR_WEBHOOK_URL")
 ```
 
 ## Extending Notifications
@@ -182,7 +160,6 @@ class MyAlerter(BaseAlerter):
 
 ## Future Enhancements
 
-- Microsoft Teams webhooks
 - Slack webhooks
 - PagerDuty/Opsgenie for on-call escalation
 - Epic In Basket via FHIR Communication resource

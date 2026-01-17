@@ -22,7 +22,7 @@ Real-time monitoring of blood culture results with antibiotic coverage assessmen
 - FHIR R4 integration (HAPI FHIR for dev, Epic for production)
 - Coverage rules for common pathogens (MRSA, VRE, Pseudomonas, Candida, etc.)
 - Gram stain-based empiric coverage recommendations
-- Multi-channel alerts: Email, Microsoft Teams, SMS
+- Multi-channel alerts: Email, Microsoft Teams
 
 **[Documentation →](asp-bacteremia-alerts/README.md)**
 
@@ -33,8 +33,6 @@ Real-time monitoring of blood culture results with antibiotic coverage assessmen
 Reusable notification channels for all ASP modules:
 
 - **EmailChannel** - SMTP email with HTML/text support
-- **SMSChannel** - Twilio SMS integration
-- **SMSEmailChannel** - SMS via carrier email gateways (no Twilio needed)
 - **TeamsWebhookChannel** - Microsoft Teams via Workflows/Power Automate
 
 ## Future Modules (Roadmap)
@@ -80,7 +78,6 @@ Each module uses environment variables for configuration. Copy `.env.template` t
 - **FHIR Server**: Local HAPI FHIR or Epic production
 - **Email**: SMTP server credentials
 - **Teams**: Workflows webhook URL
-- **SMS**: Twilio credentials or carrier email gateway
 
 ## Development
 
