@@ -2,6 +2,8 @@
 
 Monitors broad-spectrum antibiotic usage duration and alerts when medications exceed configurable thresholds. Part of the [ASP Alerts](../README.md) system.
 
+> **Disclaimer:** All patient data used for testing is **synthetic (artificial)**. **No actual patient data exists in this repository.**
+
 ## Overview
 
 This module tracks active medication orders for broad-spectrum antibiotics (meropenem, vancomycin, etc.) and generates alerts when usage duration exceeds a configurable threshold (default: 72 hours). This supports antimicrobial stewardship by prompting review of prolonged broad-spectrum therapy.

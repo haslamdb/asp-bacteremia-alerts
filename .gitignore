@@ -39,3 +39,7 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Synthea and generated data
+tools/
+data/synthea/

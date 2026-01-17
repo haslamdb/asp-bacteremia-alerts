@@ -2,6 +2,8 @@
 
 Antimicrobial Stewardship Program (ASP) clinical decision support tool that monitors blood culture results and alerts when patients may have inadequate antibiotic coverage.
 
+> **Disclaimer:** All patient data used for testing is **synthetic (artificial)**. **No actual patient data exists in this repository.**
+
 ## Features
 
 - **FHIR-native**: Queries blood cultures and medications via HL7 FHIR R4 API

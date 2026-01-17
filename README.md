@@ -2,6 +2,8 @@
 
 Antimicrobial Stewardship Program (ASP) clinical decision support and alerting system. This monorepo contains modules for real-time monitoring, alerting, and analytics to support antimicrobial stewardship activities.
 
+> **Disclaimer:** All patient data in this repository is **synthetic (artificial)** and was generated using [Synthea](https://github.com/synthetichealth/synthea) or custom test data generators. **No actual patient data exists in this repository.** Any resemblance to real patients is coincidental.
+
 ## Architecture
 
 ```
