@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Active Alerts - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Active Alerts</h1>
+    <div class="stats-summary">
+        <span class="stat">Total: {{ stats.get('total', 0) }}</span>
+        <span class="stat">Pending: {{ stats.get('status_pending', 0) }}</span>
+        <span class="stat">Sent: {{ stats.get('status_sent', 0) }}</span>
+        <span class="stat">Acknowledged: {{ stats.get('status_acknowledged', 0) }}</span>
+        <span class="stat">Snoozed: {{ stats.get('status_snoozed', 0) }}</span>
+    </div>
+</div>
+
+<div class="filters">
+    <form method="get" class="filter-form">
+        <label>
+            Type:
+            <select name="type" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="bacteremia" {% if current_type == 'bacteremia' %}selected{% endif %}>Bacteremia</option>
+                <option value="broad_spectrum_usage" {% if current_type == 'broad_spectrum_usage' %}selected{% endif %}>Broad Spectrum Usage</option>
+            </select>
+        </label>
+        <label>
+            MRN:
+            <input type="text" name="mrn" value="{{ current_mrn or '' }}" placeholder="Patient MRN">
+        </label>
+        <button type="submit">Filter</button>
+        {% if current_type or current_mrn %}
+        <a href="{{ url_for('views.alerts_active') }}" class="btn-link">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if alerts %}
+<table class="alerts-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Patient</th>
+            <th>Title</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in alerts %}
+        <tr class="severity-{{ alert.severity }}">
+            <td><a href="{{ url_for('views.alert_detail', alert_id=alert.id) }}">{{ alert.id }}</a></td>
+            <td>{{ alert.alert_type.value }}</td>
+            <td>
+                {% if alert.patient_name %}
+                    {{ alert.patient_name }}
+                    {% if alert.patient_mrn %}<br><small>MRN: {{ alert.patient_mrn }}</small>{% endif %}
+                {% else %}
+                    <em>Unknown</em>
+                {% endif %}
+            </td>
+            <td>{{ alert.title or alert.summary or '-' }}</td>
+            <td><span class="badge badge-{{ alert.severity }}">{{ alert.severity }}</span></td>
+            <td>
+                <span class="badge badge-status-{{ alert.status.value }}">{{ alert.status.value }}</span>
+                {% if alert.status.value == 'snoozed' and alert.snoozed_until %}
+                <br><small>Until: {{ alert.snoozed_until.strftime('%m/%d %H:%M') }}</small>
+                {% endif %}
+            </td>
+            <td>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else '-' }}</td>
+            <td class="actions">
+                <a href="{{ url_for('views.alert_detail', alert_id=alert.id) }}" class="btn btn-small">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No active alerts found.</p>
+</div>
+{% endif %}
+{% endblock %}

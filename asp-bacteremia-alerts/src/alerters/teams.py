@@ -8,7 +8,7 @@ from datetime import datetime
 from .base import BaseAlerter
 from ..models import CoverageAssessment
 from ..config import config  # This adds common to sys.path
-from common.channels import TeamsWebhookChannel, TeamsMessage
+from common.channels import TeamsWebhookChannel, TeamsMessage, build_teams_actions
 
 
 class TeamsAlerter(BaseAlerter):
@@ -18,6 +18,7 @@ class TeamsAlerter(BaseAlerter):
         self,
         webhook_url: str | None = None,
         include_phi: bool = True,
+        include_actions: bool = True,
     ):
         """
         Initialize Teams alerter.
@@ -25,11 +26,15 @@ class TeamsAlerter(BaseAlerter):
         Args:
             webhook_url: Teams Workflow webhook URL (or from env TEAMS_WEBHOOK_URL)
             include_phi: Whether to include patient details in message
+            include_actions: Whether to include action buttons (default True)
         """
         url = webhook_url or config.TEAMS_WEBHOOK_URL
 
         self.channel = TeamsWebhookChannel(webhook_url=url) if url else None
         self.include_phi = include_phi
+        self.include_actions = include_actions
+        self.dashboard_base_url = config.DASHBOARD_BASE_URL
+        self.dashboard_api_key = config.DASHBOARD_API_KEY
         self.alert_count = 0
         self.alerts: list[dict] = []
 
@@ -60,8 +65,20 @@ class TeamsAlerter(BaseAlerter):
 
         return facts
 
-    def send_alert(self, assessment: CoverageAssessment) -> bool:
-        """Send alert to Teams channel via Workflows webhook."""
+    def send_alert(
+        self,
+        assessment: CoverageAssessment,
+        alert_id: str | None = None,
+    ) -> bool:
+        """Send alert to Teams channel via Workflows webhook.
+
+        Args:
+            assessment: The coverage assessment to alert on
+            alert_id: Optional alert ID for action buttons
+
+        Returns:
+            True if sent successfully
+        """
         if not self.channel:
             print("  Teams: Webhook URL not configured")
             return False
@@ -69,17 +86,29 @@ class TeamsAlerter(BaseAlerter):
         facts = self._build_facts(assessment)
         recommendation_text = f"**Recommendation:** {assessment.recommendation}"
 
+        # Build action buttons if alert_id is provided
+        actions = []
+        if self.include_actions and alert_id and self.dashboard_base_url:
+            actions = build_teams_actions(
+                alert_id=alert_id,
+                base_url=self.dashboard_base_url,
+                api_key=self.dashboard_api_key,
+            )
+
         message = TeamsMessage(
             title="🔴 BACTEREMIA COVERAGE ALERT",
             facts=facts,
             text=recommendation_text,
             color="Attention",
+            alert_id=alert_id,
+            actions=actions,
         )
 
         if self.channel.send(message):
             self.alert_count += 1
             self.alerts.append({
                 "timestamp": datetime.now().isoformat(),
+                "alert_id": alert_id,
                 "mrn": assessment.patient.mrn if self.include_phi else "redacted",
                 "organism": assessment.culture.organism if self.include_phi else "redacted",
             })

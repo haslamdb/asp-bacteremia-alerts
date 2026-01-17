@@ -12,7 +12,11 @@ class ConsoleAlerter(BaseAlerter):
         self.alert_count = 0
         self.alerts: list[dict] = []
 
-    def send_alert(self, assessment: CoverageAssessment) -> bool:
+    def send_alert(
+        self,
+        assessment: CoverageAssessment,
+        alert_id: str | None = None,
+    ) -> bool:
         """Print alert to console."""
         self.alert_count += 1
 
@@ -20,6 +24,7 @@ class ConsoleAlerter(BaseAlerter):
 
         alert_record = {
             "timestamp": datetime.now().isoformat(),
+            "alert_id": alert_id,
             "patient_name": assessment.patient.name,
             "mrn": assessment.patient.mrn,
             "location": assessment.patient.location,
@@ -33,6 +38,8 @@ class ConsoleAlerter(BaseAlerter):
 
         print("\n" + "=" * 70)
         print("BACTEREMIA COVERAGE ALERT")
+        if alert_id:
+            print(f"  Alert ID:    {alert_id}")
         print("=" * 70)
         print(f"  Patient:     {assessment.patient.name} ({assessment.patient.mrn})")
         print(f"  Location:    {assessment.patient.location or 'Unknown'}")

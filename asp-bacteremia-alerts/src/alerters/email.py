@@ -169,7 +169,11 @@ This is an automated alert from ASP Bacteremia Monitor
         """.strip()
         return text
 
-    def send_alert(self, assessment: CoverageAssessment) -> bool:
+    def send_alert(
+        self,
+        assessment: CoverageAssessment,
+        alert_id: str | None = None,
+    ) -> bool:
         """Send email alert to configured addresses."""
         if not self.channel:
             print("  Email: SMTP server not configured")
@@ -185,6 +189,7 @@ This is an automated alert from ASP Bacteremia Monitor
             self.alert_count += 1
             self.alerts.append({
                 "timestamp": datetime.now().isoformat(),
+                "alert_id": alert_id,
                 "mrn": assessment.patient.mrn,
                 "subject": message.subject,
             })

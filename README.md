@@ -6,10 +6,12 @@ Antimicrobial Stewardship Program (ASP) clinical decision support and alerting s
 
 ```
 asp-alerts/
-├── common/                     # Shared notification infrastructure
-│   └── channels/               # Email, SMS, Teams webhooks
-├── asp-bacteremia-alerts/      # Blood culture coverage monitoring (active)
-└── [future modules]            # See roadmap below
+├── common/                         # Shared infrastructure
+│   ├── channels/                   # Email, SMS, Teams webhooks
+│   └── alert_store/                # Persistent alert tracking (SQLite)
+├── dashboard/                      # Web dashboard for alert management
+├── asp-bacteremia-alerts/          # Blood culture coverage monitoring
+└── antimicrobial-usage-alerts/     # Broad-spectrum usage monitoring
 ```
 
 ## Current Modules
@@ -22,9 +24,33 @@ Real-time monitoring of blood culture results with antibiotic coverage assessmen
 - FHIR R4 integration (HAPI FHIR for dev, Epic for production)
 - Coverage rules for common pathogens (MRSA, VRE, Pseudomonas, Candida, etc.)
 - Gram stain-based empiric coverage recommendations
-- Multi-channel alerts: Email, Microsoft Teams
+- Multi-channel alerts: Email, Microsoft Teams with action buttons
 
 **[Documentation →](asp-bacteremia-alerts/README.md)**
+
+### antimicrobial-usage-alerts
+
+Monitors broad-spectrum antibiotic usage duration. Alerts when meropenem, vancomycin, or other monitored antibiotics exceed configurable thresholds (default 72 hours).
+
+**Features:**
+- Duration-based alerting for broad-spectrum antibiotics
+- Configurable thresholds and monitored medications
+- Severity escalation (warning at threshold, critical at 2x threshold)
+- Teams alerts with acknowledge/snooze buttons
+
+**[Documentation →](antimicrobial-usage-alerts/README.md)**
+
+### dashboard
+
+Web-based alert management dashboard for viewing, acknowledging, and resolving alerts.
+
+**Features:**
+- Active and historical alert views
+- Acknowledge, snooze, and resolve actions
+- Resolution tracking with reasons and notes
+- Audit trail for compliance
+- Teams button callbacks
+- API for programmatic access
 
 ## Shared Infrastructure
 
@@ -33,19 +59,18 @@ Real-time monitoring of blood culture results with antibiotic coverage assessmen
 Reusable notification channels for all ASP modules:
 
 - **EmailChannel** - SMTP email with HTML/text support
-- **TeamsWebhookChannel** - Microsoft Teams via Workflows/Power Automate
+- **TeamsWebhookChannel** - Microsoft Teams via Workflows/Power Automate with action buttons
+- **SMSChannel** - Twilio SMS integration
+- **SMSEmailChannel** - SMS via carrier email gateways
 
-## Future Modules (Roadmap)
+### common/alert_store
 
-| Priority | Module | Description |
-|----------|--------|-------------|
-| High | **Automated Metrics** | Auto-generate DOT reports, benchmarks, and quality metrics with AI-written narrative summaries |
-| High | **Guideline Adherence** | Monitor prescribing against fever/neutropenia and other guidelines; report concordance |
-| High | **De-escalation Alerts** | 48-72 hour alerts for broad-spectrum antibiotics with culture results and specific recommendations |
-| High | **Bug-Drug Mismatch** | Identify when organisms are not covered by current therapy; suggest alternatives |
-| Medium | **Predictive Risk Models** | ML models to identify patients at high risk for resistant infections or C. diff |
-| Medium | **Duration Optimization** | Evidence-based duration recommendations at approval with reassessment triggers |
-| Low | **Automated Approvals** | AI pre-screening of antibiotic approval requests with auto-approval or ASP referral (Phase 2) |
+SQLite-backed persistent storage for alert lifecycle management:
+
+- **Deduplication** - Prevents re-alerting on the same source (culture, order)
+- **Status tracking** - Pending, Sent, Acknowledged, Snoozed, Resolved
+- **Resolution reasons** - Track how alerts were handled
+- **Audit trail** - Full history of alert actions for compliance
 
 ## Quick Start
 
@@ -54,30 +79,69 @@ Reusable notification channels for all ASP modules:
 git clone https://github.com/haslamdb/asp-alerts.git
 cd asp-alerts
 
-# Set up bacteremia alerts module
-cd asp-bacteremia-alerts
+# Set up a Python virtual environment
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+
+# Install dependencies for the module you want to use
+pip install -r asp-bacteremia-alerts/requirements.txt
+# or
+pip install -r antimicrobial-usage-alerts/requirements.txt
+# or
+pip install -r dashboard/requirements.txt
 
 # Configure environment
-cp .env.template .env
+cp asp-bacteremia-alerts/.env.template asp-bacteremia-alerts/.env
 # Edit .env with your FHIR server and notification settings
 
 # Start local FHIR server (for development)
+cd asp-bacteremia-alerts
 docker-compose up -d
 
 # Run the monitor
 python -m src.monitor
 ```
 
+### Running the Dashboard
+
+```bash
+cd asp-alerts/dashboard
+pip install -r requirements.txt
+
+# Copy and configure environment
+cp .env.template .env
+
+# Run the dashboard
+python -m app
+# or
+flask run
+
+# Visit http://localhost:5000
+```
+
 ## Configuration
 
 Each module uses environment variables for configuration. Copy `.env.template` to `.env` and configure:
 
-- **FHIR Server**: Local HAPI FHIR or Epic production
-- **Email**: SMTP server credentials
-- **Teams**: Workflows webhook URL
+| Setting | Description |
+|---------|-------------|
+| `FHIR_BASE_URL` | Local HAPI FHIR or Epic production URL |
+| `TEAMS_WEBHOOK_URL` | Microsoft Teams Workflows webhook |
+| `SMTP_SERVER` | SMTP server for email alerts |
+| `DASHBOARD_BASE_URL` | URL for dashboard (used in Teams buttons) |
+| `DASHBOARD_API_KEY` | API key for dashboard authentication |
+| `ALERT_DB_PATH` | Path to SQLite database (default: ~/.asp-alerts/alerts.db) |
+
+## Future Modules (Roadmap)
+
+| Priority | Module | Description |
+|----------|--------|-------------|
+| High | **Automated Metrics** | Auto-generate DOT reports, benchmarks, and quality metrics with AI-written narrative summaries |
+| High | **Guideline Adherence** | Monitor prescribing against fever/neutropenia and other guidelines; report concordance |
+| High | **Bug-Drug Mismatch** | Identify when organisms are not covered by current therapy; suggest alternatives |
+| Medium | **Predictive Risk Models** | ML models to identify patients at high risk for resistant infections or C. diff |
+| Medium | **Duration Optimization** | Evidence-based duration recommendations at approval with reassessment triggers |
+| Low | **Automated Approvals** | AI pre-screening of antibiotic approval requests with auto-approval or ASP referral |
 
 ## Development
 
@@ -90,31 +154,52 @@ Each module uses environment variables for configuration. Copy `.env.template` t
 ### Testing
 
 ```bash
-# Set up test data in local FHIR server
-python -m src.setup_test_data
+# Generate test patient data
+python scripts/generate_pediatric_data.py --count 10
 
-# Run monitor once
+# Run bacteremia monitor once
+cd asp-bacteremia-alerts
 python -m src.monitor
 
-# Run continuous monitoring
-python -m src.monitor --continuous
+# Run usage monitor with dry-run
+cd antimicrobial-usage-alerts
+python -m src.runner --once --dry-run
+
+# Check dashboard shows alerts
+cd dashboard
+flask run
 ```
 
 ### Project Structure
 
 ```
-asp-bacteremia-alerts/
-├── src/
-│   ├── alerters/          # Notification handlers
-│   ├── config.py          # Environment configuration
-│   ├── coverage_rules.py  # Antibiotic coverage logic
-│   ├── fhir_client.py     # FHIR API client
-│   ├── matcher.py         # Coverage assessment
-│   ├── models.py          # Data models
-│   └── monitor.py         # Main monitoring service
-├── tests/                 # Unit tests
-├── docs/                  # Documentation
-└── docker-compose.yml     # Local FHIR server
+asp-alerts/
+├── common/
+│   ├── channels/              # Notification channels
+│   │   ├── email.py
+│   │   ├── sms.py
+│   │   ├── sms_email.py
+│   │   └── teams.py
+│   └── alert_store/           # Persistent alert storage
+│       ├── models.py
+│       ├── store.py
+│       └── schema.sql
+├── dashboard/
+│   ├── app.py                 # Flask application
+│   ├── routes/                # API and view routes
+│   ├── templates/             # Jinja2 templates
+│   └── static/                # CSS
+├── asp-bacteremia-alerts/
+│   └── src/
+│       ├── alerters/          # Notification handlers
+│       ├── monitor.py         # Main monitoring service
+│       └── coverage_rules.py  # Antibiotic coverage logic
+├── antimicrobial-usage-alerts/
+│   └── src/
+│       ├── alerters/          # Notification handlers
+│       ├── monitor.py         # Usage monitoring service
+│       └── runner.py          # CLI entry point
+└── scripts/                   # Utilities
 ```
 
 ## License

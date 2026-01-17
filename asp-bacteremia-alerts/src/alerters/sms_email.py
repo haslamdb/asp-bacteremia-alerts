@@ -79,7 +79,11 @@ class SMSEmailAlerter(BaseAlerter):
         else:
             return "ASP Alert: Bacteremia coverage concern. Check Epic."
 
-    def send_alert(self, assessment: CoverageAssessment) -> bool:
+    def send_alert(
+        self,
+        assessment: CoverageAssessment,
+        alert_id: str | None = None,
+    ) -> bool:
         """Send SMS via email gateway."""
         if not self.channel:
             print("  SMS-Email: SMTP server not configured")
@@ -91,6 +95,7 @@ class SMSEmailAlerter(BaseAlerter):
             self.alert_count += 1
             self.alerts.append({
                 "timestamp": datetime.now().isoformat(),
+                "alert_id": alert_id,
                 "mrn": assessment.patient.mrn,
             })
             return True

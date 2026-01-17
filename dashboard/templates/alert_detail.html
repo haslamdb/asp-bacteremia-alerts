@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Alert {{ alert.id }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Alert Details</h1>
+    <a href="{{ url_for('views.alerts_active') }}" class="btn btn-secondary">Back to Active</a>
+</div>
+
+<div class="alert-detail-card">
+    <div class="alert-header">
+        <div class="alert-id">
+            <span class="badge badge-{{ alert.severity }}">{{ alert.severity.upper() }}</span>
+            <span class="badge badge-status-{{ alert.status.value }}">{{ alert.status.value.upper() }}</span>
+            <span class="alert-type">{{ alert.alert_type.value }}</span>
+        </div>
+        <div class="alert-title">{{ alert.title or 'Untitled Alert' }}</div>
+    </div>
+
+    <div class="alert-body">
+        <div class="info-section">
+            <h3>Patient Information</h3>
+            <dl>
+                <dt>Name</dt>
+                <dd>{{ alert.patient_name or 'Unknown' }}</dd>
+                <dt>MRN</dt>
+                <dd>{{ alert.patient_mrn or 'Unknown' }}</dd>
+                <dt>Patient ID</dt>
+                <dd>{{ alert.patient_id or 'Unknown' }}</dd>
+            </dl>
+        </div>
+
+        <div class="info-section">
+            <h3>Alert Information</h3>
+            <dl>
+                <dt>Alert ID</dt>
+                <dd>{{ alert.id }}</dd>
+                <dt>Source ID</dt>
+                <dd>{{ alert.source_id }}</dd>
+                <dt>Created</dt>
+                <dd>{{ alert.created_at.strftime('%Y-%m-%d %H:%M:%S') if alert.created_at else '-' }}</dd>
+                <dt>Sent</dt>
+                <dd>{{ alert.sent_at.strftime('%Y-%m-%d %H:%M:%S') if alert.sent_at else 'Not sent' }}</dd>
+                {% if alert.acknowledged_at %}
+                <dt>Acknowledged</dt>
+                <dd>{{ alert.acknowledged_at.strftime('%Y-%m-%d %H:%M:%S') }} by {{ alert.acknowledged_by or 'Unknown' }}</dd>
+                {% endif %}
+                {% if alert.status.value == 'snoozed' and alert.snoozed_until %}
+                <dt>Snoozed Until</dt>
+                <dd>{{ alert.snoozed_until.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                {% endif %}
+                {% if alert.resolved_at %}
+                <dt>Resolved</dt>
+                <dd>{{ alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S') }} by {{ alert.resolved_by or 'Unknown' }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+
+        {% if alert.summary %}
+        <div class="info-section">
+            <h3>Summary</h3>
+            <p>{{ alert.summary }}</p>
+        </div>
+        {% endif %}
+
+        {% if alert.content %}
+        <div class="info-section">
+            <h3>Details</h3>
+            <dl>
+                {% for key, value in alert.content.items() %}
+                <dt>{{ key }}</dt>
+                <dd>{{ value }}</dd>
+                {% endfor %}
+            </dl>
+        </div>
+        {% endif %}
+
+        {% if alert.notes %}
+        <div class="info-section">
+            <h3>Notes</h3>
+            <pre class="notes-content">{{ alert.notes }}</pre>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if alert.status.value != 'resolved' %}
+    <div class="alert-actions">
+        <h3>Quick Actions</h3>
+        <div class="action-buttons">
+            {% if alert.status.value not in ('acknowledged',) %}
+            <form action="{{ url_for('api.acknowledge_alert', alert_id=alert.id) }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-primary">Acknowledge</button>
+            </form>
+            {% endif %}
+
+            <form action="{{ url_for('api.snooze_alert', alert_id=alert.id) }}" method="post" style="display: inline;">
+                <input type="hidden" name="hours" value="4">
+                <button type="submit" class="btn btn-secondary">Snooze 4h</button>
+            </form>
+        </div>
+
+        <div class="resolve-section">
+            <h3>Resolve Alert</h3>
+            <form action="{{ url_for('api.resolve_alert', alert_id=alert.id) }}" method="post" class="resolve-form">
+                <div class="form-group">
+                    <label for="resolution_reason">How was this alert handled?</label>
+                    <select name="resolution_reason" id="resolution_reason" class="form-select" required>
+                        <option value="">-- Select a reason --</option>
+                        {% for value, display in resolution_reasons %}
+                        <option value="{{ value }}">{{ display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes (optional)</label>
+                    <textarea name="notes" id="notes" rows="3" class="form-textarea" placeholder="Add details about the resolution..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success">Resolve Alert</button>
+            </form>
+        </div>
+
+        <div class="note-section">
+            <h4>Add Note (without resolving)</h4>
+            <form action="{{ url_for('api.add_note', alert_id=alert.id) }}" method="post" class="note-form">
+                <textarea name="note" rows="2" placeholder="Enter a note..."></textarea>
+                <button type="submit" class="btn">Add Note</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="resolution-info">
+        <h3>Resolution Details</h3>
+        <dl>
+            <dt>Resolved By</dt>
+            <dd>{{ alert.resolved_by or 'Unknown' }}</dd>
+            <dt>Resolved At</dt>
+            <dd>{{ alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S') if alert.resolved_at else '-' }}</dd>
+            {% if alert.resolution_reason %}
+            <dt>Resolution Reason</dt>
+            <dd>{{ ResolutionReason.display_name(alert.resolution_reason) }}</dd>
+            {% endif %}
+            {% if alert.notes %}
+            <dt>Notes</dt>
+            <dd><pre class="notes-content">{{ alert.notes }}</pre></dd>
+            {% endif %}
+        </dl>
+    </div>
+    {% endif %}
+</div>
+
+{% if audit_log %}
+<div class="audit-section">
+    <h3>Audit Log</h3>
+    <table class="audit-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in audit_log %}
+            <tr>
+                <td>{{ entry.performed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>{{ entry.action.value }}</td>
+                <td>{{ entry.performed_by or 'System' }}</td>
+                <td>{{ entry.details or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

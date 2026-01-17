@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('views.index') }}">{{ app_name }}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('views.alerts_active') }}" {% if request.endpoint == 'views.alerts_active' %}class="active"{% endif %}>Active Alerts</a>
+            <a href="{{ url_for('views.alerts_history') }}" {% if request.endpoint == 'views.alerts_history' %}class="active"{% endif %}>History</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% if request.args.get('msg') %}
+        <div class="flash-message flash-{{ 'success' if 'failed' not in request.args.get('msg') else 'error' }}">
+            {% if request.args.get('msg') == 'acknowledged' %}
+                Alert acknowledged successfully.
+            {% elif request.args.get('msg') == 'snoozed' %}
+                Alert snoozed successfully.
+            {% elif request.args.get('msg') == 'resolved' %}
+                Alert resolved successfully.
+            {% elif request.args.get('msg') == 'ack_failed' %}
+                Failed to acknowledge alert.
+            {% elif request.args.get('msg') == 'snooze_failed' %}
+                Failed to snooze alert.
+            {% else %}
+                {{ request.args.get('msg') }}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>ASP Alerts Dashboard</p>
+    </footer>
+</body>
+</html>

@@ -74,7 +74,11 @@ class SMSAlerter(BaseAlerter):
                 "Check Epic In Basket for details."
             )
 
-    def send_alert(self, assessment: CoverageAssessment) -> bool:
+    def send_alert(
+        self,
+        assessment: CoverageAssessment,
+        alert_id: str | None = None,
+    ) -> bool:
         """Send SMS alert to configured numbers."""
         if not self.channel:
             print("  SMS: Twilio credentials not configured")
@@ -86,6 +90,7 @@ class SMSAlerter(BaseAlerter):
             self.alert_count += 1
             self.alerts.append({
                 "timestamp": datetime.now().isoformat(),
+                "alert_id": alert_id,
                 "mrn": assessment.patient.mrn,
                 "message_preview": message[:50] + "...",
             })

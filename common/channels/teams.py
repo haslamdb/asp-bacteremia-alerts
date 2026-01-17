@@ -18,12 +18,22 @@ from datetime import datetime
 
 
 @dataclass
+class TeamsAction:
+    """Action button for Teams Adaptive Card."""
+    title: str
+    url: str
+    style: str = "default"  # default, positive, destructive
+
+
+@dataclass
 class TeamsMessage:
     """Teams message content using Adaptive Card format."""
     title: str
     facts: list[tuple[str, str]] = field(default_factory=list)
     text: str | None = None
     color: str = "Attention"  # Good, Attention, Warning, Accent, Default
+    alert_id: str | None = None  # For linking to dashboard
+    actions: list[TeamsAction] = field(default_factory=list)
 
 
 class TeamsWebhookChannel:
@@ -44,6 +54,7 @@ class TeamsWebhookChannel:
         facts: list[tuple[str, str]],
         text: str | None = None,
         color: str = "Attention",
+        actions: list[TeamsAction] | None = None,
     ) -> dict:
         """Build an Adaptive Card payload for Teams Workflows."""
         body = [
@@ -84,12 +95,26 @@ class TeamsWebhookChannel:
             "wrap": True,
         })
 
-        return {
+        card = {
             "type": "AdaptiveCard",
             "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
             "version": "1.4",
             "body": body,
         }
+
+        # Add action buttons if provided
+        if actions:
+            card["actions"] = [
+                {
+                    "type": "Action.OpenUrl",
+                    "title": action.title,
+                    "url": action.url,
+                    "style": action.style,
+                }
+                for action in actions
+            ]
+
+        return card
 
     def _build_wrapped_payload(self, card: dict) -> dict:
         """Wrap Adaptive Card in message/attachments format for Workflows."""
@@ -144,6 +169,7 @@ class TeamsWebhookChannel:
             facts=message.facts,
             text=message.text,
             color=message.color,
+            actions=message.actions if message.actions else None,
         )
 
         # Try wrapped format first (works with most Workflows setups)
@@ -248,3 +274,107 @@ def test_webhook(webhook_url: str) -> bool:
         print("❌ FAILED - see error above")
 
     return success
+
+
+def build_teams_actions(
+    alert_id: str,
+    base_url: str,
+    api_key: str | None = None,
+    include_resolve_options: bool = False,
+) -> list[TeamsAction]:
+    """Build standard action buttons for an alert.
+
+    Args:
+        alert_id: The alert ID for URL construction
+        base_url: Dashboard base URL (e.g., http://localhost:5000)
+        api_key: Optional API key for authentication
+        include_resolve_options: If True, adds quick-resolve buttons
+
+    Returns:
+        List of TeamsAction buttons for alert management
+    """
+    # Build query string for API key if provided
+    key_param = f"?key={api_key}" if api_key else ""
+    key_suffix = f"&key={api_key}" if api_key else ""
+
+    actions = [
+        TeamsAction(
+            title="Acknowledge",
+            url=f"{base_url}/api/ack/{alert_id}{key_param}",
+            style="positive",
+        ),
+        TeamsAction(
+            title="Snooze 4h",
+            url=f"{base_url}/api/snooze/{alert_id}?hours=4{key_suffix}",
+            style="default",
+        ),
+        TeamsAction(
+            title="View / Resolve",
+            url=f"{base_url}/alerts/{alert_id}",
+            style="default",
+        ),
+    ]
+
+    if include_resolve_options:
+        # Add quick-resolve buttons for common resolutions
+        # Note: Teams Adaptive Cards support up to 6 actions
+        actions.extend([
+            TeamsAction(
+                title="Approved",
+                url=f"{base_url}/api/resolve/{alert_id}?reason=approved{key_suffix}",
+                style="positive",
+            ),
+            TeamsAction(
+                title="Discussed",
+                url=f"{base_url}/api/resolve/{alert_id}?reason=discussed_with_team{key_suffix}",
+                style="default",
+            ),
+        ])
+
+    return actions
+
+
+def build_resolve_actions(
+    alert_id: str,
+    base_url: str,
+    api_key: str | None = None,
+) -> list[TeamsAction]:
+    """Build resolution-specific action buttons.
+
+    Args:
+        alert_id: The alert ID for URL construction
+        base_url: Dashboard base URL (e.g., http://localhost:5000)
+        api_key: Optional API key for authentication
+
+    Returns:
+        List of TeamsAction buttons for common resolution reasons
+    """
+    key_suffix = f"&key={api_key}" if api_key else ""
+
+    return [
+        TeamsAction(
+            title="Approved",
+            url=f"{base_url}/api/resolve/{alert_id}?reason=approved{key_suffix}",
+            style="positive",
+        ),
+        TeamsAction(
+            title="Messaged Team",
+            url=f"{base_url}/api/resolve/{alert_id}?reason=messaged_team{key_suffix}",
+            style="default",
+        ),
+        TeamsAction(
+            title="Discussed",
+            url=f"{base_url}/api/resolve/{alert_id}?reason=discussed_with_team{key_suffix}",
+            style="default",
+        ),
+        TeamsAction(
+            title="Suggested Alt",
+            url=f"{base_url}/api/resolve/{alert_id}?reason=suggested_alternative{key_suffix}",
+            style="default",
+        ),
+        TeamsAction(
+            title="View Details",
+            url=f"{base_url}/alerts/{alert_id}",
+            style="default",
+        ),
+    ]

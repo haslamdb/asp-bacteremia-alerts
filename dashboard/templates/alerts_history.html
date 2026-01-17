@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Alert History - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Alert History</h1>
+    <div class="stats-summary">
+        <span class="stat">Resolved: {{ stats.get('status_resolved', 0) }}</span>
+    </div>
+</div>
+
+{% if alerts %}
+<table class="alerts-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Patient</th>
+            <th>Title</th>
+            <th>Severity</th>
+            <th>Created</th>
+            <th>Resolved</th>
+            <th>Resolved By</th>
+            <th>Resolution</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in alerts %}
+        <tr class="resolved">
+            <td><a href="{{ url_for('views.alert_detail', alert_id=alert.id) }}">{{ alert.id }}</a></td>
+            <td>{{ alert.alert_type.value }}</td>
+            <td>
+                {% if alert.patient_name %}
+                    {{ alert.patient_name }}
+                    {% if alert.patient_mrn %}<br><small>MRN: {{ alert.patient_mrn }}</small>{% endif %}
+                {% else %}
+                    <em>Unknown</em>
+                {% endif %}
+            </td>
+            <td>{{ alert.title or alert.summary or '-' }}</td>
+            <td><span class="badge badge-{{ alert.severity }}">{{ alert.severity }}</span></td>
+            <td>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else '-' }}</td>
+            <td>{{ alert.resolved_at.strftime('%Y-%m-%d %H:%M') if alert.resolved_at else '-' }}</td>
+            <td>{{ alert.resolved_by or '-' }}</td>
+            <td>{{ ResolutionReason.display_name(alert.resolution_reason) if alert.resolution_reason else '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No resolved alerts found.</p>
+</div>
+{% endif %}
+{% endblock %}

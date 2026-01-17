@@ -92,27 +92,33 @@ class MultiChannelAlerter(BaseAlerter):
             AlertSeverity.INFO: 0,
         }
 
-    def send_alert(self, assessment: CoverageAssessment) -> bool:
+    def send_alert(
+        self,
+        assessment: CoverageAssessment,
+        alert_id: str | None = None,
+    ) -> bool:
         """Send alert through appropriate channels based on severity."""
         severity = determine_severity(assessment)
         success = False
 
         print(f"\n  Alert Severity: {severity.value.upper()}")
+        if alert_id:
+            print(f"  Alert ID: {alert_id}")
 
         # Console always (if enabled)
         if self.console:
-            self.console.send_alert(assessment)
+            self.console.send_alert(assessment, alert_id=alert_id)
             success = True
 
         # Email for all severities (if enabled and configured)
         if self.email and self.email.is_configured():
-            if self.email.send_alert(assessment):
+            if self.email.send_alert(assessment, alert_id=alert_id):
                 success = True
 
         # Teams for critical and warning (if enabled and configured)
         if self.teams and self.teams.is_configured():
             if severity in (AlertSeverity.CRITICAL, AlertSeverity.WARNING):
-                if self.teams.send_alert(assessment):
+                if self.teams.send_alert(assessment, alert_id=alert_id):
                     success = True
 
         # SMS only for critical (or warning if configured)
@@ -122,7 +128,7 @@ class MultiChannelAlerter(BaseAlerter):
                 (severity == AlertSeverity.WARNING and self.sms_on_warning)
             )
             if should_sms:
-                if self.sms.send_alert(assessment):
+                if self.sms.send_alert(assessment, alert_id=alert_id):
                     success = True
 
         if success:
