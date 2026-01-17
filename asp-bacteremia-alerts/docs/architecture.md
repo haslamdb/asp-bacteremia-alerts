@@ -91,8 +91,8 @@ Uses RxNorm codes for medication matching.
 
 Pluggable alert delivery:
 - **ConsoleAlerter**: Prints to stdout (development/testing)
-- **EmailAlerter**: Sends email notifications (future)
-- **SMSAlerter**: Sends SMS via Twilio (future)
+- **EmailAlerter**: Sends email notifications
+- **TeamsAlerter**: Sends Microsoft Teams notifications with action buttons
 
 ### Models (`src/models.py`)
 

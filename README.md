@@ -15,7 +15,7 @@ The demo environment includes synthetic patient data for testing alert workflows
 ```
 asp-alerts/
 ├── common/                         # Shared infrastructure
-│   ├── channels/                   # Email, SMS, Teams webhooks
+│   ├── channels/                   # Email, Teams webhooks
 │   └── alert_store/                # Persistent alert tracking (SQLite)
 ├── dashboard/                      # Web dashboard for alert management
 ├── asp-bacteremia-alerts/          # Blood culture coverage monitoring
@@ -75,8 +75,6 @@ Reusable notification channels for all ASP modules:
 
 - **EmailChannel** - SMTP email with HTML/text support
 - **TeamsWebhookChannel** - Microsoft Teams via Workflows/Power Automate with action buttons
-- **SMSChannel** - Twilio SMS integration
-- **SMSEmailChannel** - SMS via carrier email gateways
 
 ### common/alert_store
 
@@ -211,8 +209,6 @@ asp-alerts/
 ├── common/
 │   ├── channels/              # Notification channels
 │   │   ├── email.py
-│   │   ├── sms.py
-│   │   ├── sms_email.py
 │   │   └── teams.py
 │   └── alert_store/           # Persistent alert storage
 │       ├── models.py
