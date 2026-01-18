@@ -40,81 +40,33 @@
 <div class="section">
     <h2>Quick Actions</h2>
     <div class="quick-links">
-        <a href="{{ url_for('nhsn.reviews') }}" class="btn btn-primary">IP Review Queue</a>
-        <a href="{{ url_for('nhsn.candidates') }}" class="btn btn-info">Active Candidates</a>
         <a href="{{ url_for('nhsn.history') }}" class="btn btn-secondary">History</a>
         <a href="{{ url_for('nhsn.reports') }}" class="btn btn-success">Reports & Analytics</a>
         <a href="{{ url_for('nhsn.submission') }}" class="btn btn-nhsn">NHSN Submission</a>
+        <a href="{{ url_for('nhsn.help_page') }}" class="btn btn-info">Help</a>
     </div>
 </div>
 
-<!-- Active Candidates -->
+<!-- Active Cases -->
 <div class="section">
-    <h2>Active Candidates</h2>
-    {% if recent_candidates %}
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Patient</th>
-                <th>Organism</th>
-                <th>Culture Date</th>
-                <th>Device Days</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in recent_candidates %}
-            <tr class="{% if not c.meets_initial_criteria %}excluded{% endif %}">
-                <td>
-                    <strong>{{ c.patient.mrn }}</strong>
-                    {% if c.patient.name %}
-                    <br><small>{{ c.patient.name }}</small>
-                    {% endif %}
-                </td>
-                <td>{{ c.culture.organism or 'Pending' }}</td>
-                <td>{{ c.culture.collection_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>{{ c.device_days_at_culture or '?' }}</td>
-                <td>
-                    <span class="badge badge-{{ 'success' if c.status.value == 'confirmed' else 'warning' if c.status.value == 'pending' else 'info' if c.status.value == 'pending_review' else 'secondary' }}">
-                        {{ c.status.value | replace('_', ' ') | title }}
-                    </span>
-                    {% if not c.meets_initial_criteria %}
-                    <br><small class="text-muted">{{ c.exclusion_reason }}</small>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="{{ url_for('nhsn.candidate_detail', candidate_id=c.id) }}" class="btn btn-sm">View</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <div class="text-center">
-        <a href="{{ url_for('nhsn.candidates') }}">View all active candidates &rarr;</a>
-    </div>
-    {% else %}
-    <p class="empty-state">No active candidates. All cases have been reviewed. <a href="{{ url_for('nhsn.history') }}">View history</a></p>
-    {% endif %}
-</div>
-
-<!-- Pending Reviews -->
-{% if pending_reviews %}
-<div class="section">
-    <h2>Pending IP Reviews</h2>
+    <h2>Active Cases</h2>
+    {% if pending_reviews %}
     <table class="table">
         <thead>
             <tr>
                 <th>Patient</th>
                 <th>HAI Type</th>
                 <th>Organism</th>
+                <th>Culture Date</th>
+                <th>Device Days</th>
+                <th>LLM Decision</th>
                 <th>Confidence</th>
                 <th>Queued</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for r in pending_reviews[:5] %}
+            {% for r in pending_reviews %}
             <tr>
                 <td>
                     <strong>{{ r.patient_mrn }}</strong>
@@ -124,9 +76,20 @@
                 </td>
                 <td>{{ r.hai_type | upper }}</td>
                 <td>{{ r.organism or 'Unknown' }}</td>
+                <td>{{ r.culture_date }}</td>
+                <td>{{ r.device_days or '-' }}</td>
+                <td>
+                    {% if r.decision %}
+                    <span class="badge badge-{{ 'success' if r.decision == 'hai_confirmed' else 'secondary' if r.decision == 'not_hai' else 'warning' }}">
+                        {{ r.decision | replace('_', ' ') | title }}
+                    </span>
+                    {% else %}
+                    <span class="badge">Pending</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% if r.confidence %}
-                    {{ (r.confidence * 100) | round(1) }}%
+                    {{ (r.confidence * 100) | round(0) | int }}%
                     {% else %}
                     -
                     {% endif %}
@@ -139,13 +102,15 @@
             {% endfor %}
         </tbody>
     </table>
-    {% if pending_reviews | length > 5 %}
+    {% if pending_reviews | length > 10 %}
     <div class="text-center">
-        <a href="{{ url_for('nhsn.reviews') }}">View all {{ pending_reviews | length }} pending reviews &rarr;</a>
+        <a href="{{ url_for('nhsn.reviews') }}">View all {{ pending_reviews | length }} active cases &rarr;</a>
     </div>
     {% endif %}
+    {% else %}
+    <p class="empty-state">No active cases. All cases have been reviewed. <a href="{{ url_for('nhsn.history') }}">View history</a></p>
+    {% endif %}
 </div>
-{% endif %}
 
 <style>
 .stats-grid {

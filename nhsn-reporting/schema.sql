@@ -130,6 +130,7 @@ SELECT
     c.patient_name,
     c.culture_date,
     c.organism,
+    c.device_days_at_culture as device_days,
     cl.decision,
     cl.confidence,
     cl.reasoning
