@@ -24,7 +24,7 @@ def get_nhsn_db():
 
 
 @nhsn_bp.route("/")
-def index():
+def dashboard():
     """NHSN reporting dashboard overview."""
     try:
         db = get_nhsn_db()
@@ -382,3 +382,9 @@ View in Dashboard: {Config.DASHBOARD_BASE_URL}/nhsn/candidates/{candidate.id}
 
     except Exception as e:
         raise Exception(f"Email send failed: {e}")
+
+
+@nhsn_bp.route("/help")
+def help_page():
+    """Show NHSN help and demo workflow documentation."""
+    return render_template("nhsn_help.html")

@@ -116,7 +116,55 @@ Both monitors should report "No alerts" since there's no patient data yet.
 
 ---
 
-## Step 6: Demo - Blood Culture Alert
+## Step 6: Demo - CLABSI Candidate (NHSN Module)
+
+The NHSN module uses LLM-assisted classification to identify CLABSI candidates. Demo scenarios include both true CLABSI and Not CLABSI cases with detailed clinical notes.
+
+**Terminal 4:**
+```bash
+cd asp-alerts
+
+# Create one CLABSI + one random Not CLABSI scenario
+python scripts/demo_clabsi.py
+
+# Or create specific scenarios:
+python scripts/demo_clabsi.py --scenario clabsi           # Clear CLABSI
+python scripts/demo_clabsi.py --scenario mbi              # MBI-LCBI (Not CLABSI)
+python scripts/demo_clabsi.py --scenario secondary-uti    # Secondary to UTI
+python scripts/demo_clabsi.py --scenario secondary-pneumonia  # Secondary to pneumonia
+
+# Create all scenario types
+python scripts/demo_clabsi.py --all
+```
+
+**Run the NHSN monitor and classifier:**
+```bash
+cd nhsn-reporting
+python -m src.runner --once
+```
+
+**View in dashboard:** https://nhsn.asp-ai-agent.com:8444/nhsn/candidates
+
+### CLABSI Demo Scenarios
+
+| Scenario | Command | Organism | Key Evidence | Classification |
+|----------|---------|----------|--------------|----------------|
+| Clear CLABSI | `--scenario clabsi` | S. aureus | Line site infection, negative UA/CXR | **CLABSI** |
+| MBI-LCBI | `--scenario mbi` | E. coli | BMT patient, ANC 0, Grade 3 mucositis | Not CLABSI - MBI |
+| Secondary (UTI) | `--scenario secondary-uti` | E. coli | Same organism in blood + urine, pyelonephritis | Not CLABSI - Secondary |
+| Secondary (PNA) | `--scenario secondary-pneumonia` | Pseudomonas | Same organism in blood + respiratory | Not CLABSI - Secondary |
+
+### Classification Workflow
+
+1. **CLABSI** - Confirmed central line-associated bloodstream infection
+2. **Not CLABSI** - Rejected, not a CLABSI
+3. **MBI-LCBI** - Mucosal Barrier Injury (neutropenia + mucositis + gut organism)
+4. **Secondary** - BSI secondary to another infection (UTI, pneumonia, etc.)
+5. **Needs More Info** - Requires additional review (stays in active list)
+
+---
+
+## Step 7: Demo - Blood Culture Alert
 
 Now we'll add a patient with MRSA bacteremia but no vancomycin coverage.
 
@@ -173,7 +221,7 @@ BACTEREMIA COVERAGE ALERT
 
 ---
 
-## Step 7: Demo - Antimicrobial Usage Alert
+## Step 8: Demo - Antimicrobial Usage Alert
 
 Now we'll add a patient who has been on meropenem for 5 days (exceeds 72h threshold).
 
@@ -215,7 +263,7 @@ You should see the alert generated for prolonged meropenem use.
 
 ---
 
-## Step 8: Demonstrate Alert Resolution
+## Step 9: Demonstrate Alert Resolution
 
 Show how alerts are managed through the dashboard.
 

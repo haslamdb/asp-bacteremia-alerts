@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block title %}NHSN Help - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>NHSN HAI Reporting - Demo & Help</h1>
+    <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="help-content">
+    <div class="help-card">
+        <h2>Overview</h2>
+        <p>The NHSN HAI Reporting module assists Infection Preventionists in identifying and classifying
+           Central Line-Associated Bloodstream Infections (CLABSI) for NHSN reporting.</p>
+        <p>The system uses:</p>
+        <ol>
+            <li><strong>Rule-based screening</strong> - Identifies patients with BSI + central line &gt;2 days</li>
+            <li><strong>LLM-assisted classification</strong> - Analyzes clinical notes to determine if CLABSI or alternative source</li>
+            <li><strong>IP Review workflow</strong> - Final human review and classification</li>
+        </ol>
+    </div>
+
+    <div class="help-card">
+        <h2>Quick Start - Generate Demo Data</h2>
+
+        <h3>Create CLABSI Candidates</h3>
+        <p>Generate demo patients with CLABSI scenarios for testing:</p>
+        <pre><code># Create one CLABSI + one Not CLABSI (random type)
+cd /home/david/projects/asp-alerts
+python scripts/demo_clabsi.py
+
+# Create all scenario types
+python scripts/demo_clabsi.py --all
+
+# Create a specific scenario
+python scripts/demo_clabsi.py --scenario clabsi
+python scripts/demo_clabsi.py --scenario mbi
+python scripts/demo_clabsi.py --scenario secondary-uti
+python scripts/demo_clabsi.py --scenario secondary-pneumonia</code></pre>
+
+        <h3>Run the Monitor & Classifier</h3>
+        <p>After creating demo data, run the NHSN monitor to detect candidates and classify them:</p>
+        <pre><code>cd /home/david/projects/asp-alerts/nhsn-reporting
+python -m src.runner --once</code></pre>
+
+        <p>Then refresh the <a href="{{ url_for('nhsn.candidates') }}">Candidates</a> page to see the new cases.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>Demo Scenarios</h2>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Command</th>
+                    <th>Organism</th>
+                    <th>Key Evidence</th>
+                    <th>Classification</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Clear CLABSI</strong></td>
+                    <td><code>--scenario clabsi</code></td>
+                    <td>S. aureus</td>
+                    <td>Line site infection, negative UA, clear CXR</td>
+                    <td><span class="badge badge-critical">CLABSI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MBI-LCBI</strong></td>
+                    <td><code>--scenario mbi</code></td>
+                    <td>E. coli</td>
+                    <td>BMT patient, ANC 0, Grade 3 mucositis</td>
+                    <td><span class="badge badge-warning">Not CLABSI - MBI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Secondary (UTI)</strong></td>
+                    <td><code>--scenario secondary-uti</code></td>
+                    <td>E. coli</td>
+                    <td>Same organism in blood + urine, pyelonephritis on CT</td>
+                    <td><span class="badge badge-info">Not CLABSI - Secondary</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Secondary (PNA)</strong></td>
+                    <td><code>--scenario secondary-pneumonia</code></td>
+                    <td>Pseudomonas</td>
+                    <td>Same organism in blood + respiratory, VAP on CXR</td>
+                    <td><span class="badge badge-info">Not CLABSI - Secondary</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="help-card">
+        <h2>Classification Decisions</h2>
+        <p>When reviewing a CLABSI candidate, you have the following options:</p>
+
+        <div class="decision-grid">
+            <div class="decision-item decision-clabsi">
+                <h4>CLABSI</h4>
+                <p>Confirmed central line-associated bloodstream infection. Use when:</p>
+                <ul>
+                    <li>Central line in place &gt;2 calendar days</li>
+                    <li>No alternative source for the BSI</li>
+                    <li>Pathogenic organism OR 2+ positive cultures for skin contaminant</li>
+                </ul>
+            </div>
+
+            <div class="decision-item decision-not-clabsi">
+                <h4>Not CLABSI</h4>
+                <p>The BSI is not related to the central line. Use when:</p>
+                <ul>
+                    <li>Clear alternative source identified</li>
+                    <li>Single culture for skin contaminant (likely contamination)</li>
+                    <li>Does not meet NHSN CLABSI criteria</li>
+                </ul>
+            </div>
+
+            <div class="decision-item decision-mbi">
+                <h4>MBI-LCBI</h4>
+                <p>Mucosal Barrier Injury Laboratory-Confirmed Bloodstream Infection. Use when ALL criteria met:</p>
+                <ul>
+                    <li>Neutropenia (ANC &lt;500) OR allogeneic HSCT with Grade 3-4 GI GVHD</li>
+                    <li>Eligible MBI organism (gut flora: E. coli, Klebsiella, Enterococcus, Candida, etc.)</li>
+                    <li>Mucosal barrier injury present (mucositis, GVHD)</li>
+                </ul>
+                <p><em>MBI-LCBI is counted separately from CLABSI for NHSN reporting.</em></p>
+            </div>
+
+            <div class="decision-item decision-secondary">
+                <h4>Secondary</h4>
+                <p>BSI is secondary to another primary infection. Use when:</p>
+                <ul>
+                    <li>Same organism isolated from another site (urine, respiratory, wound)</li>
+                    <li>Clinical presentation consistent with primary infection at other site</li>
+                    <li>BSI developed after or concurrent with other site infection</li>
+                </ul>
+                <p><em>Common sources: UTI, pneumonia, intra-abdominal infection, skin/soft tissue</em></p>
+            </div>
+
+            <div class="decision-item decision-needs-info">
+                <h4>Needs More Info</h4>
+                <p>Additional review or information needed. Use when:</p>
+                <ul>
+                    <li>Clinical notes are incomplete</li>
+                    <li>Need to review additional cultures or imaging</li>
+                    <li>Want to discuss with ID or primary team</li>
+                </ul>
+                <p><em>Candidate stays in active list for follow-up.</em></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="help-card">
+        <h2>NHSN CLABSI Criteria Quick Reference</h2>
+
+        <h3>Inclusion Criteria</h3>
+        <ul>
+            <li>Patient has a central line at time of BSI OR within 1 calendar day of line removal</li>
+            <li>Central line was in place for &gt;2 calendar days on the date of event</li>
+            <li>Patient has a laboratory-confirmed bloodstream infection (LCBI)</li>
+            <li>BSI is not secondary to an infection at another site</li>
+        </ul>
+
+        <h3>LCBI Criteria</h3>
+        <p><strong>Criterion 1 (Pathogen):</strong> Recognized pathogen identified from blood culture not related to infection at another site</p>
+        <p><strong>Criterion 2 (Contaminant):</strong> Common skin contaminant (e.g., CoNS, Corynebacterium) identified from 2+ blood cultures drawn on separate occasions, PLUS patient has fever (&gt;38.0°C), chills, or hypotension</p>
+
+        <h3>Exclusion: Secondary BSI</h3>
+        <p>A BSI is considered secondary if the same organism is isolated from another site AND:</p>
+        <ul>
+            <li>The other site infection meets NHSN site-specific criteria, OR</li>
+            <li>The clinical presentation is consistent with infection at the other site</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>LLM Classification</h2>
+        <p>The system uses a local LLM (Ollama) to assist with classification. The LLM:</p>
+        <ul>
+            <li>Analyzes clinical notes for evidence of alternative infection sources</li>
+            <li>Checks for MBI-LCBI criteria (neutropenia, mucositis)</li>
+            <li>Reviews other culture results for matching organisms</li>
+            <li>Provides a confidence score and reasoning</li>
+        </ul>
+
+        <h3>Confidence Thresholds</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Confidence</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>&gt;85%</td>
+                    <td>Auto-classify (high confidence)</td>
+                </tr>
+                <tr>
+                    <td>60-85%</td>
+                    <td>Route to IP review</td>
+                </tr>
+                <tr>
+                    <td>&lt;60%</td>
+                    <td>Manual review required</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p><strong>Note:</strong> All PHI stays on-premise. The Ollama LLM runs locally and no data is sent to external services.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>Troubleshooting</h2>
+
+        <h3>FHIR server not responding</h3>
+        <pre><code># Check if container is running
+docker ps | grep hapi
+
+# Restart if needed
+cd asp-bacteremia-alerts
+docker-compose down && docker-compose up -d</code></pre>
+
+        <h3>Clear NHSN data and start fresh</h3>
+        <pre><code># Clear NHSN database
+rm -f ~/.asp-alerts/nhsn.db
+
+# Clear FHIR server data
+cd asp-bacteremia-alerts
+docker-compose down && docker-compose up -d</code></pre>
+
+        <h3>LLM classification not running</h3>
+        <pre><code># Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# If not running, start Ollama
+ollama serve</code></pre>
+
+        <h3>Check available Ollama models</h3>
+        <pre><code>ollama list</code></pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Architecture</h2>
+        <pre class="architecture-diagram">
++-------------------+     +-------------------+
+|   Demo Scripts    |----&gt;|  HAPI FHIR        |
+| demo_clabsi.py    |     |  Server :8081     |
++-------------------+     +---------+---------+
+                                    |
+                    +---------------+---------------+
+                    v                               v
+          +-------------------+           +-------------------+
+          |  NHSN Monitor     |           |  Ollama LLM       |
+          |  (Rule-based)     |           |  (Classification) |
+          +---------+---------+           +---------+---------+
+                    |                               |
+                    +--------------+----------------+
+                                   v
+                         +-------------------+
+                         |   NHSN Database   |
+                         |   (SQLite)        |
+                         +---------+---------+
+                                   |
+                    +--------------+---------------+
+                    v              v               v
+           +-----------+   +-----------+   +-----------+
+           | Dashboard |   | IP Review |   |   Email   |
+           | :8444     |   |  Workflow |   |   Alerts  |
+           +-----------+   +-----------+   +-----------+
+        </pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Links</h2>
+        <ul>
+            <li><a href="{{ url_for('nhsn.dashboard') }}">NHSN Dashboard</a> - Overview and statistics</li>
+            <li><a href="{{ url_for('nhsn.candidates') }}">Candidates</a> - View and classify CLABSI candidates</li>
+            <li><a href="{{ url_for('nhsn.reviews') }}">Reviews</a> - Completed classification reviews</li>
+            <li><a href="{{ url_for('views.help_page') }}">ASP Alerts Help</a> - Help for bacteremia and antimicrobial usage alerts</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.decision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.decision-item {
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid;
+}
+
+.decision-item h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.decision-item p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.decision-item ul {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+}
+
+.decision-item li {
+    margin: 0.25rem 0;
+}
+
+.decision-clabsi {
+    background: #fef2f2;
+    border-color: #dc2626;
+}
+
+.decision-not-clabsi {
+    background: #f0fdf4;
+    border-color: #16a34a;
+}
+
+.decision-mbi {
+    background: #fffbeb;
+    border-color: #f59e0b;
+}
+
+.decision-secondary {
+    background: #f5f3ff;
+    border-color: #8b5cf6;
+}
+
+.decision-needs-info {
+    background: #f8fafc;
+    border-color: #6b7280;
+}
+</style>
+{% endblock %}
