@@ -90,7 +90,7 @@
                 <td>
                     {% if r.decision %}
                     <span class="badge badge-{{ 'success' if r.decision == 'hai_confirmed' else 'secondary' if r.decision == 'not_hai' else 'warning' }}">
-                        {{ r.decision | replace('_', ' ') | title }}
+                        {% if r.decision == 'hai_confirmed' %}HAI{% elif r.decision == 'not_hai' %}Not HAI{% else %}{{ r.decision | replace('_', ' ') | title }}{% endif %}
                     </span>
                     {% else %}
                     <span class="badge">Pending</span>

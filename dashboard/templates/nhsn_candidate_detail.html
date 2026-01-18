@@ -141,7 +141,7 @@
                 <div class="classification-item">
                     <div class="classification-header">
                         <span class="badge badge-{{ 'success' if c.decision.value == 'hai_confirmed' else 'danger' if c.decision.value == 'not_hai' else 'warning' }}">
-                            {{ c.decision.value | replace('_', ' ') | title }}
+                            {% if c.decision.value == 'hai_confirmed' %}HAI{% elif c.decision.value == 'not_hai' %}Not HAI{% else %}{{ c.decision.value | replace('_', ' ') | title }}{% endif %}
                         </span>
                         <span class="confidence">{{ (c.confidence * 100) | round(1) }}% confidence</span>
                         <span class="text-muted">{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
