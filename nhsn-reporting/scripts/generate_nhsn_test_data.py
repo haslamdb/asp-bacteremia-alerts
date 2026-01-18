@@ -80,6 +80,24 @@ ALTERNATIVE_SOURCES = [
     "Skin/soft tissue infection",
 ]
 
+# Clinical note authors
+NOTE_AUTHORS = [
+    "David Haslam, MD",
+    "Jennifer Smith, MD",
+    "Michael Chen, MD",
+    "Sarah Johnson, NP",
+    "Robert Williams, MD",
+    "Emily Davis, PA-C",
+    "James Wilson, MD",
+    "Amanda Martinez, MD",
+]
+
+
+def random_author() -> str:
+    """Return a random note author."""
+    return random.choice(NOTE_AUTHORS)
+
+
 # Pediatric first names
 FIRST_NAMES = [
     "Emma", "Liam", "Olivia", "Noah", "Ava", "Ethan", "Sophia", "Mason",
@@ -291,6 +309,7 @@ def create_clinical_note(
     note_date: datetime,
     note_type: str,
     content: str,
+    author: str | None = None,
 ) -> dict:
     """Create a FHIR DocumentReference for a clinical note."""
     import base64
@@ -302,7 +321,7 @@ def create_clinical_note(
 
     type_info = type_codes.get(note_type, type_codes["progress_note"])
 
-    return {
+    doc_ref = {
         "resourceType": "DocumentReference",
         "id": note_id,
         "status": "current",
@@ -322,6 +341,12 @@ def create_clinical_note(
             }
         }]
     }
+
+    # Add author if provided
+    if author:
+        doc_ref["author"] = [{"display": author}]
+
+    return doc_ref
 
 
 # ============================================================================
@@ -368,7 +393,8 @@ Most likely catheter-related bloodstream infection given line dwell time and org
             create_device_use_statement(patient_id, device_id, line_type, site, line_insertion),
             create_blood_culture_report(patient_id, report_id, culture_date, organism),
             create_clinical_note(patient_id, f"note-{uuid.uuid4().hex[:8]}",
-                               culture_date + timedelta(hours=6), "id_consult", note_content),
+                               culture_date + timedelta(hours=6), "id_consult", note_content,
+                               author=random_author()),
         ]
     }
 
@@ -413,7 +439,8 @@ Central line site clean, no erythema or drainage.
             create_device_use_statement(patient_id, device_id, line_type, site, line_insertion),
             create_blood_culture_report(patient_id, report_id, culture_date, organism),
             create_clinical_note(patient_id, f"note-{uuid.uuid4().hex[:8]}",
-                               culture_date + timedelta(hours=6), "progress_note", note_content),
+                               culture_date + timedelta(hours=6), "progress_note", note_content,
+                               author=random_author()),
         ]
     }
 
@@ -487,7 +514,8 @@ No alternative source identified. Meets CLABSI criteria per NHSN.
             create_blood_culture_report(patient_id, report_id1, culture_date1, organism),
             create_blood_culture_report(patient_id, report_id2, culture_date2, organism),
             create_clinical_note(patient_id, f"note-{uuid.uuid4().hex[:8]}",
-                               culture_date2 + timedelta(hours=6), "progress_note", note_content),
+                               culture_date2 + timedelta(hours=6), "progress_note", note_content,
+                               author=random_author()),
         ]
     }
 
@@ -560,7 +588,8 @@ Per NHSN criteria, BSI within 1 day of line removal can be attributed to line.
                                        line_insertion, line_removal),
             create_blood_culture_report(patient_id, report_id, culture_date, organism),
             create_clinical_note(patient_id, f"note-{uuid.uuid4().hex[:8]}",
-                               culture_date + timedelta(hours=6), "progress_note", note_content),
+                               culture_date + timedelta(hours=6), "progress_note", note_content,
+                               author=random_author()),
         ]
     }
 
@@ -631,7 +660,8 @@ Currently with severe neutropenia expected to persist for several more days.
             create_device_use_statement(patient_id, device_id, line_type, site, line_insertion),
             create_blood_culture_report(patient_id, report_id, culture_date, organism),
             create_clinical_note(patient_id, f"note-{uuid.uuid4().hex[:8]}",
-                               culture_date + timedelta(hours=6), "progress_note", note_content),
+                               culture_date + timedelta(hours=6), "progress_note", note_content,
+                               author=random_author()),
         ]
     }
 
@@ -675,7 +705,8 @@ Line site appears clean but cannot rule out catheter-related infection.
             create_device_use_statement(patient_id, device_id, line_type, site, line_insertion),
             create_blood_culture_report(patient_id, report_id, culture_date, organism),
             create_clinical_note(patient_id, f"note-{uuid.uuid4().hex[:8]}",
-                               culture_date + timedelta(hours=6), "progress_note", note_content),
+                               culture_date + timedelta(hours=6), "progress_note", note_content,
+                               author=random_author()),
         ]
     }
 
