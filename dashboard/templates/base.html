@@ -10,6 +10,11 @@
 <body>
     <nav class="navbar">
         {% set is_nhsn = request.endpoint and request.endpoint.startswith('nhsn.') %}
+        {% set current_host = request.host %}
+        {% set is_nhsn_domain = current_host.startswith('nhsn.') %}
+        {% set base_domain = current_host.replace('nhsn.', '').replace('alerts.', '') %}
+        {% set alerts_url = 'https://alerts.' ~ base_domain %}
+        {% set nhsn_url = 'https://nhsn.' ~ base_domain %}
         <div class="nav-brand">
             {% if is_nhsn %}
             <a href="{{ url_for('nhsn.dashboard') }}">NHSN Reporting</a>
@@ -27,7 +32,7 @@
             <a href="{{ url_for('nhsn.submission') }}" {% if request.endpoint == 'nhsn.submission' %}class="active"{% endif %}>Submission</a>
             <a href="{{ url_for('nhsn.help_page') }}" {% if request.endpoint == 'nhsn.help_page' %}class="active"{% endif %}>Help</a>
             <span class="nav-divider">|</span>
-            <a href="{{ url_for('views.index') }}" class="nav-switch">Alerts</a>
+            <a href="{{ alerts_url }}" class="nav-switch">Alerts</a>
             {% else %}
             <!-- Alerts Navigation -->
             <a href="{{ url_for('views.alerts_active') }}" {% if request.endpoint == 'views.alerts_active' %}class="active"{% endif %}>Active Alerts</a>
@@ -35,7 +40,7 @@
             <a href="{{ url_for('views.reports') }}" {% if request.endpoint == 'views.reports' %}class="active"{% endif %}>Reports</a>
             <a href="{{ url_for('views.help_page') }}" {% if request.endpoint == 'views.help_page' %}class="active"{% endif %}>Help</a>
             <span class="nav-divider">|</span>
-            <a href="{{ url_for('nhsn.dashboard') }}" class="nav-switch">NHSN</a>
+            <a href="{{ nhsn_url }}" class="nav-switch">NHSN</a>
             {% endif %}
         </div>
     </nav>
