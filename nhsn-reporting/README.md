@@ -310,6 +310,12 @@ View the audit log on the submission page at `/nhsn/submission`.
 - [x] NHSN DIRECT protocol submission
 - [x] CDA document generation
 - [x] Reports and analytics dashboard
+- [ ] **Denominator data for rate calculation** - Central line days and/or patient days needed for CLABSI rate (CLABSIs per 1,000 central line days). Options:
+  - Pull from Clarity flowsheet data (IP_FLWSHT_MEAS) where nurses document daily line presence
+  - FHIR DeviceUseStatement with timing data (if reliably populated)
+  - Manual entry on Submission page
+  - Integration with existing line-day tracking system
+  - *TODO: Determine how CCHMC currently tracks central line days*
 - [ ] CAUTI detection (catheter-associated UTI)
 - [ ] SSI detection (surgical site infection)
 - [ ] VAE detection (ventilator-associated event)
