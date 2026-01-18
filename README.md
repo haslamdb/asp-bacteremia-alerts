@@ -62,6 +62,8 @@ Automated NHSN Healthcare-Associated Infection (HAI) detection and classificatio
 - Confidence-based triage (auto-classify, IP review, manual review)
 - Dashboard integration for IP review workflow
 - Common contaminant handling (requires 2 positive cultures)
+- **NHSN Submission** - Export CSV or submit directly via DIRECT protocol
+- **CDA Document Generation** - HL7 CDA R2 compliant documents for automated submission
 
 **[Documentation →](nhsn-reporting/README.md)**
 

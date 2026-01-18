@@ -227,17 +227,98 @@ python generate_nhsn_test_data.py  # Uploads automatically
 8. **GI Source** - Enterococcus with documented colitis
 9. **MBI-LCBI** - Strep viridans during mucositis (special category)
 
+## NHSN Submission
+
+The module supports two methods for submitting confirmed HAI events to NHSN:
+
+### 1. CSV Export (Manual Entry)
+
+Export confirmed events as a CSV file for manual entry into the NHSN web application or CSV import:
+
+1. Navigate to `/nhsn/submission` in the dashboard
+2. Select the date range (quarterly reporting periods)
+3. Click "Export CSV" to download the data
+4. Enter events manually into NHSN or use CSV import
+5. Click "Mark as Submitted" to update the audit trail
+
+### 2. DIRECT Protocol (Automated Submission)
+
+Submit events directly to NHSN using the DIRECT secure messaging protocol. This generates HL7 CDA R2 compliant documents and sends them via your HISP (Health Information Service Provider).
+
+#### DIRECT Configuration
+
+Add these settings to your `.env` file:
+
+```env
+# Facility Info
+NHSN_FACILITY_ID=your_facility_id
+NHSN_FACILITY_NAME=Your Hospital Name
+
+# HISP Settings (from your HISP provider)
+NHSN_HISP_SMTP_SERVER=smtp.yourhisp.com
+NHSN_HISP_SMTP_PORT=587
+NHSN_HISP_SMTP_USERNAME=your_username
+NHSN_HISP_SMTP_PASSWORD=your_password
+NHSN_HISP_USE_TLS=true
+
+# DIRECT Addresses
+NHSN_SENDER_DIRECT_ADDRESS=yourorg@direct.yourhisp.com
+NHSN_DIRECT_ADDRESS=nhsn_address_from_nhsn_application
+
+# Optional: S/MIME Certificates (if required by HISP)
+NHSN_SENDER_CERT_PATH=/path/to/your-cert.pem
+NHSN_SENDER_KEY_PATH=/path/to/your-key.pem
+```
+
+#### Steps to Enable DIRECT Submission
+
+1. **Get HISP Account**: Contact a Health Information Service Provider (e.g., [RosettaHealth](https://rosettahealth.com)) or another DIRECT-compliant HISP
+2. **Sign up in NHSN**: Enable DIRECT submission in the NHSN application to get your NHSN DIRECT address
+3. **Configure credentials**: Add the HISP settings above to your `.env` file
+4. **Test connection**: Use the "Test Connection" button on the submission page to verify connectivity
+
+Restart the service for changes to take effect:
+```bash
+sudo systemctl restart asp-alerts
+```
+
+### CDA Document Generation
+
+The module generates HL7 CDA R2 compliant documents for BSI events based on the [HL7 Implementation Guide for NHSN HAI Reports](https://www.hl7.org/implement/standards/product_brief.cfm?product_id=20). Documents include:
+
+- Patient demographics (ID, DOB, gender)
+- Event details (date, type, location)
+- Pathogen information
+- Device days
+- Facility information
+
+### Submission Audit Trail
+
+All submissions (CSV exports, DIRECT submissions, manual marking) are logged with:
+- Timestamp
+- User/preparer name
+- Date range covered
+- Number of events
+- Submission method and notes
+
+View the audit log on the submission page at `/nhsn/submission`.
+
 ## Roadmap
 
+- [x] CLABSI detection and classification
+- [x] NHSN CSV export
+- [x] NHSN DIRECT protocol submission
+- [x] CDA document generation
+- [x] Reports and analytics dashboard
 - [ ] CAUTI detection (catheter-associated UTI)
 - [ ] SSI detection (surgical site infection)
 - [ ] VAE detection (ventilator-associated event)
-- [ ] NHSN CDA export format
-- [ ] Analytics dashboard (rates, trends, accuracy)
 - [ ] Epic SMART on FHIR integration
 
 ## Related Documentation
 
 - [CDC/NHSN CLABSI Protocol](https://www.cdc.gov/nhsn/pdfs/pscmanual/4psc_clabscurrent.pdf)
+- [NHSN CDA Submission Support Portal](https://www.cdc.gov/nhsn/cdaportal/importingdata.html)
+- [HL7 CDA HAI Implementation Guide](https://www.hl7.org/implement/standards/product_brief.cfm?product_id=20)
 - [asp-alerts Main Documentation](../README.md)
 - [Dashboard Documentation](../dashboard/README.md)
