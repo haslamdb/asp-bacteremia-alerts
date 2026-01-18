@@ -15,7 +15,7 @@
         <div class="nav-links">
             <a href="{{ url_for('views.alerts_active') }}" {% if request.endpoint == 'views.alerts_active' %}class="active"{% endif %}>Active Alerts</a>
             <a href="{{ url_for('views.alerts_history') }}" {% if request.endpoint == 'views.alerts_history' %}class="active"{% endif %}>History</a>
-            <a href="{{ url_for('nhsn.index') }}" {% if request.endpoint and request.endpoint.startswith('nhsn.') %}class="active"{% endif %}>NHSN</a>
+            <a href="{{ url_for('nhsn.dashboard') }}" {% if request.endpoint and request.endpoint.startswith('nhsn.') %}class="active"{% endif %}>NHSN</a>
             <a href="{{ url_for('views.reports') }}" {% if request.endpoint == 'views.reports' %}class="active"{% endif %}>Reports</a>
             <a href="{{ url_for('views.help_page') }}" {% if request.endpoint == 'views.help_page' %}class="active"{% endif %}>Help</a>
         </div>
