@@ -85,7 +85,7 @@
                 </td>
                 <td>{{ r.hai_type | upper }}</td>
                 <td>{{ r.organism or 'Unknown' }}</td>
-                <td>{{ r.culture_date }}</td>
+                <td>{{ r.culture_date[:16] | replace('T', ' ') }}</td>
                 <td>{{ r.device_days or '-' }}</td>
                 <td>
                     {% if r.decision %}
