@@ -386,6 +386,9 @@ class NHSNDatabase:
         notes: str | None = None,
         classification_id: str | None = None,
         is_completed: bool = True,
+        llm_decision: str | None = None,
+        is_override: bool = False,
+        override_reason: str | None = None,
     ) -> str:
         """Save a new review entry with individual parameters.
 
@@ -396,6 +399,9 @@ class NHSNDatabase:
             notes: Optional notes about the decision
             classification_id: Optional linked classification
             is_completed: Whether this is a final decision (False for "needs more info")
+            llm_decision: Original LLM classification decision
+            is_override: Whether reviewer disagreed with LLM
+            override_reason: Reason for override if applicable
         """
         import uuid
         review_id = str(uuid.uuid4())
@@ -406,18 +412,23 @@ class NHSNDatabase:
                 """
                 INSERT INTO nhsn_reviews (
                     id, candidate_id, classification_id, queue_type, reviewed,
-                    reviewer, reviewer_decision, reviewer_notes, created_at, reviewed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    reviewer, reviewer_decision, reviewer_notes,
+                    llm_decision, is_override, override_reason,
+                    created_at, reviewed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     review_id,
                     candidate_id,
                     classification_id,
                     ReviewQueueType.IP_REVIEW.value,
-                    is_completed,  # Only mark as reviewed for final decisions
+                    is_completed,
                     reviewer,
                     decision.value,
                     notes,
+                    llm_decision,
+                    is_override,
+                    override_reason,
                     now.isoformat(),
                     now.isoformat() if is_completed else None,
                 ),
@@ -433,8 +444,10 @@ class NHSNDatabase:
                 """
                 INSERT INTO nhsn_reviews (
                     id, candidate_id, classification_id, queue_type, reviewed,
-                    reviewer, reviewer_decision, reviewer_notes, created_at, reviewed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    reviewer, reviewer_decision, reviewer_notes,
+                    llm_decision, is_override, override_reason,
+                    created_at, reviewed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     row["id"],
@@ -445,6 +458,9 @@ class NHSNDatabase:
                     row["reviewer"],
                     row["reviewer_decision"],
                     row["reviewer_notes"],
+                    row["llm_decision"],
+                    row["is_override"],
+                    row["override_reason"],
                     row["created_at"],
                     row["reviewed_at"],
                 ),
@@ -600,6 +616,132 @@ class NHSNDatabase:
                 "total_events": events,
                 "unreported_events": unreported,
             }
+
+    def get_override_stats(self) -> dict[str, Any]:
+        """Get LLM classification override statistics.
+
+        Returns:
+            Dictionary with override metrics for assessing LLM quality.
+        """
+        with self._get_connection() as conn:
+            # Check if override columns exist
+            cursor = conn.execute("PRAGMA table_info(nhsn_reviews)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "is_override" not in columns:
+                # Override tracking not yet in place
+                return {
+                    "total_reviews": 0,
+                    "completed_reviews": 0,
+                    "total_overrides": 0,
+                    "accepted_classifications": 0,
+                    "acceptance_rate_pct": None,
+                    "override_rate_pct": None,
+                    "by_llm_decision": {},
+                }
+
+            # Total reviews
+            total = conn.execute("SELECT COUNT(*) FROM nhsn_reviews").fetchone()[0]
+
+            # Completed reviews
+            completed = conn.execute(
+                "SELECT COUNT(*) FROM nhsn_reviews WHERE reviewed = 1"
+            ).fetchone()[0]
+
+            # Total overrides
+            overrides = conn.execute(
+                "SELECT COUNT(*) FROM nhsn_reviews WHERE is_override = 1"
+            ).fetchone()[0]
+
+            # Accepted (completed and not override)
+            accepted = conn.execute(
+                "SELECT COUNT(*) FROM nhsn_reviews WHERE reviewed = 1 AND is_override = 0"
+            ).fetchone()[0]
+
+            # Calculate rates
+            acceptance_rate = (accepted / completed * 100) if completed > 0 else None
+            override_rate = (overrides / completed * 100) if completed > 0 else None
+
+            # Breakdown by LLM decision
+            by_decision_rows = conn.execute(
+                """
+                SELECT llm_decision,
+                       COUNT(*) as total,
+                       SUM(CASE WHEN is_override = 1 THEN 1 ELSE 0 END) as overrides
+                FROM nhsn_reviews
+                WHERE reviewed = 1 AND llm_decision IS NOT NULL
+                GROUP BY llm_decision
+                """
+            ).fetchall()
+
+            by_decision = {}
+            for row in by_decision_rows:
+                decision = row["llm_decision"]
+                total_for_decision = row["total"]
+                overrides_for_decision = row["overrides"]
+                by_decision[decision] = {
+                    "total": total_for_decision,
+                    "overrides": overrides_for_decision,
+                    "override_rate_pct": (
+                        overrides_for_decision / total_for_decision * 100
+                        if total_for_decision > 0
+                        else 0
+                    ),
+                }
+
+            return {
+                "total_reviews": total,
+                "completed_reviews": completed,
+                "total_overrides": overrides,
+                "accepted_classifications": accepted,
+                "acceptance_rate_pct": round(acceptance_rate, 1) if acceptance_rate else None,
+                "override_rate_pct": round(override_rate, 1) if override_rate else None,
+                "by_llm_decision": by_decision,
+            }
+
+    def get_recent_overrides(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Get recent override details for analysis.
+
+        Args:
+            limit: Maximum number of overrides to return
+
+        Returns:
+            List of override details
+        """
+        with self._get_connection() as conn:
+            # Check if override columns exist
+            cursor = conn.execute("PRAGMA table_info(nhsn_reviews)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "is_override" not in columns:
+                return []
+
+            rows = conn.execute(
+                """
+                SELECT r.*, c.patient_mrn, c.organism
+                FROM nhsn_reviews r
+                JOIN nhsn_candidates c ON r.candidate_id = c.id
+                WHERE r.is_override = 1
+                ORDER BY r.reviewed_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+            return [
+                {
+                    "review_id": row["id"],
+                    "patient_mrn": row["patient_mrn"],
+                    "organism": row["organism"],
+                    "llm_decision": row["llm_decision"],
+                    "reviewer_decision": row["reviewer_decision"],
+                    "reviewer": row["reviewer"],
+                    "reviewer_notes": row["reviewer_notes"],
+                    "override_reason": row["override_reason"],
+                    "reviewed_at": row["reviewed_at"],
+                }
+                for row in rows
+            ]
 
     # --- Reporting ---
 

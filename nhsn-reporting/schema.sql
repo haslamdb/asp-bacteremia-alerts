@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS nhsn_reviews (
     reviewer TEXT,
     reviewer_decision TEXT,  -- confirmed, rejected, needs_more_info
     reviewer_notes TEXT,
+    -- Override tracking fields
+    llm_decision TEXT,  -- Original LLM decision for comparison
+    is_override BOOLEAN DEFAULT 0,  -- True if reviewer disagreed with LLM
+    override_reason TEXT,  -- Specific reason for override (optional, detailed)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP,
     FOREIGN KEY (candidate_id) REFERENCES nhsn_candidates(id),
@@ -67,6 +71,7 @@ CREATE TABLE IF NOT EXISTS nhsn_reviews (
 CREATE INDEX IF NOT EXISTS idx_reviews_candidate ON nhsn_reviews(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_reviewed ON nhsn_reviews(reviewed);
 CREATE INDEX IF NOT EXISTS idx_reviews_queue_type ON nhsn_reviews(queue_type);
+CREATE INDEX IF NOT EXISTS idx_reviews_override ON nhsn_reviews(is_override);
 
 -- Confirmed NHSN Events
 CREATE TABLE IF NOT EXISTS nhsn_events (
@@ -132,3 +137,58 @@ JOIN nhsn_candidates c ON r.candidate_id = c.id
 LEFT JOIN nhsn_classifications cl ON r.classification_id = cl.id
 WHERE r.reviewed = 0
 ORDER BY r.created_at ASC;
+
+-- IP Review Override Statistics
+-- Tracks acceptance rate and override patterns for LLM quality assessment
+CREATE VIEW IF NOT EXISTS nhsn_override_stats AS
+SELECT
+    COUNT(*) as total_reviews,
+    SUM(CASE WHEN reviewed = 1 THEN 1 ELSE 0 END) as completed_reviews,
+    SUM(CASE WHEN is_override = 1 THEN 1 ELSE 0 END) as total_overrides,
+    SUM(CASE WHEN reviewed = 1 AND is_override = 0 THEN 1 ELSE 0 END) as accepted_classifications,
+    ROUND(
+        100.0 * SUM(CASE WHEN reviewed = 1 AND is_override = 0 THEN 1 ELSE 0 END) /
+        NULLIF(SUM(CASE WHEN reviewed = 1 THEN 1 ELSE 0 END), 0),
+        1
+    ) as acceptance_rate_pct,
+    ROUND(
+        100.0 * SUM(CASE WHEN is_override = 1 THEN 1 ELSE 0 END) /
+        NULLIF(SUM(CASE WHEN reviewed = 1 THEN 1 ELSE 0 END), 0),
+        1
+    ) as override_rate_pct
+FROM nhsn_reviews;
+
+-- Detailed override history for analysis
+CREATE VIEW IF NOT EXISTS nhsn_override_details AS
+SELECT
+    r.id as review_id,
+    r.reviewed_at,
+    r.reviewer,
+    c.patient_mrn,
+    c.organism,
+    c.hai_type,
+    cl.decision as llm_decision,
+    cl.confidence as llm_confidence,
+    r.reviewer_decision,
+    r.is_override,
+    r.reviewer_notes,
+    r.override_reason
+FROM nhsn_reviews r
+JOIN nhsn_candidates c ON r.candidate_id = c.id
+LEFT JOIN nhsn_classifications cl ON r.classification_id = cl.id
+WHERE r.reviewed = 1
+ORDER BY r.reviewed_at DESC;
+
+-- Override breakdown by LLM decision type
+CREATE VIEW IF NOT EXISTS nhsn_override_by_decision AS
+SELECT
+    llm_decision,
+    COUNT(*) as total_cases,
+    SUM(CASE WHEN is_override = 1 THEN 1 ELSE 0 END) as overrides,
+    ROUND(
+        100.0 * SUM(CASE WHEN is_override = 1 THEN 1 ELSE 0 END) / COUNT(*),
+        1
+    ) as override_rate_pct
+FROM nhsn_reviews
+WHERE reviewed = 1 AND llm_decision IS NOT NULL
+GROUP BY llm_decision;

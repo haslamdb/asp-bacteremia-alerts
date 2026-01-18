@@ -191,7 +191,11 @@ class Classification:
 
 @dataclass
 class Review:
-    """IP review record for an HAI candidate."""
+    """IP review record for an HAI candidate.
+
+    Tracks the IP reviewer's decision and whether they overrode the LLM
+    classification. Override tracking helps assess LLM quality over time.
+    """
     id: str
     candidate_id: str
     classification_id: str | None = None
@@ -200,8 +204,37 @@ class Review:
     reviewer: str | None = None
     reviewer_decision: ReviewerDecision | None = None
     reviewer_notes: str | None = None
+    # Override tracking
+    llm_decision: str | None = None  # Original LLM decision for comparison
+    is_override: bool = False  # True if reviewer disagreed with LLM
+    override_reason: str | None = None  # Categorized reason for override
     created_at: datetime = field(default_factory=datetime.now)
     reviewed_at: datetime | None = None
+
+    def determine_override(self, llm_decision: str) -> bool:
+        """Determine if the reviewer's decision overrides the LLM.
+
+        Args:
+            llm_decision: The original LLM classification decision
+
+        Returns:
+            True if the reviewer disagreed with the LLM
+        """
+        if not self.reviewer_decision:
+            return False
+
+        # Map LLM decisions to expected reviewer decisions
+        # hai_confirmed -> confirmed (agree) or rejected (override)
+        # not_hai -> rejected (agree) or confirmed (override)
+        # pending_review -> either is not considered an override
+
+        if llm_decision == "hai_confirmed":
+            return self.reviewer_decision == ReviewerDecision.REJECTED
+        elif llm_decision == "not_hai":
+            return self.reviewer_decision == ReviewerDecision.CONFIRMED
+        else:
+            # pending_review cases - reviewer is providing a decision, not overriding
+            return False
 
     def to_db_row(self) -> dict:
         """Convert to database row format."""
@@ -214,6 +247,9 @@ class Review:
             "reviewer": self.reviewer,
             "reviewer_decision": self.reviewer_decision.value if self.reviewer_decision else None,
             "reviewer_notes": self.reviewer_notes,
+            "llm_decision": self.llm_decision,
+            "is_override": self.is_override,
+            "override_reason": self.override_reason,
             "created_at": self.created_at.isoformat(),
             "reviewed_at": self.reviewed_at.isoformat() if self.reviewed_at else None,
         }

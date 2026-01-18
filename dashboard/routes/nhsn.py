@@ -294,6 +294,7 @@ def api_submit_review(candidate_id):
         reviewer = data.get("reviewer")
         decision = data.get("decision")
         notes = data.get("notes", "")
+        override_reason = data.get("override_reason")  # Optional categorized reason
 
         if not reviewer:
             return jsonify({"error": "reviewer is required"}), 400
@@ -319,8 +320,25 @@ def api_submit_review(candidate_id):
         if not candidate:
             return jsonify({"error": "Candidate not found"}), 404
 
-        # Create or update review record
-        review_id = str(uuid.uuid4())
+        # Get the LLM classification to determine if this is an override
+        classifications = db.get_classifications_for_candidate(candidate_id)
+        llm_decision = None
+        classification_id = None
+        is_override = False
+
+        if classifications:
+            latest_classification = classifications[0]  # Most recent
+            classification_id = latest_classification.id
+            llm_decision = latest_classification.decision.value
+
+            # Determine if reviewer is overriding the LLM
+            # LLM said HAI but reviewer says not HAI (rejected/mbi_lcbi/secondary)
+            # LLM said not HAI but reviewer says confirmed
+            if llm_decision == "hai_confirmed" and decision in ["rejected", "mbi_lcbi", "secondary"]:
+                is_override = True
+            elif llm_decision == "not_hai" and decision == "confirmed":
+                is_override = True
+            # pending_review from LLM is not considered an override either way
 
         # Update candidate status based on decision
         if decision == "confirmed":
@@ -348,14 +366,18 @@ def api_submit_review(candidate_id):
         else:
             new_status = candidate.status  # Keep current status
 
-        # Save the review (but mark as not completed for needs_more_info)
+        # Save the review with override tracking
         is_final_decision = decision in ["confirmed", "rejected", "mbi_lcbi", "secondary"]
         db.save_review(
             candidate_id=candidate_id,
             reviewer=reviewer,
             decision=decision_enum,
             notes=notes,
+            classification_id=classification_id,
             is_completed=is_final_decision,
+            llm_decision=llm_decision,
+            is_override=is_override,
+            override_reason=override_reason,
         )
 
         # Only update candidate status for final decisions
@@ -371,10 +393,35 @@ def api_submit_review(candidate_id):
         return jsonify({
             "success": True,
             "new_status": new_status.value,
+            "is_override": is_override,
+            "llm_decision": llm_decision,
         })
 
     except Exception as e:
         current_app.logger.error(f"Error submitting review: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@nhsn_bp.route("/api/override-stats")
+def api_override_stats():
+    """Get LLM classification override statistics."""
+    try:
+        db = get_nhsn_db()
+        stats = db.get_override_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@nhsn_bp.route("/api/recent-overrides")
+def api_recent_overrides():
+    """Get recent override details."""
+    try:
+        db = get_nhsn_db()
+        limit = request.args.get("limit", 20, type=int)
+        overrides = db.get_recent_overrides(limit=limit)
+        return jsonify(overrides)
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
@@ -486,6 +533,10 @@ def reports():
             ("vae", "VAE"),
         ]
 
+        # Get override statistics
+        override_stats = db.get_override_stats()
+        recent_overrides = db.get_recent_overrides(limit=10)
+
         return render_template(
             "nhsn_reports.html",
             report_data=report_data,
@@ -493,6 +544,8 @@ def reports():
             hai_types=hai_types,
             current_type=hai_type_str or "",
             current_days=days,
+            override_stats=override_stats,
+            recent_overrides=recent_overrides,
         )
     except Exception as e:
         current_app.logger.error(f"Error loading NHSN reports: {e}")
@@ -511,6 +564,16 @@ def reports():
             hai_types=[("", "All HAI Types")],
             current_type="",
             current_days=30,
+            override_stats={
+                "total_reviews": 0,
+                "completed_reviews": 0,
+                "total_overrides": 0,
+                "accepted_classifications": 0,
+                "acceptance_rate_pct": None,
+                "override_rate_pct": None,
+                "by_llm_decision": {},
+            },
+            recent_overrides=[],
             error=str(e),
         )
 
