@@ -457,3 +457,215 @@ def reports():
             current_days=30,
             error=str(e),
         )
+
+
+@nhsn_bp.route("/submission")
+def submission():
+    """NHSN data submission page."""
+    try:
+        db = get_nhsn_db()
+        from datetime import datetime, timedelta
+
+        # Get date range parameters
+        from_date_str = request.args.get("from_date")
+        to_date_str = request.args.get("to_date")
+        preparer_name = request.args.get("preparer_name", "")
+
+        # Default to current quarter if no dates provided
+        today = datetime.now()
+        if not from_date_str or not to_date_str:
+            quarter = (today.month - 1) // 3
+            quarter_start_month = quarter * 3 + 1
+            from_date = datetime(today.year, quarter_start_month, 1)
+            # End of quarter
+            if quarter == 3:  # Q4
+                to_date = datetime(today.year, 12, 31)
+            else:
+                to_date = datetime(today.year, quarter_start_month + 3, 1) - timedelta(days=1)
+        else:
+            from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+            to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+
+        # Get confirmed events in date range
+        events = []
+        if from_date_str and to_date_str:  # Only fetch if user submitted form
+            events = db.get_confirmed_hai_in_date_range(from_date, to_date)
+
+        # Get audit log
+        audit_log = db.get_submission_audit_log(limit=10)
+
+        return render_template(
+            "nhsn_submission.html",
+            events=events,
+            from_date=from_date.strftime("%Y-%m-%d"),
+            to_date=to_date.strftime("%Y-%m-%d"),
+            preparer_name=preparer_name,
+            audit_log=audit_log,
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error loading NHSN submission page: {e}")
+        from datetime import datetime
+        today = datetime.now()
+        return render_template(
+            "nhsn_submission.html",
+            events=[],
+            from_date=today.strftime("%Y-%m-%d"),
+            to_date=today.strftime("%Y-%m-%d"),
+            preparer_name="",
+            audit_log=[],
+            error=str(e),
+        )
+
+
+@nhsn_bp.route("/submission/export", methods=["POST"])
+def export_submission():
+    """Export NHSN submission data as CSV or PDF."""
+    try:
+        db = get_nhsn_db()
+        from datetime import datetime
+        import csv
+        import io
+
+        from_date_str = request.form.get("from_date")
+        to_date_str = request.form.get("to_date")
+        preparer_name = request.form.get("preparer_name", "Unknown")
+        export_format = request.form.get("format", "csv")
+
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+
+        events = db.get_confirmed_hai_in_date_range(from_date, to_date)
+
+        # Log the export
+        db.log_submission_action(
+            action="exported",
+            user_name=preparer_name,
+            period_start=from_date_str,
+            period_end=to_date_str,
+            event_count=len(events),
+            notes=f"Exported as {export_format.upper()}",
+        )
+
+        if export_format == "csv":
+            # Generate CSV
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # NHSN-compatible header
+            writer.writerow([
+                "Event_Date",
+                "Patient_ID",
+                "Patient_Name",
+                "DOB",
+                "Gender",
+                "HAI_Type",
+                "Event_Type",
+                "Organism",
+                "Device_Days",
+                "Location_Code",
+                "Central_Line_Type",
+                "Notes",
+            ])
+
+            for event in events:
+                writer.writerow([
+                    event.culture.collection_date.strftime("%Y-%m-%d"),
+                    event.patient.mrn,
+                    event.patient.name or "",
+                    event.patient.dob.strftime("%Y-%m-%d") if hasattr(event.patient, 'dob') and event.patient.dob else "",
+                    event.patient.gender if hasattr(event.patient, 'gender') else "",
+                    event.hai_type.value.upper(),
+                    "BSI" if event.hai_type.value == "clabsi" else event.hai_type.value.upper(),
+                    event.culture.organism or "",
+                    event.device_days_at_culture if event.device_days_at_culture is not None else "",
+                    event.location_code if hasattr(event, 'location_code') else "",
+                    event.central_line_type if hasattr(event, 'central_line_type') else "",
+                    "",  # Notes
+                ])
+
+            output.seek(0)
+            from flask import Response
+            filename = f"nhsn_submission_{from_date_str}_to_{to_date_str}.csv"
+            return Response(
+                output.getvalue(),
+                mimetype="text/csv",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+
+        else:
+            # Generate PDF summary (simple text for now)
+            from flask import Response
+            content = f"""NHSN HAI Submission Report
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+Prepared by: {preparer_name}
+Period: {from_date_str} to {to_date_str}
+
+Total Events: {len(events)}
+
+Event Details:
+"""
+            for i, event in enumerate(events, 1):
+                content += f"""
+{i}. {event.hai_type.value.upper()} - {event.culture.collection_date.strftime('%Y-%m-%d')}
+   Patient: {event.patient.mrn} ({event.patient.name or 'Unknown'})
+   Organism: {event.culture.organism or 'Unknown'}
+   Device Days: {event.device_days_at_culture if event.device_days_at_culture is not None else 'N/A'}
+"""
+
+            filename = f"nhsn_submission_{from_date_str}_to_{to_date_str}.txt"
+            return Response(
+                content,
+                mimetype="text/plain",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+
+    except Exception as e:
+        current_app.logger.error(f"Error exporting NHSN data: {e}")
+        from flask import redirect, url_for, flash
+        return redirect(url_for("nhsn.submission", error=str(e)))
+
+
+@nhsn_bp.route("/submission/mark-submitted", methods=["POST"])
+def mark_submitted():
+    """Mark events as submitted to NHSN."""
+    try:
+        db = get_nhsn_db()
+        from datetime import datetime
+        from flask import redirect, url_for
+
+        from_date_str = request.form.get("from_date")
+        to_date_str = request.form.get("to_date")
+        preparer_name = request.form.get("preparer_name", "Unknown")
+        notes = request.form.get("notes", "")
+
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+
+        # Get events and mark as submitted
+        events = db.get_confirmed_hai_in_date_range(from_date, to_date)
+        event_ids = [e.id for e in events]
+
+        db.mark_events_as_submitted(event_ids)
+
+        # Log the submission
+        db.log_submission_action(
+            action="submitted",
+            user_name=preparer_name,
+            period_start=from_date_str,
+            period_end=to_date_str,
+            event_count=len(events),
+            notes=notes,
+        )
+
+        return redirect(url_for(
+            "nhsn.submission",
+            from_date=from_date_str,
+            to_date=to_date_str,
+            preparer_name=preparer_name,
+            success_message=f"Marked {len(events)} events as submitted to NHSN."
+        ))
+
+    except Exception as e:
+        current_app.logger.error(f"Error marking events as submitted: {e}")
+        from flask import redirect, url_for
+        return redirect(url_for("nhsn.submission", error=str(e)))

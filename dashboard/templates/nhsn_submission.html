@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+
+{% block title %}NHSN Submission - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>NHSN Data Submission</h1>
+    <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+{% if error %}
+<div class="alert alert-warning">
+    <strong>Note:</strong> {{ error }}
+</div>
+{% endif %}
+
+{% if success_message %}
+<div class="alert alert-success">
+    {{ success_message }}
+</div>
+{% endif %}
+
+<!-- Submission Parameters -->
+<div class="submission-form-card">
+    <h2>Generate NHSN Submission Report</h2>
+    <form method="get" class="submission-form" id="submissionForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="from_date">From Date</label>
+                <div class="date-input-wrapper">
+                    <input type="date" id="from_date" name="from_date"
+                           value="{{ from_date }}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="to_date">To Date</label>
+                <div class="date-input-wrapper">
+                    <input type="date" id="to_date" name="to_date"
+                           value="{{ to_date }}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="preparer_name">Preparer Name (for audit log)</label>
+                <input type="text" id="preparer_name" name="preparer_name"
+                       value="{{ preparer_name or '' }}"
+                       placeholder="Enter your name" required>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Generate Report</button>
+            <button type="button" class="btn btn-secondary" onclick="setQuarterlyDates()">Use Current Quarter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Quick Date Selection -->
+<div class="quick-dates">
+    <span>Quick select:</span>
+    <button type="button" class="btn btn-sm" onclick="setQuarter('Q1')">Q1 (Jan-Mar)</button>
+    <button type="button" class="btn btn-sm" onclick="setQuarter('Q2')">Q2 (Apr-Jun)</button>
+    <button type="button" class="btn btn-sm" onclick="setQuarter('Q3')">Q3 (Jul-Sep)</button>
+    <button type="button" class="btn btn-sm" onclick="setQuarter('Q4')">Q4 (Oct-Dec)</button>
+</div>
+
+{% if events %}
+<!-- Summary Stats -->
+<div class="stats-grid">
+    <div class="stat-card stat-success">
+        <div class="stat-value">{{ events | length }}</div>
+        <div class="stat-label">Total HAI Events</div>
+    </div>
+    <div class="stat-card stat-critical">
+        <div class="stat-value">{{ events | selectattr('hai_type.value', 'equalto', 'clabsi') | list | length }}</div>
+        <div class="stat-label">CLABSI</div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-value">{{ events | selectattr('hai_type.value', 'equalto', 'cauti') | list | length }}</div>
+        <div class="stat-label">CAUTI</div>
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-value">{{ events | selectattr('hai_type.value', 'equalto', 'ssi') | list | length }}</div>
+        <div class="stat-label">SSI</div>
+    </div>
+</div>
+
+<!-- Events Table -->
+<div class="section">
+    <div class="section-header">
+        <h2>Confirmed HAI Events for NHSN Submission</h2>
+        <div class="export-buttons">
+            <form method="post" action="{{ url_for('nhsn.export_submission') }}" style="display: inline;">
+                <input type="hidden" name="from_date" value="{{ from_date }}">
+                <input type="hidden" name="to_date" value="{{ to_date }}">
+                <input type="hidden" name="preparer_name" value="{{ preparer_name }}">
+                <input type="hidden" name="format" value="csv">
+                <button type="submit" class="btn btn-success">
+                    <span class="icon">📥</span> Export CSV
+                </button>
+            </form>
+            <form method="post" action="{{ url_for('nhsn.export_submission') }}" style="display: inline;">
+                <input type="hidden" name="from_date" value="{{ from_date }}">
+                <input type="hidden" name="to_date" value="{{ to_date }}">
+                <input type="hidden" name="preparer_name" value="{{ preparer_name }}">
+                <input type="hidden" name="format" value="pdf">
+                <button type="submit" class="btn btn-info">
+                    <span class="icon">📄</span> Export PDF Summary
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <table class="table nhsn-table">
+        <thead>
+            <tr>
+                <th>Event Date</th>
+                <th>Patient ID</th>
+                <th>Patient Info</th>
+                <th>HAI Type</th>
+                <th>Organism</th>
+                <th>Device Days</th>
+                <th>Location</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.culture.collection_date.strftime('%Y-%m-%d') }}</td>
+                <td><strong>{{ event.patient.mrn }}</strong></td>
+                <td>
+                    {{ event.patient.name or 'Unknown' }}
+                    {% if event.patient.dob %}
+                    <br><small class="text-muted">DOB: {{ event.patient.dob.strftime('%Y-%m-%d') if event.patient.dob else 'N/A' }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-hai-{{ event.hai_type.value }}">
+                        {{ event.hai_type.value | upper }}
+                    </span>
+                </td>
+                <td>{{ event.culture.organism or 'Unknown' }}</td>
+                <td>{{ event.device_days_at_culture if event.device_days_at_culture is not none else '-' }}</td>
+                <td>{{ event.location_code or 'N/A' }}</td>
+                <td>
+                    {% if event.nhsn_reported %}
+                    <span class="badge badge-success">Reported</span>
+                    {% else %}
+                    <span class="badge badge-warning">Pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Mark as Submitted -->
+<div class="submission-action-card">
+    <h3>Mark Events as Submitted to NHSN</h3>
+    <p>After you have entered these events into the NHSN system, click below to mark them as reported.</p>
+    <form method="post" action="{{ url_for('nhsn.mark_submitted') }}" id="markSubmittedForm">
+        <input type="hidden" name="from_date" value="{{ from_date }}">
+        <input type="hidden" name="to_date" value="{{ to_date }}">
+        <input type="hidden" name="preparer_name" value="{{ preparer_name }}">
+        <div class="form-group">
+            <label for="submission_notes">Submission Notes (optional)</label>
+            <textarea id="submission_notes" name="notes" rows="2"
+                      placeholder="e.g., Submitted to NHSN on 2026-01-17, confirmation #12345"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary"
+                onclick="return confirm('Mark {{ events | length }} events as submitted to NHSN?');">
+            Mark {{ events | length }} Events as Submitted
+        </button>
+    </form>
+</div>
+
+{% else %}
+<div class="empty-state">
+    <h3>No Events Found</h3>
+    <p>No confirmed HAI events found for the selected date range.</p>
+    <p>Select a date range above to generate a submission report.</p>
+</div>
+{% endif %}
+
+<!-- Audit Log -->
+{% if audit_log %}
+<div class="section">
+    <h2>Submission Audit Log</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Period</th>
+                <th>Events</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in audit_log %}
+            <tr>
+                <td>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <span class="badge badge-{{ 'success' if entry.action == 'submitted' else 'info' }}">
+                        {{ entry.action | title }}
+                    </span>
+                </td>
+                <td>{{ entry.user_name }}</td>
+                <td>{{ entry.period_start }} to {{ entry.period_end }}</td>
+                <td>{{ entry.event_count }}</td>
+                <td>{{ entry.notes or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Instructions -->
+<div class="instructions-card">
+    <h2>NHSN Submission Instructions</h2>
+
+    <div class="instruction-section">
+        <h3>Step 1: Generate Report</h3>
+        <p>Select the date range for the reporting period. NHSN uses quarterly reporting:</p>
+        <ul>
+            <li><strong>Q1:</strong> January 1 - March 31</li>
+            <li><strong>Q2:</strong> April 1 - June 30</li>
+            <li><strong>Q3:</strong> July 1 - September 30</li>
+            <li><strong>Q4:</strong> October 1 - December 31</li>
+        </ul>
+        <p><em>Submission deadline: 4.5 months after quarter end</em></p>
+    </div>
+
+    <div class="instruction-section">
+        <h3>Step 2: Review Events</h3>
+        <p>Review all confirmed HAI events in the table above. Ensure:</p>
+        <ul>
+            <li>All events have been reviewed by IP</li>
+            <li>Patient identifiers are correct</li>
+            <li>Event dates and organisms are accurate</li>
+            <li>Device days are documented</li>
+        </ul>
+    </div>
+
+    <div class="instruction-section">
+        <h3>Step 3: Export Data</h3>
+        <p>Choose an export format:</p>
+        <ul>
+            <li><strong>CSV:</strong> For import into spreadsheets or NHSN CSV import</li>
+            <li><strong>PDF Summary:</strong> For documentation and records</li>
+        </ul>
+    </div>
+
+    <div class="instruction-section">
+        <h3>Step 4: Submit to NHSN</h3>
+        <p>Log into the <a href="https://nhsn.cdc.gov/nhsn" target="_blank" rel="noopener">NHSN Application</a> and enter events:</p>
+        <ol>
+            <li>Navigate to <strong>Patient Safety Component &rarr; Events</strong></li>
+            <li>Select <strong>Add</strong> and choose event type (BSI for CLABSI)</li>
+            <li>Enter patient demographics and event details</li>
+            <li>Add pathogen information</li>
+            <li>Save and submit</li>
+        </ol>
+        <p><a href="https://www.cdc.gov/nhsn/cdaportal/importingdata.html" target="_blank" rel="noopener">
+            Learn about automated data import options &rarr;
+        </a></p>
+    </div>
+
+    <div class="instruction-section">
+        <h3>Step 5: Record Submission</h3>
+        <p>After submitting to NHSN, click "Mark Events as Submitted" above to update the audit trail.</p>
+    </div>
+</div>
+
+<style>
+.submission-form-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.submission-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2fr;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.form-group input,
+.form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.date-input-wrapper {
+    position: relative;
+}
+
+.date-input-wrapper input[type="date"] {
+    width: 100%;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.quick-dates {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+
+.quick-dates span {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.nhsn-table th,
+.nhsn-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.nhsn-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.submission-action-card {
+    background: #f0fdf4;
+    border: 1px solid #22c55e;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.submission-action-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #166534;
+}
+
+.submission-action-card p {
+    margin-bottom: 1rem;
+    color: #166534;
+}
+
+.instructions-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.instructions-card h2 {
+    margin: 0 0 1.5rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.instruction-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.instruction-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.instruction-section h3 {
+    color: #1e40af;
+    margin: 0 0 0.75rem 0;
+    font-size: 1.1rem;
+}
+
+.instruction-section ul,
+.instruction-section ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.instruction-section li {
+    margin: 0.25rem 0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem 0;
+    color: #475569;
+}
+
+.empty-state p {
+    color: #64748b;
+    margin: 0.25rem 0;
+}
+
+/* HAI Type Badges */
+.badge-hai-clabsi { background: #dc2626; color: white; }
+.badge-hai-cauti { background: #f59e0b; color: white; }
+.badge-hai-ssi { background: #8b5cf6; color: white; }
+.badge-hai-vae { background: #3b82f6; color: white; }
+
+.icon {
+    margin-right: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .submission-form .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .export-buttons {
+        width: 100%;
+    }
+
+    .quick-dates {
+        flex-wrap: wrap;
+    }
+}
+</style>
+
+<script>
+function setQuarterlyDates() {
+    const today = new Date();
+    const quarter = Math.floor(today.getMonth() / 3);
+    const year = today.getFullYear();
+
+    let startMonth, endMonth;
+    switch(quarter) {
+        case 0: startMonth = 0; endMonth = 2; break;  // Q1
+        case 1: startMonth = 3; endMonth = 5; break;  // Q2
+        case 2: startMonth = 6; endMonth = 8; break;  // Q3
+        case 3: startMonth = 9; endMonth = 11; break; // Q4
+    }
+
+    const startDate = new Date(year, startMonth, 1);
+    const endDate = new Date(year, endMonth + 1, 0);  // Last day of quarter
+
+    document.getElementById('from_date').value = formatDate(startDate);
+    document.getElementById('to_date').value = formatDate(endDate);
+}
+
+function setQuarter(q) {
+    const today = new Date();
+    let year = today.getFullYear();
+    let startMonth, endMonth;
+
+    switch(q) {
+        case 'Q1': startMonth = 0; endMonth = 2; break;
+        case 'Q2': startMonth = 3; endMonth = 5; break;
+        case 'Q3': startMonth = 6; endMonth = 8; break;
+        case 'Q4': startMonth = 9; endMonth = 11; break;
+    }
+
+    // If we're in the first half of the year and selecting Q3/Q4, use previous year
+    const currentQuarter = Math.floor(today.getMonth() / 3) + 1;
+    const selectedQuarter = parseInt(q.substring(1));
+    if (selectedQuarter > currentQuarter) {
+        year--;
+    }
+
+    const startDate = new Date(year, startMonth, 1);
+    const endDate = new Date(year, endMonth + 1, 0);
+
+    document.getElementById('from_date').value = formatDate(startDate);
+    document.getElementById('to_date').value = formatDate(endDate);
+}
+
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Set default dates on page load if not already set
+document.addEventListener('DOMContentLoaded', function() {
+    const fromDate = document.getElementById('from_date');
+    const toDate = document.getElementById('to_date');
+
+    if (!fromDate.value || !toDate.value) {
+        setQuarterlyDates();
+    }
+});
+</script>
+{% endblock %}

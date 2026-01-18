@@ -165,7 +165,14 @@ class NHSNDatabase:
                 fhir_id=di.get("fhir_id"),
             )
 
-        return HAICandidate(
+        # Check for nhsn_reported column (may not exist in older databases)
+        nhsn_reported = False
+        try:
+            nhsn_reported = bool(row["nhsn_reported"]) if row["nhsn_reported"] else False
+        except (IndexError, KeyError):
+            pass
+
+        candidate = HAICandidate(
             id=row["id"],
             hai_type=HAIType(row["hai_type"]),
             patient=Patient(
@@ -185,6 +192,8 @@ class NHSNDatabase:
             status=CandidateStatus(row["status"]),
             created_at=datetime.fromisoformat(row["created_at"]),
         )
+        candidate.nhsn_reported = nhsn_reported
+        return candidate
 
     # --- Classification Operations ---
 
@@ -726,3 +735,181 @@ class NHSNDatabase:
                     for row in review_breakdown
                 ],
             }
+
+    # --- NHSN Submission Operations ---
+
+    def get_confirmed_hai_in_date_range(
+        self, from_date: datetime, to_date: datetime
+    ) -> list[HAICandidate]:
+        """Get confirmed HAI candidates in a specific date range.
+
+        Args:
+            from_date: Start date (inclusive)
+            to_date: End date (inclusive)
+
+        Returns:
+            List of confirmed HAI candidates
+        """
+        # Convert to ISO format strings
+        from_str = from_date.strftime("%Y-%m-%d")
+        to_str = (to_date + timedelta(days=1)).strftime("%Y-%m-%d")  # Include the end date
+
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM nhsn_candidates
+                WHERE status = 'confirmed'
+                AND DATE(culture_date) >= DATE(?)
+                AND DATE(culture_date) < DATE(?)
+                ORDER BY culture_date DESC
+                """,
+                (from_str, to_str),
+            ).fetchall()
+
+            return [self._row_to_candidate(row) for row in rows]
+
+    def mark_events_as_submitted(self, candidate_ids: list[str]) -> int:
+        """Mark candidates as submitted to NHSN.
+
+        Args:
+            candidate_ids: List of candidate IDs to mark as submitted
+
+        Returns:
+            Number of candidates marked
+        """
+        if not candidate_ids:
+            return 0
+
+        now = datetime.now().isoformat()
+        with self._get_connection() as conn:
+            # Update the nhsn_reported flag (we need to add this column if it doesn't exist)
+            # First check if column exists
+            cursor = conn.execute("PRAGMA table_info(nhsn_candidates)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "nhsn_reported" not in columns:
+                conn.execute(
+                    "ALTER TABLE nhsn_candidates ADD COLUMN nhsn_reported INTEGER DEFAULT 0"
+                )
+                conn.execute(
+                    "ALTER TABLE nhsn_candidates ADD COLUMN nhsn_reported_at TEXT"
+                )
+
+            placeholders = ",".join(["?" for _ in candidate_ids])
+            conn.execute(
+                f"""
+                UPDATE nhsn_candidates
+                SET nhsn_reported = 1, nhsn_reported_at = ?
+                WHERE id IN ({placeholders})
+                """,
+                [now] + candidate_ids,
+            )
+            conn.commit()
+
+            return len(candidate_ids)
+
+    def log_submission_action(
+        self,
+        action: str,
+        user_name: str,
+        period_start: str,
+        period_end: str,
+        event_count: int,
+        notes: str | None = None,
+    ) -> str:
+        """Log a submission-related action (export, submission, etc).
+
+        Args:
+            action: Type of action (exported, submitted, etc.)
+            user_name: Name of the user performing the action
+            period_start: Start of reporting period
+            period_end: End of reporting period
+            event_count: Number of events in the action
+            notes: Optional notes
+
+        Returns:
+            ID of the log entry
+        """
+        import uuid
+
+        log_id = str(uuid.uuid4())
+        now = datetime.now()
+
+        with self._get_connection() as conn:
+            # Create table if not exists
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS nhsn_submission_audit (
+                    id TEXT PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    period_start TEXT NOT NULL,
+                    period_end TEXT NOT NULL,
+                    event_count INTEGER NOT NULL,
+                    notes TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+
+            conn.execute(
+                """
+                INSERT INTO nhsn_submission_audit (
+                    id, action, user_name, period_start, period_end, event_count, notes, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (log_id, action, user_name, period_start, period_end, event_count, notes, now.isoformat()),
+            )
+            conn.commit()
+
+        return log_id
+
+    def get_submission_audit_log(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Get the submission audit log.
+
+        Args:
+            limit: Maximum number of entries to return
+
+        Returns:
+            List of audit log entries
+        """
+        with self._get_connection() as conn:
+            # Create table if not exists (in case it hasn't been created yet)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS nhsn_submission_audit (
+                    id TEXT PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    period_start TEXT NOT NULL,
+                    period_end TEXT NOT NULL,
+                    event_count INTEGER NOT NULL,
+                    notes TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+
+            rows = conn.execute(
+                """
+                SELECT * FROM nhsn_submission_audit
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+            result = []
+            for row in rows:
+                result.append({
+                    "id": row["id"],
+                    "action": row["action"],
+                    "user_name": row["user_name"],
+                    "period_start": row["period_start"],
+                    "period_end": row["period_end"],
+                    "event_count": row["event_count"],
+                    "notes": row["notes"],
+                    "created_at": datetime.fromisoformat(row["created_at"]),
+                })
+
+            return result

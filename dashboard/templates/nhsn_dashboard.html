@@ -51,6 +51,7 @@
         <a href="{{ url_for('nhsn.candidates', status='pending') }}" class="btn btn-warning">Pending Classification</a>
         <a href="{{ url_for('nhsn.reviews') }}" class="btn btn-info">IP Review Queue</a>
         <a href="{{ url_for('nhsn.reports') }}" class="btn btn-success">Reports & Analytics</a>
+        <a href="{{ url_for('nhsn.submission') }}" class="btn btn-nhsn">NHSN Submission</a>
         <a href="{{ url_for('nhsn.help_page') }}" class="btn btn-secondary">Help & Demo Guide</a>
     </div>
 </div>
@@ -205,6 +206,11 @@
 
 .btn-info {
     background: #3b82f6;
+    color: white;
+}
+
+.btn-nhsn {
+    background: #0f766e;
     color: white;
 }
 
