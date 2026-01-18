@@ -102,11 +102,6 @@
             {% endfor %}
         </tbody>
     </table>
-    {% if pending_reviews | length > 10 %}
-    <div class="text-center">
-        <a href="{{ url_for('nhsn.reviews') }}">View all {{ pending_reviews | length }} active cases &rarr;</a>
-    </div>
-    {% endif %}
     {% else %}
     <p class="empty-state">No active cases. All cases have been reviewed. <a href="{{ url_for('nhsn.history') }}">View history</a></p>
     {% endif %}

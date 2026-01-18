@@ -54,7 +54,7 @@ python -m src.runner --full</code></pre>
             <li>Create review entries in the IP Review Queue</li>
         </ol>
 
-        <p>Then go to the <a href="{{ url_for('nhsn.reviews') }}">IP Review Queue</a> to review and make final decisions on the new cases.</p>
+        <p>Then go to the <a href="{{ url_for('nhsn.dashboard') }}">Dashboard</a> to review and make final decisions on the new cases.</p>
     </div>
 
     <div class="help-card">
@@ -298,10 +298,8 @@ ollama serve</code></pre>
     <div class="help-card">
         <h2>Links</h2>
         <ul>
-            <li><a href="{{ url_for('nhsn.dashboard') }}">NHSN Dashboard</a> - Overview and statistics</li>
-            <li><a href="{{ url_for('nhsn.reviews') }}">IP Review Queue</a> - Review and make final decisions on candidates</li>
-            <li><a href="{{ url_for('nhsn.candidates') }}">Active Candidates</a> - View all CLABSI candidates</li>
-            <li><a href="{{ url_for('nhsn.history') }}">History</a> - Completed reviews (confirmed and rejected)</li>
+            <li><a href="{{ url_for('nhsn.dashboard') }}">Dashboard</a> - Active cases awaiting IP review</li>
+            <li><a href="{{ url_for('nhsn.history') }}">History</a> - Completed reviews (confirmed HAI and confirmed not HAI)</li>
             <li><a href="{{ url_for('nhsn.reports') }}">Reports & Analytics</a> - LLM quality metrics and override tracking</li>
             <li><a href="{{ url_for('nhsn.submission') }}">NHSN Submission</a> - Export or submit confirmed events to NHSN</li>
             <li><a href="{{ url_for('views.help_page') }}">ASP Alerts Help</a> - Help for bacteremia and antimicrobial usage alerts</li>

@@ -164,12 +164,26 @@ class CLABSIClassifierV2(BaseHAIClassifier):
         supporting = []
         contradicting = []
 
+        # Helper to format source attribution
+        def format_source(source_obj) -> str:
+            """Format EvidenceSource object to readable string."""
+            if source_obj is None:
+                return "clinical notes"
+            parts = []
+            if source_obj.note_type:
+                parts.append(source_obj.note_type)
+            if source_obj.note_date:
+                parts.append(source_obj.note_date)
+            if source_obj.author:
+                parts.append(source_obj.author)
+            return ": ".join(parts) if parts else "clinical notes"
+
         # Add alternate sources as contradicting evidence for CLABSI
         for alt_site in extraction.alternate_infection_sites:
             if alt_site.confidence.value in ["definite", "probable"]:
                 contradicting.append(SupportingEvidence(
-                    text=alt_site.supporting_quote,
-                    source=f"alternate_source_{alt_site.site}",
+                    text=alt_site.supporting_quote or f"Documented {alt_site.site}",
+                    source=format_source(alt_site.source),
                     relevance=f"Possible alternate source: {alt_site.site}",
                 ))
 
@@ -178,8 +192,56 @@ class CLABSIClassifierV2(BaseHAIClassifier):
         if line.line_infection_suspected.value in ["definite", "probable"]:
             supporting.append(SupportingEvidence(
                 text="Line infection suspected by clinical team",
-                source="line_assessment",
+                source=format_source(line.line_infection_suspected_source),
                 relevance="Supports CLABSI attribution",
+            ))
+
+        # Add exit site findings as supporting evidence
+        if line.exit_site_erythema.value in ["definite", "probable"] or line.exit_site_purulence.value in ["definite", "probable"]:
+            findings = []
+            if line.exit_site_erythema.value in ["definite", "probable"]:
+                findings.append("erythema")
+            if line.exit_site_purulence.value in ["definite", "probable"]:
+                findings.append("purulence")
+            supporting.append(SupportingEvidence(
+                text=f"Exit site findings: {', '.join(findings)}",
+                source=format_source(line.exit_site_source),
+                relevance="Exit site findings support line-related infection",
+            ))
+
+        # Add MBI factors as evidence
+        mbi = extraction.mbi_factors
+        if mbi.mucositis_documented.value in ["definite", "probable"]:
+            grade_info = f" (Grade {mbi.mucositis_grade})" if mbi.mucositis_grade else ""
+            supporting.append(SupportingEvidence(
+                text=f"Mucositis documented{grade_info}",
+                source=format_source(mbi.mucositis_source),
+                relevance="MBI-LCBI: Mucosal barrier injury factor",
+            ))
+
+        if mbi.neutropenia_documented.value in ["definite", "probable"]:
+            anc_info = f" (ANC: {mbi.anc_value})" if mbi.anc_value else ""
+            supporting.append(SupportingEvidence(
+                text=f"Neutropenia documented{anc_info}",
+                source=format_source(mbi.neutropenia_source),
+                relevance="MBI-LCBI: Immunocompromised status",
+            ))
+
+        if mbi.stem_cell_transplant.value in ["definite", "probable"]:
+            transplant_info = f" ({mbi.transplant_type})" if mbi.transplant_type else ""
+            supporting.append(SupportingEvidence(
+                text=f"Stem cell transplant{transplant_info}",
+                source=format_source(mbi.transplant_source),
+                relevance="MBI-LCBI: Transplant status",
+            ))
+
+        # Add contamination evidence
+        contam = extraction.contamination
+        if contam.treated_as_contaminant.value in ["definite", "probable"]:
+            contradicting.append(SupportingEvidence(
+                text=contam.clinical_note_quote or "Team treating as contaminant",
+                source=format_source(contam.source),
+                relevance="Suggests contamination rather than true infection",
             ))
 
         # Determine alternative source

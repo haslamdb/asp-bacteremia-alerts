@@ -57,54 +57,6 @@ def dashboard():
         )
 
 
-@nhsn_bp.route("/candidates")
-def candidates():
-    """List active CLABSI candidates (pending review)."""
-    try:
-        db = get_nhsn_db()
-
-        # Get filter parameters
-        status_filter = request.args.get("status")
-        hai_type = request.args.get("type", "clabsi")
-
-        # Get candidates
-        from src.models import CandidateStatus, HAIType
-
-        if status_filter:
-            # Specific status filter requested
-            try:
-                status = CandidateStatus(status_filter)
-                candidates = db.get_candidates_by_status(
-                    status, HAIType(hai_type) if hai_type else None
-                )
-            except ValueError:
-                candidates = db.get_active_candidates(limit=100)
-        else:
-            # Default: show only active candidates (not confirmed/rejected)
-            candidates = db.get_active_candidates(
-                limit=100, hai_type=HAIType(hai_type) if hai_type else None
-            )
-
-        # Get stats
-        stats = db.get_summary_stats()
-
-        return render_template(
-            "nhsn_candidates.html",
-            candidates=candidates,
-            stats=stats,
-            current_status=status_filter,
-            current_type=hai_type,
-        )
-    except Exception as e:
-        current_app.logger.error(f"Error loading candidates: {e}")
-        return render_template(
-            "nhsn_candidates.html",
-            candidates=[],
-            stats={},
-            error=str(e),
-        )
-
-
 @nhsn_bp.route("/history")
 def history():
     """Show resolved candidates (confirmed CLABSI or rejected)."""
@@ -182,37 +134,6 @@ def candidate_detail(candidate_id):
             candidate=None,
             error=str(e),
         ), 500
-
-
-@nhsn_bp.route("/reviews")
-def reviews():
-    """List pending IP reviews."""
-    try:
-        db = get_nhsn_db()
-
-        queue_type = request.args.get("queue")
-        from src.models import ReviewQueueType
-
-        if queue_type:
-            try:
-                pending = db.get_pending_reviews(ReviewQueueType(queue_type))
-            except ValueError:
-                pending = db.get_pending_reviews()
-        else:
-            pending = db.get_pending_reviews()
-
-        return render_template(
-            "nhsn_reviews.html",
-            reviews=pending,
-            current_queue=queue_type,
-        )
-    except Exception as e:
-        current_app.logger.error(f"Error loading reviews: {e}")
-        return render_template(
-            "nhsn_reviews.html",
-            reviews=[],
-            error=str(e),
-        )
 
 
 # API endpoints for NHSN

@@ -277,9 +277,8 @@
         <div class="report-card">
             <h3>Quick Links</h3>
             <div class="quick-links-vertical">
-                <a href="{{ url_for('nhsn.candidates') }}" class="btn btn-primary btn-block">All Candidates</a>
-                <a href="{{ url_for('nhsn.candidates', status='pending_review') }}" class="btn btn-warning btn-block">Pending Review</a>
-                <a href="{{ url_for('nhsn.reviews') }}" class="btn btn-info btn-block">Review History</a>
+                <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-primary btn-block">Active Cases</a>
+                <a href="{{ url_for('nhsn.history') }}" class="btn btn-info btn-block">Review History</a>
             </div>
         </div>
     </div>

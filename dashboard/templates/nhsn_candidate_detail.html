@@ -7,18 +7,18 @@
 <div class="alert alert-danger">
     <strong>Error:</strong> {{ error }}
 </div>
-<a href="{{ url_for('nhsn.candidates') }}" class="btn">&larr; Back to Candidates</a>
+<a href="{{ url_for('nhsn.dashboard') }}" class="btn">&larr; Back to Dashboard</a>
 {% elif not candidate %}
 <div class="empty-state">
     <h2>Candidate Not Found</h2>
     <p>The requested candidate could not be found.</p>
-    <a href="{{ url_for('nhsn.candidates') }}" class="btn btn-primary">Back to Candidates</a>
+    <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
 </div>
 {% else %}
 
 <div class="page-header">
     <h1>CLABSI Candidate</h1>
-    <a href="{{ url_for('nhsn.candidates') }}" class="btn btn-secondary">Back to Candidates</a>
+    <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
 </div>
 
 <div class="alert-detail-layout">
@@ -104,11 +104,28 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="criteria-item criteria-pending">
-                        <span class="criteria-icon">?</span>
+                    <div class="criteria-item {% if classifications %}criteria-met{% else %}criteria-pending{% endif %}">
+                        <span class="criteria-icon">{% if classifications %}✓{% else %}?{% endif %}</span>
                         <div class="criteria-text">
-                            <strong>Source Attribution</strong>
-                            <p class="text-muted">Requires LLM classification or IP review</p>
+                            <strong>LLM Classification</strong>
+                            {% if classifications %}
+                            <p class="text-muted">LLM review complete</p>
+                            {% else %}
+                            <p class="text-muted">Awaiting LLM classification</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="criteria-item {% if candidate.status.value in ['confirmed', 'rejected'] %}criteria-met{% else %}criteria-pending{% endif %}">
+                        <span class="criteria-icon">{% if candidate.status.value in ['confirmed', 'rejected'] %}✓{% else %}?{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>IP Review</strong>
+                            {% if candidate.status.value == 'confirmed' %}
+                            <p class="text-muted">Confirmed as HAI</p>
+                            {% elif candidate.status.value == 'rejected' %}
+                            <p class="text-muted">Confirmed not HAI</p>
+                            {% else %}
+                            <p class="text-muted">Requires IP decision</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -148,7 +165,11 @@
                         <strong>Supporting Evidence:</strong>
                         <ul>
                         {% for e in c.supporting_evidence %}
-                            <li>{{ e.text }} <small class="text-muted">({{ e.source }})</small></li>
+                            <li>
+                                <span class="evidence-text">{{ e.text }}</span>
+                                {% if e.relevance %}<span class="evidence-relevance">— {{ e.relevance }}</span>{% endif %}
+                                <br><small class="evidence-source">Source: {{ e.source }}</small>
+                            </li>
                         {% endfor %}
                         </ul>
                     </div>
@@ -159,7 +180,11 @@
                         <strong>Contradicting Evidence:</strong>
                         <ul>
                         {% for e in c.contradicting_evidence %}
-                            <li>{{ e.text }} <small class="text-muted">({{ e.source }})</small></li>
+                            <li>
+                                <span class="evidence-text">{{ e.text }}</span>
+                                {% if e.relevance %}<span class="evidence-relevance">— {{ e.relevance }}</span>{% endif %}
+                                <br><small class="evidence-source">Source: {{ e.source }}</small>
+                            </li>
                         {% endfor %}
                         </ul>
                     </div>
@@ -403,6 +428,25 @@ document.querySelectorAll('.classification-buttons button, .secondary-buttons bu
 .evidence ul {
     margin: 0.5rem 0 0 1.5rem;
     padding: 0;
+}
+
+.evidence ul li {
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
+.evidence-text {
+    font-weight: 500;
+}
+
+.evidence-relevance {
+    color: #64748b;
+    font-style: italic;
+}
+
+.evidence-source {
+    color: #3b82f6;
+    font-size: 0.8rem;
 }
 
 .classification-meta {

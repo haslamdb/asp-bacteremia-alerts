@@ -20,9 +20,7 @@
         <div class="nav-links">
             {% if is_nhsn %}
             <!-- NHSN Navigation -->
-            <a href="{{ url_for('nhsn.dashboard') }}" {% if request.endpoint == 'nhsn.dashboard' %}class="active"{% endif %}>Dashboard</a>
-            <a href="{{ url_for('nhsn.candidates') }}" {% if request.endpoint == 'nhsn.candidates' or request.endpoint == 'nhsn.candidate_detail' %}class="active"{% endif %}>Candidates</a>
-            <a href="{{ url_for('nhsn.reviews') }}" {% if request.endpoint == 'nhsn.reviews' %}class="active"{% endif %}>Reviews</a>
+            <a href="{{ url_for('nhsn.dashboard') }}" {% if request.endpoint in ['nhsn.dashboard', 'nhsn.candidate_detail'] %}class="active"{% endif %}>Dashboard</a>
             <a href="{{ url_for('nhsn.history') }}" {% if request.endpoint == 'nhsn.history' %}class="active"{% endif %}>History</a>
             <a href="{{ url_for('nhsn.reports') }}" {% if request.endpoint == 'nhsn.reports' %}class="active"{% endif %}>Reports</a>
             <a href="{{ url_for('nhsn.submission') }}" {% if request.endpoint == 'nhsn.submission' %}class="active"{% endif %}>Submission</a>
