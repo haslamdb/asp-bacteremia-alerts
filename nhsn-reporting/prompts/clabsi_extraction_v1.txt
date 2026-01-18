@@ -42,11 +42,11 @@ The source object includes:
 Example: If you find "Grade 2 mucositis" in a progress note dated 2026-01-14
 written by David Haslam, MD, include:
 ```json
-"mucositis_source": {
+"mucositis_source": {{
   "note_type": "Progress Note",
   "note_date": "2026-01-14",
   "author": "David Haslam, MD"
-}
+}}
 ```
 
 ### 1. Alternate Infection Sources
