@@ -3,7 +3,7 @@
 Main service that orchestrates:
 1. Rule-based candidate detection
 2. Note retrieval for LLM context
-3. LLM classification (future phase)
+3. LLM extraction + rules-based classification
 4. Routing to IP review queue
 """
 
@@ -19,8 +19,11 @@ from .models import (
     HAICandidate,
     HAIType,
     CandidateStatus,
+    ClassificationDecision,
 )
 from .candidates import CLABSICandidateDetector
+from .classifiers import CLABSIClassifierV2
+from .notes.retriever import NoteRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +54,26 @@ class NHSNMonitor:
             # Future: CAUTI, SSI, VAE detectors
         }
 
+        # Initialize classifier and note retriever (lazy-loaded)
+        self._classifier: CLABSIClassifierV2 | None = None
+        self._note_retriever: NoteRetriever | None = None
+
         # Track processed cultures to avoid duplicates within session
         self._processed_cultures: set[str] = set()
+
+    @property
+    def classifier(self) -> CLABSIClassifierV2:
+        """Lazy-load classifier to avoid LLM initialization until needed."""
+        if self._classifier is None:
+            self._classifier = CLABSIClassifierV2(db=self.db)
+        return self._classifier
+
+    @property
+    def note_retriever(self) -> NoteRetriever:
+        """Lazy-load note retriever."""
+        if self._note_retriever is None:
+            self._note_retriever = NoteRetriever()
+        return self._note_retriever
 
     def run_once(self, dry_run: bool = False) -> int:
         """Run a single detection cycle.
@@ -312,3 +333,161 @@ Review in Dashboard: {Config.DASHBOARD_BASE_URL}/nhsn/candidates/{candidate.id}
     def get_stats(self) -> dict:
         """Get summary statistics for dashboard."""
         return self.db.get_summary_stats()
+
+    def classify_pending(
+        self,
+        limit: int | None = None,
+        dry_run: bool = False,
+    ) -> dict:
+        """Classify pending candidates using LLM extraction + rules engine.
+
+        Args:
+            limit: Maximum number of candidates to classify. None for all.
+            dry_run: If True, don't save classifications.
+
+        Returns:
+            Dict with classification summary.
+        """
+        logger.info("Starting classification of pending candidates...")
+
+        # Get pending candidates
+        candidates = self.db.get_candidates_by_status(CandidateStatus.PENDING)
+
+        if limit:
+            candidates = candidates[:limit]
+
+        if not candidates:
+            logger.info("No pending candidates to classify")
+            return {"classified": 0, "errors": 0}
+
+        logger.info(f"Found {len(candidates)} pending candidates")
+
+        classified_count = 0
+        error_count = 0
+        results = {
+            "classified": 0,
+            "errors": 0,
+            "by_decision": {},
+            "details": [],
+        }
+
+        for candidate in candidates:
+            try:
+                # Retrieve clinical notes for this patient
+                notes = self.note_retriever.get_notes_for_candidate(candidate)
+
+                if not notes:
+                    logger.warning(
+                        f"No notes found for candidate {candidate.id} "
+                        f"(patient {candidate.patient.mrn})"
+                    )
+                    # Still run classification - will get low confidence
+                    notes = []
+
+                logger.info(
+                    f"Classifying candidate {candidate.id}: "
+                    f"patient={candidate.patient.mrn}, "
+                    f"organism={candidate.culture.organism}, "
+                    f"notes={len(notes)}"
+                )
+
+                # Run classification
+                classification = self.classifier.classify(candidate, notes)
+
+                if dry_run:
+                    logger.info(
+                        f"[DRY RUN] Would classify {candidate.id} as "
+                        f"{classification.decision.value} "
+                        f"(confidence={classification.confidence:.2f})"
+                    )
+                else:
+                    # Save classification
+                    self.db.save_classification(classification)
+
+                    # Update candidate status based on decision
+                    new_status = self._determine_status(classification)
+                    self.db.update_candidate_status(candidate.id, new_status)
+
+                    logger.info(
+                        f"Classified {candidate.id} as {classification.decision.value} "
+                        f"(confidence={classification.confidence:.2f}, status={new_status.value})"
+                    )
+
+                # Track results
+                decision = classification.decision.value
+                results["by_decision"][decision] = results["by_decision"].get(decision, 0) + 1
+                results["details"].append({
+                    "candidate_id": candidate.id,
+                    "patient_mrn": candidate.patient.mrn,
+                    "organism": candidate.culture.organism,
+                    "decision": decision,
+                    "confidence": classification.confidence,
+                })
+
+                classified_count += 1
+
+            except Exception as e:
+                logger.error(
+                    f"Error classifying candidate {candidate.id}: {e}",
+                    exc_info=True
+                )
+                error_count += 1
+
+        results["classified"] = classified_count
+        results["errors"] = error_count
+
+        logger.info(
+            f"Classification complete: {classified_count} classified, "
+            f"{error_count} errors"
+        )
+
+        return results
+
+    def _determine_status(self, classification) -> CandidateStatus:
+        """Determine candidate status based on classification result."""
+        decision = classification.decision
+
+        if decision == ClassificationDecision.HAI_CONFIRMED:
+            if classification.confidence >= Config.AUTO_CLASSIFY_THRESHOLD:
+                return CandidateStatus.CONFIRMED
+            else:
+                return CandidateStatus.PENDING_REVIEW
+
+        elif decision == ClassificationDecision.NOT_HAI:
+            if classification.confidence >= Config.AUTO_CLASSIFY_THRESHOLD:
+                return CandidateStatus.EXCLUDED
+            else:
+                return CandidateStatus.PENDING_REVIEW
+
+        elif decision == ClassificationDecision.PENDING_REVIEW:
+            return CandidateStatus.PENDING_REVIEW
+
+        else:
+            return CandidateStatus.PENDING_REVIEW
+
+    def run_full_pipeline(self, dry_run: bool = False) -> dict:
+        """Run full pipeline: detection + classification.
+
+        Args:
+            dry_run: If True, don't persist anything.
+
+        Returns:
+            Dict with pipeline results.
+        """
+        results = {
+            "detection": {},
+            "classification": {},
+        }
+
+        # Step 1: Detection
+        logger.info("=== Step 1: Detection ===")
+        detection_count = self.run_once(dry_run=dry_run)
+        results["detection"]["new_candidates"] = detection_count
+
+        # Step 2: Classification (only if not dry run for detection)
+        if not dry_run:
+            logger.info("=== Step 2: Classification ===")
+            classification_results = self.classify_pending(dry_run=dry_run)
+            results["classification"] = classification_results
+
+        return results

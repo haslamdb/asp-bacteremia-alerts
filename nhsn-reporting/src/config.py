@@ -62,6 +62,10 @@ class Config:
         "ALERT_DB_PATH",
         str(Path.home() / ".asp-alerts" / "alerts.db"),
     )
+    MOCK_CLARITY_DB_PATH: str = os.getenv(
+        "MOCK_CLARITY_DB_PATH",
+        str(Path.home() / ".asp-alerts" / "mock_clarity.db"),
+    )
 
     # --- Monitoring ---
     POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL", "300"))  # seconds
@@ -131,8 +135,26 @@ class Config:
 
     @classmethod
     def is_clarity_configured(cls) -> bool:
-        """Check if Clarity database is configured."""
-        return bool(cls.CLARITY_CONNECTION_STRING)
+        """Check if Clarity database is configured (real or mock)."""
+        return bool(cls.CLARITY_CONNECTION_STRING) or Path(cls.MOCK_CLARITY_DB_PATH).exists()
+
+    @classmethod
+    def get_clarity_connection_string(cls) -> str | None:
+        """Get Clarity connection - real DB for prod, mock SQLite for dev.
+
+        Priority order:
+        1. CLARITY_CONNECTION_STRING env var (production Clarity)
+        2. MOCK_CLARITY_DB_PATH if file exists (development mock)
+        3. None if neither configured
+
+        Returns:
+            SQLAlchemy connection string or None if not configured.
+        """
+        if cls.CLARITY_CONNECTION_STRING:
+            return cls.CLARITY_CONNECTION_STRING
+        if Path(cls.MOCK_CLARITY_DB_PATH).exists():
+            return f"sqlite:///{cls.MOCK_CLARITY_DB_PATH}"
+        return None
 
     @classmethod
     def is_teams_configured(cls) -> bool:

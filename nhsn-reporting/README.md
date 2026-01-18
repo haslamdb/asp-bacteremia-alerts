@@ -1,14 +1,15 @@
 # NHSN HAI Reporting Module
 
-Automated NHSN Healthcare-Associated Infection (HAI) detection and classification for asp-alerts. This module uses rule-based screening combined with LLM-assisted classification to identify CLABSI (Central Line-Associated Bloodstream Infection) candidates and route them through an IP review workflow.
+Automated NHSN Healthcare-Associated Infection (HAI) detection and classification for asp-alerts. This module uses rule-based screening combined with LLM-assisted extraction and deterministic NHSN rules to identify CLABSI (Central Line-Associated Bloodstream Infection) candidates and route them through an IP review workflow.
 
 ## Overview
 
-The NHSN reporting module implements a three-stage workflow:
+The NHSN reporting module implements a four-stage workflow that separates **fact extraction** (LLM) from **classification logic** (rules engine):
 
 1. **Rule-Based Screening** - Identifies HAI candidates based on NHSN criteria (BSI + central line + timing requirements)
-2. **LLM Classification** - Uses local Ollama LLM to analyze clinical notes for source attribution
-3. **IP Review** - Routes uncertain cases to Infection Prevention for human review
+2. **LLM Extraction** - Extracts clinical facts from notes (symptoms, alternate sources, MBI factors)
+3. **Rules Engine** - Applies deterministic NHSN criteria to extracted facts
+4. **IP Review** - Routes uncertain cases to Infection Prevention for human review
 
 ```
 Blood Culture (positive)
@@ -22,21 +23,46 @@ Blood Culture (positive)
          │
          ▼
 ┌─────────────────────┐
-│  LLM Classification │  Analyze notes for:
-│      (Ollama)       │  - Alternative source of infection
-└─────────────────────┘  - NHSN criteria match
+│   LLM Extraction    │  Extract from notes:
+│  (Ollama llama3.1)  │  - Symptoms (fever, WBC, etc.)
+└─────────────────────┘  - Alternate infection sources
+         │               - MBI factors (mucositis, neutropenia)
+         │               - Line assessment findings
+    ClinicalExtraction   - Contamination signals
          │
-         ├── Confidence ≥85% ──► Auto-classify
+         ▼
+┌─────────────────────┐
+│    Rules Engine     │  Apply NHSN decision tree:
+│   (Deterministic)   │  1. Basic eligibility
+└─────────────────────┘  2. MBI-LCBI check
+         │               3. Secondary BSI check
+         │               4. Contamination check
+         │               5. Default to CLABSI
          │
-         ├── Confidence 60-85% ─► IP Review Queue
+         ├── High confidence ───► Auto-classify
          │
-         └── Confidence <60% ──► Manual Review
+         └── Review flags ──────► IP Review Queue
          │
          ▼
 ┌─────────────────────┐
 │    NHSN Events      │  Confirmed HAIs ready for submission
 └─────────────────────┘
 ```
+
+### Why Separate Extraction from Classification?
+
+The key architectural principle: **The LLM extracts FACTS, the rules engine applies LOGIC.**
+
+| Component | Role | Characteristics |
+|-----------|------|-----------------|
+| LLM Extraction | "What is documented?" | Reads notes, extracts structured clinical data |
+| Rules Engine | "What does NHSN say?" | Applies deterministic criteria, fully auditable |
+
+This separation provides:
+- **Transparency**: Every classification decision can be traced to specific rules
+- **Auditability**: IP can see exactly which criteria triggered the classification
+- **Maintainability**: NHSN criteria updates only require rule changes, not prompt engineering
+- **Testability**: Rules can be unit tested independently of LLM behavior
 
 ## Features
 
@@ -108,6 +134,7 @@ nhsn-reporting/
 │   │   ├── base.py               # Abstract base classes
 │   │   ├── fhir_source.py        # FHIR R4 queries
 │   │   ├── clarity_source.py     # Epic Clarity SQL
+│   │   ├── denominator.py        # Central line days calculation
 │   │   └── factory.py            # Source selection
 │   │
 │   ├── candidates/               # Rule-based detection
@@ -119,10 +146,18 @@ nhsn-reporting/
 │   │   ├── chunker.py            # Section extraction (A/P, ID consults)
 │   │   └── deduplicator.py       # Copy-forward detection
 │   │
-│   ├── classifiers/              # LLM classification
+│   ├── extraction/               # LLM-based fact extraction (NEW)
+│   │   └── clabsi_extractor.py   # Extracts clinical facts from notes
+│   │
+│   ├── rules/                    # Deterministic NHSN rules (NEW)
+│   │   ├── schemas.py            # ClinicalExtraction, StructuredCaseData
+│   │   ├── nhsn_criteria.py      # NHSN reference data (organisms, thresholds)
+│   │   └── clabsi_engine.py      # NHSN decision tree implementation
+│   │
+│   ├── classifiers/              # Classification orchestration
 │   │   ├── base.py               # BaseHAIClassifier ABC
-│   │   ├── clabsi_classifier.py  # CLABSI prompts and logic
-│   │   └── schemas.py            # Output validation schemas
+│   │   ├── clabsi_classifier.py  # Legacy: LLM-only classification
+│   │   └── clabsi_classifier_v2.py # NEW: Extraction + Rules architecture
 │   │
 │   ├── llm/                      # LLM backend abstraction
 │   │   ├── base.py               # BaseLLMClient ABC
@@ -138,9 +173,14 @@ nhsn-reporting/
 │       └── teams.py              # Teams alerts for pending reviews
 │
 ├── prompts/                      # Version-controlled prompt templates
-│   └── clabsi_v1.txt
+│   ├── clabsi_v1.txt             # Classification prompt (legacy)
+│   └── clabsi_extraction_v1.txt  # Extraction prompt (current)
+├── mock_clarity/                 # Mock Clarity database for development
 ├── scripts/
-│   └── generate_nhsn_test_data.py  # Test data generator
+│   ├── generate_nhsn_test_data.py  # FHIR test data generator
+│   └── test_mock_clarity.py      # Mock Clarity integration tests
+├── tests/
+│   └── test_clabsi_rules.py      # Rules engine unit tests
 ├── schema.sql                    # Database schema
 ├── .env.template                 # Configuration template
 └── requirements.txt
@@ -176,21 +216,55 @@ The module implements NHSN CLABSI surveillance criteria:
 
 For common skin contaminants (CoNS, Corynebacterium, Bacillus, etc.), the module requires two positive cultures from separate draws per NHSN criteria. Single contaminant cultures are automatically excluded.
 
-## LLM Classification
+## Classification Pipeline
 
-The LLM analyzes clinical notes to determine:
+Classification uses a two-stage pipeline: **LLM Extraction** followed by **Rules Engine**.
 
-- **Is there an alternative source?** (UTI, pneumonia, surgical site, etc.)
-- **Does evidence support CLABSI?** (Line-related sepsis documentation, ID notes)
-- **Is this MBI-LCBI?** (Mucosal barrier injury LCBI)
+### Stage 1: LLM Extraction
 
-### Confidence Scoring
+The LLM (`llama3.1:70b` via Ollama) reads clinical notes and extracts structured facts:
 
-| Confidence | Action |
-|------------|--------|
-| ≥85% HAI | Auto-confirm, create NHSN event |
-| 60-85% | Route to IP review queue |
-| <60% | Route to manual review (complex case) |
+```python
+ClinicalExtraction:
+  alternate_infection_sites: [...]  # Pneumonia, UTI, SSTI, etc.
+  symptoms:                         # Fever, WBC, hypotension
+  mbi_factors:                      # Mucositis, neutropenia, HSCT status
+  line_assessment:                  # Exit site findings, line suspicion
+  contamination:                    # Signals team treated as contaminant
+  documentation_quality:            # poor/limited/adequate/detailed
+```
+
+The LLM is NOT making a classification decision - only answering factual questions about what is documented in the notes.
+
+### Stage 2: Rules Engine
+
+The rules engine applies deterministic NHSN criteria:
+
+1. **Basic Eligibility** - Line present ≥2 days, not POA
+2. **MBI-LCBI Check** - Eligible organism + eligible patient + mucosal injury
+3. **Secondary BSI Check** - Same organism at another documented site
+4. **Contamination Check** - Single culture with common commensal
+5. **Default to CLABSI** - If no exclusions apply
+
+Each step produces auditable reasoning that IP can review.
+
+### Classification Outputs
+
+| Classification | Meaning |
+|----------------|---------|
+| `CLABSI` | Central line-associated BSI (reportable HAI) |
+| `MBI_LCBI` | Mucosal barrier injury LCBI (not CLABSI, separate category) |
+| `SECONDARY_BSI` | BSI secondary to infection at another site |
+| `CONTAMINATION` | Likely contamination (single commensal culture) |
+| `NOT_ELIGIBLE` | Doesn't meet basic eligibility (line days, timing) |
+
+### Review Routing
+
+Cases are flagged for IP review when:
+- Documentation quality is poor/limited
+- Possible alternate sources need verification
+- MBI-LCBI criteria are borderline
+- Multiple review flags are raised
 
 ## Dashboard Integration
 

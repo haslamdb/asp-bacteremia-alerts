@@ -97,6 +97,61 @@ def show_recent(monitor: NHSNMonitor, limit: int = 10) -> None:
     print("-" * 80)
 
 
+def run_classify(
+    monitor: NHSNMonitor,
+    limit: int | None = None,
+    dry_run: bool = False,
+) -> dict:
+    """Run classification on pending candidates.
+
+    Args:
+        monitor: The monitor instance.
+        limit: Maximum candidates to classify.
+        dry_run: If True, don't persist classifications.
+
+    Returns:
+        Classification results dict.
+    """
+    return monitor.classify_pending(limit=limit, dry_run=dry_run)
+
+
+def run_full_pipeline(monitor: NHSNMonitor, dry_run: bool = False) -> dict:
+    """Run full pipeline: detection + classification.
+
+    Args:
+        monitor: The monitor instance.
+        dry_run: If True, don't persist anything.
+
+    Returns:
+        Pipeline results dict.
+    """
+    return monitor.run_full_pipeline(dry_run=dry_run)
+
+
+def show_classification_results(results: dict) -> None:
+    """Display classification results."""
+    print("\n=== Classification Results ===")
+    print(f"Classified: {results['classified']}")
+    print(f"Errors: {results['errors']}")
+
+    if results.get('by_decision'):
+        print("\nBy Decision:")
+        for decision, count in results['by_decision'].items():
+            print(f"  {decision}: {count}")
+
+    if results.get('details'):
+        print("\nDetails:")
+        print("-" * 80)
+        for d in results['details']:
+            print(
+                f"  {d['patient_mrn']:12s} | "
+                f"{d['organism'] or 'Unknown':30s} | "
+                f"{d['decision']:15s} | "
+                f"conf={d['confidence']:.2f}"
+            )
+        print("-" * 80)
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -104,19 +159,26 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Single run with dry-run (no database writes)
-    python -m nhsn_reporting.src.runner --once --dry-run
+    # Detection only (single run)
+    python -m nhsn_reporting.src.runner --once
 
-    # Single run, process all cultures from last 48 hours
+    # Classification only (classify pending candidates)
+    python -m nhsn_reporting.src.runner --classify
+
+    # Full pipeline: detection + classification
+    python -m nhsn_reporting.src.runner --full
+
+    # Dry run (no database writes)
+    python -m nhsn_reporting.src.runner --full --dry-run
+
+    # Look back 48 hours for cultures
     python -m nhsn_reporting.src.runner --once --lookback 48
 
     # Continuous monitoring mode
     python -m nhsn_reporting.src.runner
 
-    # Show current statistics
+    # Show statistics and recent candidates
     python -m nhsn_reporting.src.runner --stats
-
-    # Show recent candidates
     python -m nhsn_reporting.src.runner --recent
         """,
     )
@@ -124,13 +186,32 @@ Examples:
     parser.add_argument(
         "--once",
         action="store_true",
-        help="Run once and exit (default: continuous mode)",
+        help="Run detection once and exit (no classification)",
+    )
+
+    parser.add_argument(
+        "--classify",
+        action="store_true",
+        help="Classify pending candidates using LLM extraction + rules",
+    )
+
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Run full pipeline: detection + classification",
     )
 
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Don't save candidates or send alerts (for testing)",
+        help="Don't save candidates/classifications (for testing)",
+    )
+
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Limit number of candidates to classify (for testing)",
     )
 
     parser.add_argument(
@@ -200,8 +281,37 @@ Examples:
         show_recent(monitor, args.recent)
         return 0
 
-    # Run detection
-    if args.once:
+    # Handle different run modes
+    if args.full:
+        # Full pipeline: detection + classification
+        logger.info("Running full pipeline (detection + classification)...")
+        try:
+            results = run_full_pipeline(monitor, dry_run=args.dry_run)
+            logger.info(f"Detection: {results['detection'].get('new_candidates', 0)} new candidates")
+            if results.get('classification'):
+                show_classification_results(results['classification'])
+            return 0
+        except Exception as e:
+            logger.error(f"Pipeline failed: {e}", exc_info=True)
+            return 1
+
+    elif args.classify:
+        # Classification only
+        logger.info("Running classification on pending candidates...")
+        try:
+            results = run_classify(
+                monitor,
+                limit=args.limit,
+                dry_run=args.dry_run,
+            )
+            show_classification_results(results)
+            return 0
+        except Exception as e:
+            logger.error(f"Classification failed: {e}", exc_info=True)
+            return 1
+
+    elif args.once:
+        # Detection only
         logger.info("Running single detection cycle...")
         try:
             count = run_once(
@@ -214,7 +324,9 @@ Examples:
         except Exception as e:
             logger.error(f"Detection failed: {e}", exc_info=True)
             return 1
+
     else:
+        # Continuous monitoring mode
         logger.info("Starting continuous monitoring mode...")
         try:
             run_daemon(monitor, interval=args.interval)
