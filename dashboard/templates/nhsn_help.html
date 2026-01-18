@@ -13,12 +13,15 @@
         <h2>Overview</h2>
         <p>The NHSN HAI Reporting module assists Infection Preventionists in identifying and classifying
            Central Line-Associated Bloodstream Infections (CLABSI) for NHSN reporting.</p>
-        <p>The system uses:</p>
+        <p>The system uses a four-stage workflow:</p>
         <ol>
             <li><strong>Rule-based screening</strong> - Identifies patients with BSI + central line &gt;2 days</li>
-            <li><strong>LLM-assisted classification</strong> - Analyzes clinical notes to determine if CLABSI or alternative source</li>
-            <li><strong>IP Review workflow</strong> - Final human review and classification</li>
+            <li><strong>LLM fact extraction</strong> - Extracts clinical facts from notes (symptoms, alternate sources, MBI factors)</li>
+            <li><strong>Rules engine</strong> - Applies deterministic NHSN criteria to extracted facts</li>
+            <li><strong>IP Review</strong> - <strong>ALL candidates</strong> go to IP for final decision</li>
         </ol>
+        <p><strong>Key principle:</strong> The LLM extracts facts and provides a preliminary classification with confidence score,
+           but the Infection Preventionist always makes the final determination. This ensures human oversight on all HAI decisions.</p>
     </div>
 
     <div class="help-card">
@@ -39,12 +42,19 @@ python scripts/demo_clabsi.py --scenario mbi
 python scripts/demo_clabsi.py --scenario secondary-uti
 python scripts/demo_clabsi.py --scenario secondary-pneumonia</code></pre>
 
-        <h3>Run the Monitor & Classifier</h3>
-        <p>After creating demo data, run the NHSN monitor to detect candidates and classify them:</p>
+        <h3>Run the Full Pipeline</h3>
+        <p>After creating demo data, run the NHSN monitor to detect and classify candidates:</p>
         <pre><code>cd /home/david/projects/asp-alerts/nhsn-reporting
-python -m src.runner --once</code></pre>
+python -m src.runner --full</code></pre>
 
-        <p>Then refresh the <a href="{{ url_for('nhsn.candidates') }}">Candidates</a> page to see the new cases.</p>
+        <p>This will:</p>
+        <ol>
+            <li>Detect new CLABSI candidates from FHIR</li>
+            <li>Run LLM extraction and rules engine classification</li>
+            <li>Create review entries in the IP Review Queue</li>
+        </ol>
+
+        <p>Then go to the <a href="{{ url_for('nhsn.reviews') }}">IP Review Queue</a> to review and make final decisions on the new cases.</p>
     </div>
 
     <div class="help-card">
@@ -93,28 +103,31 @@ python -m src.runner --once</code></pre>
     </div>
 
     <div class="help-card">
-        <h2>Classification Decisions</h2>
-        <p>When reviewing a CLABSI candidate, you have the following options:</p>
+        <h2>IP Review Decisions</h2>
+        <p>When reviewing a CLABSI candidate, you (the Infection Preventionist) make the final determination.
+           The LLM classification and confidence score are shown as decision support, but you always have the final say.</p>
 
         <div class="decision-grid">
             <div class="decision-item decision-clabsi">
-                <h4>CLABSI</h4>
+                <h4>Confirmed HAI (CLABSI)</h4>
                 <p>Confirmed central line-associated bloodstream infection. Use when:</p>
                 <ul>
                     <li>Central line in place &gt;2 calendar days</li>
                     <li>No alternative source for the BSI</li>
                     <li>Pathogenic organism OR 2+ positive cultures for skin contaminant</li>
                 </ul>
+                <p><em>Will be counted as CLABSI and available for NHSN submission.</em></p>
             </div>
 
             <div class="decision-item decision-not-clabsi">
-                <h4>Not CLABSI</h4>
-                <p>The BSI is not related to the central line. Use when:</p>
+                <h4>Confirmed Not HAI</h4>
+                <p>The BSI is not a CLABSI. Use when:</p>
                 <ul>
-                    <li>Clear alternative source identified</li>
+                    <li>Clear alternative source identified (UTI, pneumonia, etc.)</li>
                     <li>Single culture for skin contaminant (likely contamination)</li>
                     <li>Does not meet NHSN CLABSI criteria</li>
                 </ul>
+                <p><em>Case will be closed and not reported to NHSN.</em></p>
             </div>
 
             <div class="decision-item decision-mbi">
@@ -147,7 +160,8 @@ python -m src.runner --once</code></pre>
                     <li>Need to review additional cultures or imaging</li>
                     <li>Want to discuss with ID or primary team</li>
                 </ul>
-                <p><em>Candidate stays in active list for follow-up.</em></p>
+                <p><em>Candidate stays in the review queue for follow-up. When you later submit a final decision
+                   (Confirmed or Not HAI), any prior "Needs More Info" reviews are automatically superseded.</em></p>
             </div>
         </div>
     </div>
@@ -176,40 +190,42 @@ python -m src.runner --once</code></pre>
     </div>
 
     <div class="help-card">
-        <h2>LLM Classification</h2>
-        <p>The system uses a local LLM (Ollama) to assist with classification. The LLM:</p>
+        <h2>LLM-Assisted Classification</h2>
+        <p>The system uses a two-stage approach: <strong>LLM extraction</strong> followed by <strong>rules engine</strong>.</p>
+
+        <h3>Stage 1: LLM Fact Extraction</h3>
+        <p>A local LLM (Ollama llama3.1) reads clinical notes and extracts structured facts:</p>
         <ul>
-            <li>Analyzes clinical notes for evidence of alternative infection sources</li>
-            <li>Checks for MBI-LCBI criteria (neutropenia, mucositis)</li>
-            <li>Reviews other culture results for matching organisms</li>
-            <li>Provides a confidence score and reasoning</li>
+            <li><strong>Alternate infection sources</strong> - Pneumonia, UTI, SSTI, intra-abdominal</li>
+            <li><strong>Symptoms</strong> - Fever, WBC changes, hypotension</li>
+            <li><strong>MBI factors</strong> - Neutropenia, mucositis, HSCT status, GVHD</li>
+            <li><strong>Line assessment</strong> - Exit site findings, clinical suspicion</li>
+            <li><strong>Contamination signals</strong> - Team treating as contaminant</li>
+        </ul>
+        <p><em>The LLM answers factual questions about documentation - it does NOT make classification decisions.</em></p>
+
+        <h3>Stage 2: Rules Engine</h3>
+        <p>Deterministic NHSN criteria are applied to the extracted facts:</p>
+        <ol>
+            <li>Basic eligibility check (line days, timing)</li>
+            <li>MBI-LCBI criteria evaluation</li>
+            <li>Secondary BSI check (same organism at other site)</li>
+            <li>Contamination check (single commensal culture)</li>
+            <li>Default to CLABSI if no exclusions apply</li>
+        </ol>
+
+        <h3>IP Makes Final Decision</h3>
+        <p>ALL candidates are routed to IP review regardless of confidence score. The LLM classification and confidence
+           are displayed as <strong>decision support</strong>, but IP always makes the final determination.</p>
+
+        <p>This approach ensures:</p>
+        <ul>
+            <li><strong>Human oversight</strong> on all HAI determinations</li>
+            <li><strong>Transparency</strong> - Every decision can be traced to specific criteria</li>
+            <li><strong>Override tracking</strong> - When IP disagrees with LLM, it's logged for quality assessment</li>
         </ul>
 
-        <h3>Confidence Thresholds</h3>
-        <table class="help-table">
-            <thead>
-                <tr>
-                    <th>Confidence</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>&gt;85%</td>
-                    <td>Auto-classify (high confidence)</td>
-                </tr>
-                <tr>
-                    <td>60-85%</td>
-                    <td>Route to IP review</td>
-                </tr>
-                <tr>
-                    <td>&lt;60%</td>
-                    <td>Manual review required</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <p><strong>Note:</strong> All PHI stays on-premise. The Ollama LLM runs locally and no data is sent to external services.</p>
+        <p><strong>Privacy:</strong> All PHI stays on-premise. The Ollama LLM runs locally and no data is sent to external services.</p>
     </div>
 
     <div class="help-card">
@@ -250,26 +266,32 @@ ollama serve</code></pre>
 | demo_clabsi.py    |     |  Server :8081     |
 +-------------------+     +---------+---------+
                                     |
-                    +---------------+---------------+
-                    v                               v
-          +-------------------+           +-------------------+
-          |  NHSN Monitor     |           |  Ollama LLM       |
-          |  (Rule-based)     |           |  (Classification) |
-          +---------+---------+           +---------+---------+
-                    |                               |
-                    +--------------+----------------+
-                                   v
+                                    v
                          +-------------------+
-                         |   NHSN Database   |
-                         |   (SQLite)        |
+                         |  NHSN Monitor     |
+                         |  (Rule-based      |
+                         |   Screening)      |
                          +---------+---------+
                                    |
-                    +--------------+---------------+
-                    v              v               v
-           +-----------+   +-----------+   +-----------+
-           | Dashboard |   | IP Review |   |   Email   |
-           | :8444     |   |  Workflow |   |   Alerts  |
-           +-----------+   +-----------+   +-----------+
+              +--------------------+--------------------+
+              v                                        v
+    +-------------------+                    +-------------------+
+    |  LLM Extraction   |                    |   Rules Engine    |
+    |  (Ollama llama3.1)|---&gt; Facts -------&gt;|  (NHSN Criteria)  |
+    +-------------------+                    +---------+---------+
+                                                       |
+                                                       v
+                                             +-------------------+
+                                             |   IP Review       |
+                                             | (Final Decision)  |
+                                             +---------+---------+
+                                                       |
+                         +-----------------------------+
+                         v                             v
+               +-------------------+          +-------------------+
+               |  Confirmed HAI    |          | Confirmed Not HAI |
+               |  (NHSN Events)    |          |    (Rejected)     |
+               +-------------------+          +-------------------+
         </pre>
     </div>
 
@@ -277,8 +299,11 @@ ollama serve</code></pre>
         <h2>Links</h2>
         <ul>
             <li><a href="{{ url_for('nhsn.dashboard') }}">NHSN Dashboard</a> - Overview and statistics</li>
-            <li><a href="{{ url_for('nhsn.candidates') }}">Candidates</a> - View and classify CLABSI candidates</li>
-            <li><a href="{{ url_for('nhsn.reviews') }}">Reviews</a> - Completed classification reviews</li>
+            <li><a href="{{ url_for('nhsn.reviews') }}">IP Review Queue</a> - Review and make final decisions on candidates</li>
+            <li><a href="{{ url_for('nhsn.candidates') }}">Active Candidates</a> - View all CLABSI candidates</li>
+            <li><a href="{{ url_for('nhsn.history') }}">History</a> - Completed reviews (confirmed and rejected)</li>
+            <li><a href="{{ url_for('nhsn.reports') }}">Reports & Analytics</a> - LLM quality metrics and override tracking</li>
+            <li><a href="{{ url_for('nhsn.submission') }}">NHSN Submission</a> - Export or submit confirmed events to NHSN</li>
             <li><a href="{{ url_for('views.help_page') }}">ASP Alerts Help</a> - Help for bacteremia and antimicrobial usage alerts</li>
         </ul>
     </div>
