@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}AU/AR Help - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>AU/AR Reporting - Demo & Help</h1>
+    <a href="{{ url_for('au_ar.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="help-content">
+    <div class="help-card">
+        <h2>Overview</h2>
+        <p>The AU/AR Reporting module helps Antimicrobial Stewardship Programs track and report:</p>
+        <ul>
+            <li><strong>AU (Antibiotic Usage)</strong> - Days of Therapy (DOT) and Defined Daily Doses (DDD) by antimicrobial and location</li>
+            <li><strong>AR (Antimicrobial Resistance)</strong> - Resistance rates and phenotype tracking (MRSA, VRE, CRE, etc.)</li>
+        </ul>
+        <p>Data is extracted from the hospital EHR (Epic Clarity) and formatted for NHSN submission.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>Quick Start - Generate Demo Data</h2>
+
+        <h3>1. Generate Mock Clarity Data</h3>
+        <p>Create demo patients with antibiotic orders and culture results:</p>
+        <pre><code># Navigate to nhsn-reporting module
+cd /home/david/projects/asp-alerts/nhsn-reporting
+
+# Generate patients with AU/AR data
+python -m mock_clarity.generate_data \
+    --db-path ./mock_clarity.db \
+    --patients 50 \
+    --months 3 \
+    --all-scenarios \
+    --au-ar</code></pre>
+
+        <p>This creates:</p>
+        <ul>
+            <li>50 patients with encounters across multiple locations</li>
+            <li>~100 medication orders with MAR administrations (AU data)</li>
+            <li>~50 cultures with organisms and susceptibilities (AR data)</li>
+            <li>Various CLABSI scenarios for HAI detection</li>
+        </ul>
+
+        <h3>2. View the Data</h3>
+        <p>After generating data, visit the dashboards:</p>
+        <ul>
+            <li><a href="{{ url_for('au_ar.dashboard') }}">AU/AR Dashboard</a> - Overview of usage and resistance</li>
+            <li><a href="{{ url_for('au_ar.au_detail') }}">AU Detail</a> - Detailed antibiotic usage by drug and location</li>
+            <li><a href="{{ url_for('au_ar.ar_detail') }}">AR Detail</a> - Resistance rates and phenotype prevalence</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>AU (Antibiotic Usage) Reporting</h2>
+
+        <h3>Data Pipeline</h3>
+        <ol>
+            <li><strong>Extract</strong> - Query medication orders and MAR administrations from Clarity</li>
+            <li><strong>Map</strong> - Match medications to NHSN antimicrobial codes (VAN, TZP, MEM, etc.)</li>
+            <li><strong>Aggregate</strong> - Calculate DOT and DDD by location, drug, and month</li>
+            <li><strong>Export</strong> - Generate CSV formatted for NHSN submission</li>
+        </ol>
+
+        <h3>Key Metrics</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Definition</th>
+                    <th>Use</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Days of Therapy (DOT)</strong></td>
+                    <td>Count of unique calendar days a patient received any dose of an antimicrobial</td>
+                    <td>Primary NHSN measure - reflects duration of therapy</td>
+                </tr>
+                <tr>
+                    <td><strong>Defined Daily Dose (DDD)</strong></td>
+                    <td>Total grams administered / WHO DDD reference dose</td>
+                    <td>Alternative measure - reflects total drug volume</td>
+                </tr>
+                <tr>
+                    <td><strong>DOT/1000 Patient Days</strong></td>
+                    <td>DOT normalized by patient census</td>
+                    <td>Allows comparison across units of different sizes</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Antimicrobial Categories</h3>
+        <p>NHSN groups antimicrobials into categories for reporting:</p>
+        <div class="category-grid">
+            <div class="category-item">
+                <strong>Carbapenems</strong>
+                <span>MEM, ETP, IPM</span>
+            </div>
+            <div class="category-item">
+                <strong>Glycopeptides</strong>
+                <span>VAN</span>
+            </div>
+            <div class="category-item">
+                <strong>Beta-lactam/Inhibitor</strong>
+                <span>TZP, SAM</span>
+            </div>
+            <div class="category-item">
+                <strong>Fluoroquinolones</strong>
+                <span>CIP, LVX</span>
+            </div>
+            <div class="category-item">
+                <strong>Aminoglycosides</strong>
+                <span>GEN, TOB, AMK</span>
+            </div>
+            <div class="category-item">
+                <strong>Cephalosporins</strong>
+                <span>CRO, FEP, CAZ, CFZ</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="help-card">
+        <h2>AR (Antimicrobial Resistance) Reporting</h2>
+
+        <h3>Data Pipeline</h3>
+        <ol>
+            <li><strong>Extract</strong> - Query culture results and susceptibilities from Clarity</li>
+            <li><strong>First Isolate Rule</strong> - Deduplicate: one isolate per patient/organism/quarter</li>
+            <li><strong>Calculate Rates</strong> - Percent resistance for each organism/antibiotic combination</li>
+            <li><strong>Detect Phenotypes</strong> - Identify MRSA, VRE, CRE, ESBL based on susceptibility patterns</li>
+            <li><strong>Export</strong> - Generate CSV formatted for NHSN submission</li>
+        </ol>
+
+        <h3>NHSN First Isolate Rule</h3>
+        <p>To avoid counting the same infection multiple times, NHSN applies the "first isolate rule":</p>
+        <ul>
+            <li>Only the <strong>first isolate</strong> of each organism species per patient per quarter is counted</li>
+            <li>Subsequent positive cultures for the same organism are excluded</li>
+            <li>Different species from the same patient are counted separately</li>
+        </ul>
+
+        <h3>Tracked Phenotypes</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Phenotype</th>
+                    <th>Definition</th>
+                    <th>Pattern</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="badge badge-danger">MRSA</span></td>
+                    <td>Methicillin-resistant <em>S. aureus</em></td>
+                    <td>Oxacillin R</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">VRE</span></td>
+                    <td>Vancomycin-resistant Enterococcus</td>
+                    <td>Vancomycin R</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-critical">CRE</span></td>
+                    <td>Carbapenem-resistant Enterobacterales</td>
+                    <td>Meropenem R or Ertapenem R</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-warning">ESBL</span></td>
+                    <td>Extended-spectrum beta-lactamase</td>
+                    <td>CTX R + CAZ R + FEP S (typical pattern)</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-critical">CRPA</span></td>
+                    <td>Carbapenem-resistant <em>P. aeruginosa</em></td>
+                    <td>Meropenem R or Imipenem R</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="help-card">
+        <h2>Denominators</h2>
+        <p>NHSN requires denominator data to normalize rates across different unit sizes:</p>
+
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Denominator</th>
+                    <th>Used For</th>
+                    <th>Data Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Patient Days</strong></td>
+                    <td>AU (DOT/1000 PD), AR rates</td>
+                    <td>Census from ADT data</td>
+                </tr>
+                <tr>
+                    <td><strong>Central Line Days</strong></td>
+                    <td>CLABSI rates</td>
+                    <td>Flowsheet documentation</td>
+                </tr>
+                <tr>
+                    <td><strong>Urinary Catheter Days</strong></td>
+                    <td>CAUTI rates</td>
+                    <td>Flowsheet documentation</td>
+                </tr>
+                <tr>
+                    <td><strong>Ventilator Days</strong></td>
+                    <td>VAE/VAP rates</td>
+                    <td>Flowsheet documentation</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>View and verify denominators on the <a href="{{ url_for('au_ar.denominators') }}">Denominators</a> page.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>NHSN Submission</h2>
+
+        <h3>AU Submission (Monthly)</h3>
+        <ol>
+            <li>Go to <a href="{{ url_for('au_ar.submission') }}?type=au">Submission</a> page</li>
+            <li>Select the reporting month</li>
+            <li>Review the data summary by location and drug</li>
+            <li>Click "Export CSV" to download the NHSN-formatted file</li>
+            <li>Upload to NHSN via the Antimicrobial Use and Resistance (AUR) module</li>
+        </ol>
+
+        <h3>AR Submission (Quarterly)</h3>
+        <ol>
+            <li>Go to <a href="{{ url_for('au_ar.submission') }}?type=ar">Submission</a> page</li>
+            <li>Select the reporting quarter</li>
+            <li>Review first isolates, resistance rates, and phenotype counts</li>
+            <li>Click "Export CSV" to download the NHSN-formatted file</li>
+            <li>Upload to NHSN via the Antimicrobial Use and Resistance (AUR) module</li>
+        </ol>
+
+        <h3>Export Format</h3>
+        <p>The exported CSV files follow NHSN specifications:</p>
+        <pre><code># AU Export columns:
+orgID, locationCode, summaryYM, antimicrobialCode, daysOfTherapy, patientDays
+
+# AR Export columns:
+orgID, locationCode, year, quarter, organismCode, firstIsolates,
+antibioticCode, susceptible, intermediate, resistant</code></pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Architecture</h2>
+        <pre class="architecture-diagram">
++----------------------+     +----------------------+
+|   Mock Clarity DB    |     |  Production Clarity  |
+|   (SQLite demo)      |     |  (Oracle/SQL Server) |
++----------+-----------+     +----------+-----------+
+           |                            |
+           +-------------+--------------+
+                         v
+              +---------------------+
+              |   AU/AR Extractors  |
+              |   (SQLAlchemy)      |
+              +----------+----------+
+                         |
+         +---------------+---------------+
+         v               v               v
++----------------+ +--------------+ +----------------+
+| AU Aggregation | | AR Analysis  | | Denominators   |
+| (DOT, DDD)     | | (First       | | (Patient Days, |
+|                | |  Isolate)    | |  Device Days)  |
++-------+--------+ +------+-------+ +-------+--------+
+        |                 |                 |
+        +--------+--------+---------+-------+
+                 v                  v
+        +----------------+  +----------------+
+        |  Dashboard UI  |  | NHSN Export    |
+        |  (Flask)       |  | (CSV/CDA)      |
+        +----------------+  +----------------+
+        </pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Demo Data Generation Options</h2>
+
+        <h3>Command-Line Arguments</h3>
+        <pre><code>python -m mock_clarity.generate_data [options]
+
+Options:
+  --db-path PATH       Database file path (default: ./mock_clarity.db)
+  --patients N         Number of random patients (default: 50)
+  --months N           Months of historical data (default: 3)
+  --all-scenarios      Generate CLABSI test scenarios
+  --au-ar              Generate AU/AR data (orders, cultures, susceptibilities)
+  --au-encounters N    Number of encounters with AU data (default: 50)
+  --ar-encounters N    Number of encounters with AR data (default: 30)</code></pre>
+
+        <h3>Example Scenarios</h3>
+        <pre><code># Minimal demo data
+python -m mock_clarity.generate_data --patients 10 --months 1 --au-ar
+
+# Full demo with all scenarios
+python -m mock_clarity.generate_data --patients 100 --months 6 --all-scenarios --au-ar
+
+# Only AR data (resistance reporting focus)
+python -m mock_clarity.generate_data --patients 30 --au-ar --au-encounters 0 --ar-encounters 50</code></pre>
+
+        <h3>Generated Organisms</h3>
+        <p>The demo data includes realistic organism/susceptibility combinations:</p>
+        <ul>
+            <li><em>S. aureus</em> - MSSA and MRSA variants</li>
+            <li><em>E. coli</em> - Susceptible and MDR variants</li>
+            <li><em>K. pneumoniae</em> - Susceptible and CRE variants</li>
+            <li><em>P. aeruginosa</em> - Susceptible and CRPA variants</li>
+            <li><em>E. faecalis/faecium</em> - Susceptible and VRE variants</li>
+            <li><em>E. cloacae</em> - With typical AmpC resistance</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>Troubleshooting</h2>
+
+        <h3>No data showing on dashboards</h3>
+        <pre><code># Verify database has data
+sqlite3 ./mock_clarity.db "SELECT COUNT(*) FROM ORDER_MED;"
+sqlite3 ./mock_clarity.db "SELECT COUNT(*) FROM CULTURE_RESULTS;"
+
+# Regenerate if needed
+python -m mock_clarity.generate_data --au-ar</code></pre>
+
+        <h3>Database connection error</h3>
+        <pre><code># Check environment variable
+echo $CLARITY_DB_URL
+
+# For demo, use SQLite:
+export CLARITY_DB_URL="sqlite:////home/david/projects/asp-alerts/nhsn-reporting/mock_clarity.db"</code></pre>
+
+        <h3>NHSN mapping missing</h3>
+        <pre><code># Check antimicrobial mappings
+sqlite3 ./mock_clarity.db "SELECT * FROM NHSN_ANTIMICROBIAL_MAP LIMIT 5;"
+
+# Check phenotype definitions
+sqlite3 ./mock_clarity.db "SELECT * FROM NHSN_PHENOTYPE_MAP;"</code></pre>
+
+        <h3>Restart the Flask application</h3>
+        <pre><code># Kill existing process
+pkill -f "gunicorn.*dashboard"
+
+# Restart
+cd /home/david/projects/asp-alerts/dashboard
+gunicorn -w 2 -b 0.0.0.0:8444 app:app</code></pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Links</h2>
+        <ul>
+            <li><a href="{{ url_for('au_ar.dashboard') }}">AU/AR Dashboard</a> - Overview of usage and resistance</li>
+            <li><a href="{{ url_for('au_ar.au_detail') }}">AU Detail</a> - Detailed antibiotic usage analysis</li>
+            <li><a href="{{ url_for('au_ar.ar_detail') }}">AR Detail</a> - Resistance rates and phenotypes</li>
+            <li><a href="{{ url_for('au_ar.denominators') }}">Denominators</a> - Patient-days and device-days</li>
+            <li><a href="{{ url_for('au_ar.submission') }}">NHSN Submission</a> - Export data for NHSN upload</li>
+            <li><a href="{{ url_for('nhsn.help_page') }}">HAI Detection Help</a> - Help for CLABSI/HAI detection</li>
+            <li><a href="{{ url_for('views.help_page') }}">ASP Alerts Help</a> - Help for bacteremia and usage alerts</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.category-item {
+    background: #f8fafc;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid #0891B2;
+}
+
+.category-item strong {
+    display: block;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.category-item span {
+    color: #64748b;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+.badge-critical {
+    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+    color: white;
+}
+</style>
+{% endblock %}

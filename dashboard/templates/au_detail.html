@@ -74,18 +74,18 @@
         <thead>
             <tr>
                 <th>Category</th>
-                <th>Location</th>
-                <th>Month</th>
-                <th class="text-right">Total DOT</th>
+                <th class="text-center">Location</th>
+                <th class="text-center">Month</th>
+                <th class="text-center">Total DOT</th>
             </tr>
         </thead>
         <tbody>
             {% for row in category_data %}
             <tr>
                 <td><strong>{{ row.nhsn_category }}</strong></td>
-                <td>{{ row.nhsn_location_code }}</td>
-                <td>{{ row.month }}</td>
-                <td class="text-right">{{ row.total_dot }}</td>
+                <td class="text-center">{{ row.nhsn_location_code }}</td>
+                <td class="text-center">{{ row.month }}</td>
+                <td class="text-center">{{ row.total_dot }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -113,10 +113,10 @@
                     <th>Medication</th>
                     <th>Category</th>
                     <th>Route</th>
-                    <th class="text-right">DOT</th>
-                    <th class="text-right">DOT/1000 PD</th>
+                    <th class="text-center">DOT</th>
+                    <th class="text-center">DOT/1000 PD</th>
                     {% if month.antimicrobials[0].defined_daily_doses is defined %}
-                    <th class="text-right">DDD</th>
+                    <th class="text-center">DDD</th>
                     {% endif %}
                 </tr>
             </thead>
@@ -127,10 +127,10 @@
                     <td>{{ abx.medication_name }}</td>
                     <td>{{ abx.nhsn_category }}</td>
                     <td>{{ abx.route }}</td>
-                    <td class="text-right">{{ abx.days_of_therapy }}</td>
-                    <td class="text-right">{{ abx.dot_per_1000_pd }}</td>
+                    <td class="text-center">{{ abx.days_of_therapy }}</td>
+                    <td class="text-center">{{ abx.dot_per_1000_pd }}</td>
                     {% if abx.defined_daily_doses is defined %}
-                    <td class="text-right">{{ abx.defined_daily_doses }}</td>
+                    <td class="text-center">{{ abx.defined_daily_doses }}</td>
                     {% endif %}
                 </tr>
                 {% endfor %}
@@ -280,8 +280,9 @@
     font-size: 0.875rem;
 }
 
-.text-right {
-    text-align: right;
+.text-center,
+.table th.text-center {
+    text-align: center;
 }
 
 code {

@@ -22,7 +22,8 @@
         <a href="{{ url_for('au_ar.ar_detail') }}" class="btn btn-secondary">AR Detail</a>
         <a href="{{ url_for('au_ar.denominators') }}" class="btn btn-info">Denominators</a>
         <a href="{{ url_for('au_ar.submission') }}" class="btn btn-nhsn">NHSN Submission</a>
-        <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-outline">HAI Dashboard</a>
+        <a href="{{ url_for('nhsn.dashboard') }}" class="btn btn-hai">HAI Dashboard</a>
+        <a href="{{ url_for('au_ar.help_page') }}" class="btn btn-help">Help</a>
     </div>
 </div>
 
@@ -58,27 +59,27 @@
         <thead>
             <tr>
                 <th>Location</th>
-                <th class="text-right">Patient Days</th>
-                <th class="text-right">Total DOT</th>
-                <th class="text-right">DOT/1000 PD</th>
+                <th class="text-center">Patient Days</th>
+                <th class="text-center">Total DOT</th>
+                <th class="text-center">DOT/1000 PD</th>
             </tr>
         </thead>
         <tbody>
             {% for loc in au_summary.locations %}
             <tr>
                 <td><strong>{{ loc.nhsn_location_code }}</strong></td>
-                <td class="text-right">{{ loc.totals.patient_days }}</td>
-                <td class="text-right">{{ loc.totals.total_dot }}</td>
-                <td class="text-right">{{ loc.totals.dot_per_1000_pd }}</td>
+                <td class="text-center">{{ loc.totals.patient_days }}</td>
+                <td class="text-center">{{ loc.totals.total_dot }}</td>
+                <td class="text-center">{{ loc.totals.dot_per_1000_pd }}</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
             <tr class="total-row">
                 <td><strong>Total</strong></td>
-                <td class="text-right"><strong>{{ au_summary.overall_totals.total_patient_days }}</strong></td>
-                <td class="text-right"><strong>{{ au_summary.overall_totals.total_dot }}</strong></td>
-                <td class="text-right"><strong>{{ au_summary.overall_totals.dot_per_1000_pd }}</strong></td>
+                <td class="text-center"><strong>{{ au_summary.overall_totals.total_patient_days }}</strong></td>
+                <td class="text-center"><strong>{{ au_summary.overall_totals.total_dot }}</strong></td>
+                <td class="text-center"><strong>{{ au_summary.overall_totals.dot_per_1000_pd }}</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -96,10 +97,10 @@
         <thead>
             <tr>
                 <th>Phenotype</th>
-                <th>Location</th>
-                <th class="text-right">Eligible Isolates</th>
-                <th class="text-right">Positive</th>
-                <th class="text-right">% Positive</th>
+                <th class="text-center">Location</th>
+                <th class="text-center">Eligible Isolates</th>
+                <th class="text-center">Positive</th>
+                <th class="text-center">% Positive</th>
             </tr>
         </thead>
         <tbody>
@@ -109,10 +110,10 @@
                     <strong>{{ pheno.phenotype_code }}</strong>
                     <br><small>{{ pheno.phenotype_name }}</small>
                 </td>
-                <td>{{ pheno.nhsn_location_code }}</td>
-                <td class="text-right">{{ pheno.eligible_isolates }}</td>
-                <td class="text-right">{{ pheno.phenotype_isolates }}</td>
-                <td class="text-right">
+                <td class="text-center">{{ pheno.nhsn_location_code }}</td>
+                <td class="text-center">{{ pheno.eligible_isolates }}</td>
+                <td class="text-center">{{ pheno.phenotype_isolates }}</td>
+                <td class="text-center">
                     <span class="badge badge-{{ 'danger' if pheno.percent_positive > 20 else 'warning' if pheno.percent_positive > 10 else 'success' }}">
                         {{ pheno.percent_positive }}%
                     </span>
@@ -126,7 +127,7 @@
         <thead>
             <tr>
                 <th>Location</th>
-                <th class="text-right">Total Isolates</th>
+                <th class="text-center">Total Isolates</th>
                 <th>Top Organisms</th>
             </tr>
         </thead>
@@ -134,7 +135,7 @@
             {% for loc in ar_summary.locations %}
             <tr>
                 <td><strong>{{ loc.nhsn_location_code }}</strong></td>
-                <td class="text-right">{{ loc.total_isolates }}</td>
+                <td class="text-center">{{ loc.total_isolates }}</td>
                 <td>
                     {% for org in loc.organisms[:3] %}
                     {{ org.organism_name }} ({{ org.isolate_count }}){% if not loop.last %}, {% endif %}
@@ -157,20 +158,20 @@
         <thead>
             <tr>
                 <th>Location</th>
-                <th class="text-right">Patient Days</th>
-                <th class="text-right">Central Line Days</th>
-                <th class="text-right">Catheter Days</th>
-                <th class="text-right">Ventilator Days</th>
+                <th class="text-center">Patient Days</th>
+                <th class="text-center">Central Line Days</th>
+                <th class="text-center">Catheter Days</th>
+                <th class="text-center">Ventilator Days</th>
             </tr>
         </thead>
         <tbody>
             {% for loc in denom_summary.locations %}
             <tr>
                 <td><strong>{{ loc.nhsn_location_code }}</strong></td>
-                <td class="text-right">{{ loc.totals.patient_days }}</td>
-                <td class="text-right">{{ loc.totals.central_line_days }}</td>
-                <td class="text-right">{{ loc.totals.urinary_catheter_days }}</td>
-                <td class="text-right">{{ loc.totals.ventilator_days }}</td>
+                <td class="text-center">{{ loc.totals.patient_days }}</td>
+                <td class="text-center">{{ loc.totals.central_line_days }}</td>
+                <td class="text-center">{{ loc.totals.urinary_catheter_days }}</td>
+                <td class="text-center">{{ loc.totals.ventilator_days }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -261,6 +262,11 @@
     color: white;
 }
 
+.btn-hai {
+    background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%);
+    color: white;
+}
+
 .empty-state {
     text-align: center;
     padding: 2rem;
@@ -288,6 +294,11 @@
 
 .text-right {
     text-align: right;
+}
+
+.text-center,
+.table th.text-center {
+    text-align: center;
 }
 
 .total-row {

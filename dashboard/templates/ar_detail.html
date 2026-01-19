@@ -86,10 +86,10 @@
         <thead>
             <tr>
                 <th>Phenotype</th>
-                <th>Location</th>
-                <th class="text-right">Eligible Isolates</th>
-                <th class="text-right">Phenotype Positive</th>
-                <th class="text-right">% Positive</th>
+                <th class="text-center">Location</th>
+                <th class="text-center">Eligible Isolates</th>
+                <th class="text-center">Phenotype Positive</th>
+                <th class="text-center">% Positive</th>
             </tr>
         </thead>
         <tbody>
@@ -99,10 +99,10 @@
                     <strong>{{ row.phenotype_code }}</strong>
                     <br><small class="text-muted">{{ row.phenotype_name }}</small>
                 </td>
-                <td>{{ row.nhsn_location_code }}</td>
-                <td class="text-right">{{ row.eligible_isolates }}</td>
-                <td class="text-right">{{ row.phenotype_isolates }}</td>
-                <td class="text-right">
+                <td class="text-center">{{ row.nhsn_location_code }}</td>
+                <td class="text-center">{{ row.eligible_isolates }}</td>
+                <td class="text-center">{{ row.phenotype_isolates }}</td>
+                <td class="text-center">
                     <span class="badge badge-{{ 'danger' if row.percent_positive > 30 else 'warning' if row.percent_positive > 15 else 'success' }}">
                         {{ row.percent_positive }}%
                     </span>
@@ -123,11 +123,11 @@
             <tr>
                 <th>Organism</th>
                 <th>Antibiotic</th>
-                <th>Location</th>
-                <th class="text-right">Total Tested</th>
-                <th class="text-right">Resistant</th>
-                <th class="text-right">% Resistant</th>
-                <th class="text-right">% Non-Susceptible</th>
+                <th class="text-center">Location</th>
+                <th class="text-center">Total Tested</th>
+                <th class="text-center">Resistant</th>
+                <th class="text-center">% Resistant</th>
+                <th class="text-center">% Non-Susceptible</th>
             </tr>
         </thead>
         <tbody>
@@ -135,15 +135,15 @@
             <tr>
                 <td><em>{{ row.organism_name }}</em></td>
                 <td>{{ row.antibiotic }}</td>
-                <td>{{ row.nhsn_location_code }}</td>
-                <td class="text-right">{{ row.total_isolates }}</td>
-                <td class="text-right">{{ row.resistant_isolates }}</td>
-                <td class="text-right">
+                <td class="text-center">{{ row.nhsn_location_code }}</td>
+                <td class="text-center">{{ row.total_isolates }}</td>
+                <td class="text-center">{{ row.resistant_isolates }}</td>
+                <td class="text-center">
                     <span class="badge badge-{{ 'danger' if row.percent_resistant > 30 else 'warning' if row.percent_resistant > 15 else 'success' }}">
                         {{ row.percent_resistant }}%
                     </span>
                 </td>
-                <td class="text-right">{{ row.percent_non_susceptible }}%</td>
+                <td class="text-center">{{ row.percent_non_susceptible }}%</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -287,8 +287,9 @@
     font-size: 0.875rem;
 }
 
-.text-right {
-    text-align: right;
+.text-center,
+.table th.text-center {
+    text-align: center;
 }
 
 .text-muted {

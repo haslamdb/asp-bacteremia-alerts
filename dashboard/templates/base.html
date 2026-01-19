@@ -39,6 +39,7 @@
             <a href="{{ url_for('au_ar.submission') }}" {% if request.endpoint == 'au_ar.submission' %}class="active"{% endif %}>Submission</a>
             <a href="{{ url_for('nhsn.dashboard') }}" class="nav-nhsn">HAI</a>
             <a href="{{ url_for('views.index') }}" class="nav-alerts">Alerts</a>
+            <a href="{{ url_for('au_ar.help_page') }}" {% if request.endpoint == 'au_ar.help_page' %}class="active"{% endif %}>Help</a>
             {% else %}
             <!-- Alerts Navigation -->
             <a href="{{ url_for('views.alerts_active') }}" {% if request.endpoint == 'views.alerts_active' %}class="active"{% endif %}>Active Alerts</a>

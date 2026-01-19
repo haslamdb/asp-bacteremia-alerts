@@ -81,6 +81,89 @@ PATHOGENIC_ORGANISMS = [
     "Enterobacter cloacae",
 ]
 
+# Antimicrobial medications with NHSN codes (for AU data)
+ANTIMICROBIALS = [
+    {"med_id": 5001, "name": "amikacin", "nhsn": "AMK", "route": "IV", "dose": 500, "unit": "mg"},
+    {"med_id": 5002, "name": "ampicillin", "nhsn": "AMP", "route": "IV", "dose": 2000, "unit": "mg"},
+    {"med_id": 5006, "name": "cefazolin", "nhsn": "CFZ", "route": "IV", "dose": 1000, "unit": "mg"},
+    {"med_id": 5007, "name": "cefepime", "nhsn": "FEP", "route": "IV", "dose": 2000, "unit": "mg"},
+    {"med_id": 5009, "name": "ceftriaxone", "nhsn": "CRO", "route": "IV", "dose": 2000, "unit": "mg"},
+    {"med_id": 5010, "name": "ciprofloxacin", "nhsn": "CIP", "route": "PO", "dose": 500, "unit": "mg"},
+    {"med_id": 5011, "name": "clindamycin", "nhsn": "CLI", "route": "IV", "dose": 600, "unit": "mg"},
+    {"med_id": 5014, "name": "gentamicin", "nhsn": "GEN", "route": "IV", "dose": 240, "unit": "mg"},
+    {"med_id": 5017, "name": "meropenem", "nhsn": "MEM", "route": "IV", "dose": 1000, "unit": "mg"},
+    {"med_id": 5018, "name": "metronidazole", "nhsn": "MTR", "route": "IV", "dose": 500, "unit": "mg"},
+    {"med_id": 5019, "name": "piperacillin/tazobactam", "nhsn": "TZP", "route": "IV", "dose": 4500, "unit": "mg"},
+    {"med_id": 5021, "name": "vancomycin", "nhsn": "VAN", "route": "IV", "dose": 1000, "unit": "mg"},
+    {"med_id": 5022, "name": "fluconazole", "nhsn": "FLU", "route": "IV", "dose": 400, "unit": "mg"},
+]
+
+# Organisms for AR data with typical susceptibility patterns
+AR_ORGANISMS = [
+    {
+        "name": "Staphylococcus aureus",
+        "group": "Gram-positive cocci",
+        "suscept": {"OXA": "S", "VAN": "S", "CLI": "S", "LZD": "S"},  # MSSA
+    },
+    {
+        "name": "Staphylococcus aureus",
+        "group": "Gram-positive cocci",
+        "suscept": {"OXA": "R", "VAN": "S", "CLI": "S", "LZD": "S"},  # MRSA
+        "phenotype": "MRSA",
+    },
+    {
+        "name": "Escherichia coli",
+        "group": "Gram-negative bacilli",
+        "suscept": {"AMP": "S", "CRO": "S", "CIP": "S", "GEN": "S", "MEM": "S", "TZP": "S"},
+    },
+    {
+        "name": "Escherichia coli",
+        "group": "Gram-negative bacilli",
+        "suscept": {"AMP": "R", "CRO": "R", "CIP": "R", "GEN": "S", "MEM": "S", "TZP": "S"},  # MDR
+    },
+    {
+        "name": "Klebsiella pneumoniae",
+        "group": "Gram-negative bacilli",
+        "suscept": {"AMP": "R", "CRO": "S", "CIP": "S", "GEN": "S", "MEM": "S", "TZP": "S"},
+    },
+    {
+        "name": "Klebsiella pneumoniae",
+        "group": "Gram-negative bacilli",
+        "suscept": {"AMP": "R", "CRO": "R", "CIP": "R", "GEN": "S", "MEM": "R", "TZP": "R", "ETP": "R"},
+        "phenotype": "CRE",
+    },
+    {
+        "name": "Pseudomonas aeruginosa",
+        "group": "Gram-negative bacilli",
+        "suscept": {"CIP": "S", "GEN": "S", "MEM": "S", "TZP": "S", "FEP": "S", "TOB": "S"},
+    },
+    {
+        "name": "Pseudomonas aeruginosa",
+        "group": "Gram-negative bacilli",
+        "suscept": {"CIP": "R", "GEN": "R", "MEM": "R", "TZP": "R", "FEP": "R", "TOB": "R"},
+        "phenotype": "CRPA",
+    },
+    {
+        "name": "Enterococcus faecalis",
+        "group": "Gram-positive cocci",
+        "suscept": {"AMP": "S", "VAN": "S", "LZD": "S", "DAP": "S"},
+    },
+    {
+        "name": "Enterococcus faecium",
+        "group": "Gram-positive cocci",
+        "suscept": {"AMP": "R", "VAN": "R", "LZD": "S", "DAP": "S"},
+        "phenotype": "VRE",
+    },
+    {
+        "name": "Enterobacter cloacae",
+        "group": "Gram-negative bacilli",
+        "suscept": {"AMP": "R", "CRO": "S", "CIP": "S", "GEN": "S", "MEM": "S", "TZP": "S"},
+    },
+]
+
+# Specimen types for cultures
+SPECIMEN_TYPES = ["Blood", "Urine", "Respiratory", "Wound", "CSF"]
+
 # Contaminant organisms (require 2 positive cultures per NHSN)
 CONTAMINANT_ORGANISMS = [
     "Coagulase-negative staphylococci",
@@ -413,6 +496,11 @@ class MockClarityGenerator:
         self.order_id_counter = 200000
         self.fsd_id_counter = 300000
         self.prov_id_counter = 500
+        self.order_med_id_counter = 400000
+        self.mar_admin_id_counter = 500000
+        self.culture_id_counter = 600000
+        self.culture_org_id_counter = 700000
+        self.suscept_id_counter = 800000
 
         # Track generated data
         self.patients: list[dict] = []
@@ -421,6 +509,12 @@ class MockClarityGenerator:
         self.flowsheets: list[dict] = []
         self.cultures: list[dict] = []
         self.providers: list[dict] = []
+        # AU/AR data
+        self.medication_orders: list[dict] = []
+        self.mar_administrations: list[dict] = []
+        self.ar_cultures: list[dict] = []
+        self.ar_organisms: list[dict] = []
+        self.ar_susceptibilities: list[dict] = []
 
     def initialize_database(self):
         """Create database and schema."""
@@ -453,6 +547,26 @@ class MockClarityGenerator:
     def _next_prov_id(self) -> int:
         self.prov_id_counter += 1
         return self.prov_id_counter
+
+    def _next_order_med_id(self) -> int:
+        self.order_med_id_counter += 1
+        return self.order_med_id_counter
+
+    def _next_mar_admin_id(self) -> int:
+        self.mar_admin_id_counter += 1
+        return self.mar_admin_id_counter
+
+    def _next_culture_id(self) -> int:
+        self.culture_id_counter += 1
+        return self.culture_id_counter
+
+    def _next_culture_org_id(self) -> int:
+        self.culture_org_id_counter += 1
+        return self.culture_org_id_counter
+
+    def _next_suscept_id(self) -> int:
+        self.suscept_id_counter += 1
+        return self.suscept_id_counter
 
     def generate_providers(self):
         """Generate provider records."""
@@ -713,6 +827,270 @@ class MockClarityGenerator:
         }
         self.notes.append(note)
         return note
+
+    # ========================================================================
+    # AU/AR Data Generators
+    # ========================================================================
+
+    def generate_medication_order(
+        self,
+        encounter: dict,
+        antimicrobial: dict,
+        start_date: datetime,
+        duration_days: int,
+        frequency_hours: int = 8,
+    ) -> dict:
+        """Generate a medication order with administrations.
+
+        Args:
+            encounter: Patient encounter dict
+            antimicrobial: Antimicrobial from ANTIMICROBIALS list
+            start_date: When the order was started
+            duration_days: How many days of therapy
+            frequency_hours: Hours between doses (e.g., 8 for Q8H)
+        """
+        order_med_id = self._next_order_med_id()
+
+        # Create the order
+        order = {
+            "order_med_id": order_med_id,
+            "pat_enc_csn_id": encounter["pat_enc_csn_id"],
+            "medication_id": antimicrobial["med_id"],
+            "ordering_date": start_date,
+            "admin_route": antimicrobial["route"],
+            "dose": antimicrobial["dose"],
+            "dose_unit": antimicrobial["unit"],
+            "frequency": f"Q{frequency_hours}H",
+        }
+        self.medication_orders.append(order)
+
+        # Generate administrations for each dose
+        doses_per_day = 24 // frequency_hours
+        current_time = start_date
+
+        for day in range(duration_days):
+            for dose_num in range(doses_per_day):
+                # 90% chance each dose was actually given
+                action = "Given" if random.random() < 0.9 else random.choice(["Held", "Refused"])
+
+                admin = {
+                    "mar_admin_id": self._next_mar_admin_id(),
+                    "order_med_id": order_med_id,
+                    "taken_time": current_time,
+                    "action_name": action,
+                    "dose_given": antimicrobial["dose"] / 1000 if action == "Given" else 0,  # Convert mg to g
+                    "dose_unit": "g",
+                }
+                self.mar_administrations.append(admin)
+                current_time += timedelta(hours=frequency_hours)
+
+        return order
+
+    def generate_ar_culture(
+        self,
+        patient: dict,
+        encounter: dict,
+        specimen_date: datetime,
+        organism_data: dict,
+        specimen_type: str = "Blood",
+    ) -> dict:
+        """Generate a culture with organism and susceptibility data for AR reporting.
+
+        Args:
+            patient: Patient dict
+            encounter: Patient encounter dict
+            specimen_date: When the specimen was collected
+            organism_data: Organism from AR_ORGANISMS list
+            specimen_type: Type of specimen
+        """
+        culture_id = self._next_culture_id()
+        culture_org_id = self._next_culture_org_id()
+        result_date = specimen_date + timedelta(hours=random.randint(24, 72))
+
+        # Create culture result
+        culture = {
+            "culture_id": culture_id,
+            "pat_id": patient["pat_id"],
+            "pat_enc_csn_id": encounter["pat_enc_csn_id"],
+            "specimen_taken_time": specimen_date,
+            "result_time": result_date,
+            "specimen_type": specimen_type,
+            "specimen_source": random.choice(["Peripheral", "Central Line", "Midstream", "Catheter"]),
+            "culture_status": "Positive",
+        }
+        self.ar_cultures.append(culture)
+
+        # Create organism
+        organism = {
+            "culture_organism_id": culture_org_id,
+            "culture_id": culture_id,
+            "organism_name": organism_data["name"],
+            "organism_group": organism_data["group"],
+            "cfu_count": ">100000" if specimen_type == "Urine" else None,
+            "is_primary": 1,
+        }
+        self.ar_organisms.append(organism)
+
+        # Create susceptibility results
+        abx_names = {
+            "OXA": "Oxacillin", "VAN": "Vancomycin", "CLI": "Clindamycin", "LZD": "Linezolid",
+            "DAP": "Daptomycin", "AMP": "Ampicillin", "CRO": "Ceftriaxone", "CIP": "Ciprofloxacin",
+            "GEN": "Gentamicin", "MEM": "Meropenem", "TZP": "Piperacillin/Tazobactam",
+            "FEP": "Cefepime", "TOB": "Tobramycin", "ETP": "Ertapenem", "CTX": "Cefotaxime",
+            "CAZ": "Ceftazidime", "IPM": "Imipenem",
+        }
+
+        for abx_code, interpretation in organism_data["suscept"].items():
+            suscept = {
+                "susceptibility_id": self._next_suscept_id(),
+                "culture_organism_id": culture_org_id,
+                "antibiotic": abx_names.get(abx_code, abx_code),
+                "antibiotic_code": abx_code,
+                "mic": random.uniform(0.25, 16) if interpretation == "R" else random.uniform(0.1, 1),
+                "mic_units": "mcg/mL",
+                "interpretation": interpretation,
+                "method": "MIC",
+            }
+            self.ar_susceptibilities.append(suscept)
+
+        return culture
+
+    def generate_au_data_for_encounter(
+        self,
+        encounter: dict,
+        num_antibiotics: int = None,
+    ):
+        """Generate AU (antibiotic usage) data for an encounter.
+
+        Args:
+            encounter: Patient encounter dict
+            num_antibiotics: Number of antibiotics (random 1-3 if not specified)
+        """
+        if num_antibiotics is None:
+            num_antibiotics = random.randint(1, 3)
+
+        admit_date = encounter["hosp_admit_dttm"]
+        discharge_date = encounter.get("hosp_disch_dttm") or (admit_date + timedelta(days=random.randint(5, 14)))
+        los = (discharge_date - admit_date).days
+
+        # Pick random antibiotics
+        selected_abx = random.sample(ANTIMICROBIALS, min(num_antibiotics, len(ANTIMICROBIALS)))
+
+        for abx in selected_abx:
+            # Start 0-2 days after admission
+            start_offset = random.randint(0, min(2, max(0, los - 1)))
+            start_date = admit_date + timedelta(days=start_offset)
+
+            # Duration: 2-7 days, but not past discharge
+            max_duration = max(2, (discharge_date - start_date).days)
+            duration = random.randint(2, min(7, max_duration))
+
+            # Random frequency
+            frequency = random.choice([6, 8, 12, 24])
+
+            self.generate_medication_order(
+                encounter=encounter,
+                antimicrobial=abx,
+                start_date=start_date,
+                duration_days=duration,
+                frequency_hours=frequency,
+            )
+
+    def generate_ar_data_for_encounter(
+        self,
+        patient: dict,
+        encounter: dict,
+        num_cultures: int = None,
+    ):
+        """Generate AR (antimicrobial resistance) data for an encounter.
+
+        Args:
+            patient: Patient dict
+            encounter: Patient encounter dict
+            num_cultures: Number of cultures (random 1-2 if not specified)
+        """
+        if num_cultures is None:
+            num_cultures = random.randint(1, 2)
+
+        admit_date = encounter["hosp_admit_dttm"]
+        discharge_date = encounter.get("hosp_disch_dttm") or (admit_date + timedelta(days=random.randint(5, 14)))
+        los = (discharge_date - admit_date).days
+
+        for _ in range(num_cultures):
+            # Culture date: random during admission
+            culture_offset = random.randint(0, max(0, los - 1))
+            culture_date = admit_date + timedelta(days=culture_offset)
+
+            # Pick random organism
+            organism = random.choice(AR_ORGANISMS)
+
+            # Pick random specimen type
+            specimen_type = random.choice(SPECIMEN_TYPES)
+
+            self.generate_ar_culture(
+                patient=patient,
+                encounter=encounter,
+                specimen_date=culture_date,
+                organism_data=organism,
+                specimen_type=specimen_type,
+            )
+
+    def generate_au_ar_data(
+        self,
+        months: int = 3,
+        encounters_with_au: int = 50,
+        encounters_with_ar: int = 30,
+        base_time: datetime | None = None,
+    ):
+        """Generate AU and AR demo data using existing patients/encounters.
+
+        Args:
+            months: Months of historical data
+            encounters_with_au: Number of encounters to add AU data
+            encounters_with_ar: Number of encounters to add AR data
+            base_time: Base time for data generation
+        """
+        base_time = base_time or datetime.now()
+        start_date = base_time - timedelta(days=months * 30)
+
+        print(f"\nGenerating AU/AR demo data...")
+        print(f"  Date range: {start_date.date()} to {base_time.date()}")
+
+        # Use existing encounters or create new ones if not enough
+        available_encounters = [e for e in self.encounters if e.get("hosp_admit_dttm")]
+
+        # Generate AU data
+        au_encounters = random.sample(
+            available_encounters,
+            min(encounters_with_au, len(available_encounters))
+        ) if available_encounters else []
+
+        for enc in au_encounters:
+            self.generate_au_data_for_encounter(enc)
+
+        print(f"  Generated AU data for {len(au_encounters)} encounters")
+        print(f"    - {len(self.medication_orders)} medication orders")
+        print(f"    - {len(self.mar_administrations)} MAR administrations")
+
+        # Generate AR data
+        ar_encounters = random.sample(
+            available_encounters,
+            min(encounters_with_ar, len(available_encounters))
+        ) if available_encounters else []
+
+        for enc in ar_encounters:
+            # Find the patient for this encounter
+            patient = next(
+                (p for p in self.patients if p["pat_id"] == enc["pat_id"]),
+                None
+            )
+            if patient:
+                self.generate_ar_data_for_encounter(patient, enc)
+
+        print(f"  Generated AR data for {len(ar_encounters)} encounters")
+        print(f"    - {len(self.ar_cultures)} cultures")
+        print(f"    - {len(self.ar_organisms)} organisms")
+        print(f"    - {len(self.ar_susceptibilities)} susceptibility results")
 
     # ========================================================================
     # Scenario Generators
@@ -1346,6 +1724,96 @@ Does NOT meet CLABSI criteria.
                     (culture["component_id"], culture["organism"]),
                 )
 
+        # Load AU data - medication orders
+        for order in self.medication_orders:
+            cursor.execute(
+                """INSERT OR REPLACE INTO ORDER_MED
+                   (ORDER_MED_ID, PAT_ENC_CSN_ID, MEDICATION_ID, ORDERING_DATE,
+                    ADMIN_ROUTE, DOSE, DOSE_UNIT, FREQUENCY)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    order["order_med_id"],
+                    order["pat_enc_csn_id"],
+                    order["medication_id"],
+                    order["ordering_date"],
+                    order["admin_route"],
+                    order["dose"],
+                    order["dose_unit"],
+                    order["frequency"],
+                ),
+            )
+
+        # Load AU data - MAR administrations
+        for admin in self.mar_administrations:
+            cursor.execute(
+                """INSERT OR REPLACE INTO MAR_ADMIN_INFO
+                   (MAR_ADMIN_ID, ORDER_MED_ID, TAKEN_TIME, ACTION_NAME, DOSE_GIVEN, DOSE_UNIT)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    admin["mar_admin_id"],
+                    admin["order_med_id"],
+                    admin["taken_time"],
+                    admin["action_name"],
+                    admin["dose_given"],
+                    admin["dose_unit"],
+                ),
+            )
+
+        # Load AR data - cultures
+        for culture in self.ar_cultures:
+            cursor.execute(
+                """INSERT OR REPLACE INTO CULTURE_RESULTS
+                   (CULTURE_ID, PAT_ID, PAT_ENC_CSN_ID, SPECIMEN_TAKEN_TIME,
+                    RESULT_TIME, SPECIMEN_TYPE, SPECIMEN_SOURCE, CULTURE_STATUS)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    culture["culture_id"],
+                    culture["pat_id"],
+                    culture["pat_enc_csn_id"],
+                    culture["specimen_taken_time"],
+                    culture["result_time"],
+                    culture["specimen_type"],
+                    culture["specimen_source"],
+                    culture["culture_status"],
+                ),
+            )
+
+        # Load AR data - organisms
+        for org in self.ar_organisms:
+            cursor.execute(
+                """INSERT OR REPLACE INTO CULTURE_ORGANISM
+                   (CULTURE_ORGANISM_ID, CULTURE_ID, ORGANISM_NAME, ORGANISM_GROUP,
+                    CFU_COUNT, IS_PRIMARY)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    org["culture_organism_id"],
+                    org["culture_id"],
+                    org["organism_name"],
+                    org["organism_group"],
+                    org["cfu_count"],
+                    org["is_primary"],
+                ),
+            )
+
+        # Load AR data - susceptibilities
+        for suscept in self.ar_susceptibilities:
+            cursor.execute(
+                """INSERT OR REPLACE INTO SUSCEPTIBILITY_RESULTS
+                   (SUSCEPTIBILITY_ID, CULTURE_ORGANISM_ID, ANTIBIOTIC, ANTIBIOTIC_CODE,
+                    MIC, MIC_UNITS, INTERPRETATION, METHOD)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    suscept["susceptibility_id"],
+                    suscept["culture_organism_id"],
+                    suscept["antibiotic"],
+                    suscept["antibiotic_code"],
+                    suscept["mic"],
+                    suscept["mic_units"],
+                    suscept["interpretation"],
+                    suscept["method"],
+                ),
+            )
+
         conn.commit()
         conn.close()
 
@@ -1353,8 +1821,13 @@ Does NOT meet CLABSI criteria.
         print(f"  - {len(self.patients)} patients")
         print(f"  - {len(self.encounters)} encounters")
         print(f"  - {len(self.notes)} notes")
-        print(f"  - {len(self.cultures)} cultures")
+        print(f"  - {len(self.cultures)} cultures (HAI)")
         print(f"  - {len(fsd_ids_loaded)} flowsheet records")
+        print(f"  - {len(self.medication_orders)} medication orders (AU)")
+        print(f"  - {len(self.mar_administrations)} MAR administrations (AU)")
+        print(f"  - {len(self.ar_cultures)} cultures (AR)")
+        print(f"  - {len(self.ar_organisms)} organisms (AR)")
+        print(f"  - {len(self.ar_susceptibilities)} susceptibilities (AR)")
 
 
 def main():
@@ -1389,6 +1862,23 @@ def main():
         action="store_true",
         help="Only generate scenarios, no random patients",
     )
+    parser.add_argument(
+        "--au-ar",
+        action="store_true",
+        help="Generate AU (antibiotic usage) and AR (antimicrobial resistance) data",
+    )
+    parser.add_argument(
+        "--au-encounters",
+        type=int,
+        default=50,
+        help="Number of encounters with AU data (default: 50)",
+    )
+    parser.add_argument(
+        "--ar-encounters",
+        type=int,
+        default=30,
+        help="Number of encounters with AR data (default: 30)",
+    )
 
     args = parser.parse_args()
 
@@ -1410,6 +1900,14 @@ def main():
         print(f"\nScenario Summary:")
         for s in scenarios:
             print(f"  - {s['scenario']}: {s['patient_mrn']} ({s['expected']})")
+
+    # Generate AU/AR data if requested
+    if args.au_ar:
+        generator.generate_au_ar_data(
+            months=args.months,
+            encounters_with_au=args.au_encounters,
+            encounters_with_ar=args.ar_encounters,
+        )
 
     generator.load_to_database()
     print(f"\nDone! Database ready at: {args.db_path}")

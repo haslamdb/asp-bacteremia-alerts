@@ -492,6 +492,12 @@ def api_ar_export():
         return jsonify({"error": str(e)}), 500
 
 
+@au_ar_bp.route("/help")
+def help_page():
+    """AU/AR Help and Demo Guide."""
+    return render_template("au_ar_help.html")
+
+
 @au_ar_bp.route("/submission")
 def submission():
     """AU/AR NHSN submission page."""

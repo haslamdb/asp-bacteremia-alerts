@@ -553,6 +553,94 @@ All submissions (CSV exports, DIRECT submissions, manual marking) are logged wit
 
 View the audit log on the submission page at `/nhsn/submission`.
 
+## AU/AR Reporting Module
+
+The NHSN Antibiotic Use (AU) and Antimicrobial Resistance (AR) module provides automated tracking and reporting of antimicrobial consumption and resistance patterns per CDC/NHSN methodology.
+
+### Dashboard
+
+Access the AU/AR dashboard at `/au-ar/` with the following pages:
+
+| Page | URL | Description |
+|------|-----|-------------|
+| **Dashboard** | `/au-ar/` | Overview with AU, AR, and denominator summaries |
+| **AU Detail** | `/au-ar/au` | Days of therapy by location and antimicrobial |
+| **AR Detail** | `/au-ar/ar` | Resistance phenotypes and rates by organism |
+| **Denominators** | `/au-ar/denominators` | Patient days and device days by location |
+| **Submission** | `/au-ar/submission` | NHSN export (CSV or CDA) |
+| **Help** | `/au-ar/help` | Documentation and demo guide |
+
+### Antibiotic Usage (AU)
+
+Tracks antimicrobial consumption metrics:
+
+- **Days of Therapy (DOT)**: Number of days a patient receives an antimicrobial
+- **DOT/1000 Patient Days**: Rate normalized to patient census
+- **Defined Daily Doses (DDD)**: WHO-standardized dose metrics (optional)
+
+Data is aggregated by:
+- NHSN antimicrobial category (e.g., 3rd gen cephalosporins, carbapenems)
+- NHSN location code (e.g., IN:ACUTE:PEDS:M/S)
+- Month/Year
+
+### Antimicrobial Resistance (AR)
+
+Tracks resistance patterns using the **first-isolate rule**:
+
+- Only one isolate per patient per organism per quarter
+- Prevents overweighting from repeat cultures
+- Matches NHSN deduplication methodology
+
+**Phenotype Detection:**
+| Phenotype | Organisms | Antibiotics Tested |
+|-----------|-----------|-------------------|
+| MRSA | S. aureus | Oxacillin/Cefoxitin |
+| VRE | E. faecalis, E. faecium | Vancomycin |
+| ESBL | E. coli, K. pneumoniae | 3rd gen cephalosporins |
+| CRE | Enterobacterales | Carbapenems |
+| CRPA | P. aeruginosa | Carbapenems |
+
+### Data Sources
+
+AU/AR data is extracted from Epic Clarity:
+
+| Data Element | Clarity Tables | Description |
+|--------------|----------------|-------------|
+| Antimicrobial admin | `MAR_ADMIN_INFO` | Medication administration records |
+| Orders | `ORDER_MED` | Antibiotic orders with NHSN codes |
+| Cultures | `ORDER_RESULTS`, `ORDER_SENSITIVITY` | Culture results and susceptibilities |
+| Patient days | `PAT_ENC_HSP`, `IP_FLWSHT_MEAS` | Census by location |
+
+### Demo Data Generation
+
+Generate realistic demo data with the mock Clarity database:
+
+```bash
+cd nhsn-reporting
+
+# Generate demo data for 2024-2025
+python scripts/generate_demo_data.py
+
+# View in dashboard
+cd ../dashboard && flask run
+# Visit http://localhost:5000/au-ar/
+```
+
+The demo data generator creates:
+- 6 months of antibiotic administrations across ICU/medical/surgical units
+- Culture data with realistic resistance patterns (20-40% resistance rates)
+- Patient days with device utilization (central lines, catheters, ventilators)
+- NHSN-compliant location codes and antimicrobial categories
+
+### NHSN Submission
+
+Export AU/AR data for NHSN submission:
+
+1. **CSV Export**: Download monthly data for manual entry
+2. **CDA Generation**: HL7 CDA documents for automated submission
+
+Navigate to `/au-ar/submission` to access export options.
+
 ## Roadmap
 
 - [x] CLABSI detection and classification
@@ -565,6 +653,8 @@ View the audit log on the submission page at `/nhsn/submission`.
 - [x] CDA document generation
 - [x] Reports and analytics dashboard
 - [x] Stats reset with each NHSN submission
+- [x] AU/AR reporting module with DOT, resistance phenotypes, denominators
+- [x] AU/AR dashboard with detail views and export
 - [ ] CAUTI detection (catheter-associated UTI)
 - [ ] SSI detection (surgical site infection)
 - [ ] VAE detection (ventilator-associated event)
@@ -585,13 +675,13 @@ Options for line day tracking:
 - Manual entry on Submission page
 - Integration with existing line-day tracking system
 
-### Clarity Integration for AU/AR Reporting ([#2](https://github.com/haslamdb/asp-alerts/issues/2))
+### ~~Clarity Integration for AU/AR Reporting~~ ✅ Implemented
 
-Census days and antibiotic use data for NHSN Antibiotic Use (AU) and Antimicrobial Resistance (AR) modules:
-- **Census Days**: Patient days by unit/location from `PAT_ENC_HSP`
-- **Antibiotic Use**: Days of therapy, defined daily doses from `MAR_ADMIN_INFO`, `ORDER_MED`
-- **Data Source**: Epic Clarity database (first production use of `clarity_source.py`)
-- **Rates**: AU/AR metrics per NHSN methodology
+See **AU/AR Reporting** section below. The AU/AR module is now fully implemented with:
+- Antibiotic Usage (AU) reporting with DOT/1000 patient days
+- Antimicrobial Resistance (AR) reporting with first-isolate rule
+- Denominator calculations from Clarity flowsheet data
+- Dashboard integration at `/au-ar/`
 
 ## Related Documentation
 

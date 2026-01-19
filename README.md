@@ -21,9 +21,11 @@ Our vision is to shift infection prevention from reactive detection to proactive
 
 **ASP Alerts Dashboard:** [https://alerts.asp-ai-agent.com:8444](https://alerts.asp-ai-agent.com:8444)
 
-**NHSN/HAI Dashboard:** [https://nhsn.asp-ai-agent.com:8444/nhsn/](https://nhsn.asp-ai-agent.com:8444/nhsn/)
+**NHSN/HAI Dashboard:** [https://alerts.asp-ai-agent.com:8444/nhsn/](https://alerts.asp-ai-agent.com:8444/nhsn/)
 
-The demo environment includes synthetic patient data for testing alert and HAI detection workflows.
+**AU/AR Reporting Dashboard:** [https://alerts.asp-ai-agent.com:8444/au-ar/](https://alerts.asp-ai-agent.com:8444/au-ar/)
+
+The demo environment includes synthetic patient data for testing alert, HAI detection, and AU/AR reporting workflows.
 
 ## Architecture
 
@@ -68,30 +70,38 @@ Monitors broad-spectrum antibiotic usage duration. Alerts when meropenem, vancom
 
 ### nhsn-reporting
 
-Automated NHSN Healthcare-Associated Infection (HAI) detection and classification. Uses rule-based screening combined with LLM-assisted classification to identify CLABSI candidates and route them through an IP review workflow.
+Automated NHSN Healthcare-Associated Infection (HAI) detection and classification, plus Antibiotic Use (AU) and Antimicrobial Resistance (AR) reporting. Uses rule-based screening combined with LLM-assisted classification to identify CLABSI candidates and route them through an IP review workflow.
 
-**Features:**
+**HAI Detection Features:**
 - CLABSI detection per CDC/NHSN surveillance criteria
 - Clinical note retrieval from FHIR or Clarity
 - Local Ollama LLM classification (PHI-safe, no BAA required)
-- Confidence-based triage (auto-classify, IP review, manual review)
 - Dashboard integration for IP review workflow
 - Common contaminant handling (requires 2 positive cultures)
 - **NHSN Submission** - Export CSV or submit directly via DIRECT protocol
 - **CDA Document Generation** - HL7 CDA R2 compliant documents for automated submission
 
+**AU/AR Reporting Features:**
+- Days of Therapy (DOT) tracking by antimicrobial category and location
+- Antimicrobial resistance phenotype detection (MRSA, VRE, ESBL, CRE, CRPA)
+- First-isolate rule deduplication per NHSN methodology
+- Denominator calculations (patient days, device days, utilization ratios)
+- Dashboard at `/au-ar/` with detail views and CSV export
+
 **[Documentation →](nhsn-reporting/README.md)**
 
 ### dashboard
 
-Web-based alert management dashboard for viewing, acknowledging, and resolving alerts.
+Web-based alert management dashboard for viewing, acknowledging, and resolving alerts. Includes integrated HAI detection and AU/AR reporting modules.
 
 **Features:**
 - Active and historical alert views with filtering
 - Acknowledge, snooze, and resolve actions
 - Resolution tracking with reasons and notes
 - **Reports & Analytics** - Alert volume, resolution times, resolution breakdown
-- **Help page** - Interactive demo workflow guide
+- **HAI Detection** - IP review workflow at `/nhsn/`
+- **AU/AR Reporting** - Antibiotic usage and resistance at `/au-ar/`
+- **Help pages** - Interactive guides for each module
 - Audit trail for compliance
 - Teams button callbacks
 - CCHMC-branded color scheme
@@ -191,6 +201,57 @@ The `DenominatorCalculator` class aggregates device days and patient days from C
 - **DIRECT Protocol** - Automated submission via HISP (Health Information Service Provider) using HL7 CDA R2 documents
 
 See [nhsn-reporting/README.md](nhsn-reporting/README.md) for complete documentation.
+
+## AU/AR Reporting
+
+The `nhsn-reporting` module also provides NHSN Antibiotic Use (AU) and Antimicrobial Resistance (AR) reporting per CDC methodology.
+
+### Antibiotic Usage (AU)
+
+Tracks antimicrobial consumption by location:
+
+| Metric | Description |
+|--------|-------------|
+| **Days of Therapy (DOT)** | Number of days a patient receives an antimicrobial agent |
+| **DOT/1000 Patient Days** | Rate normalized to patient census for benchmarking |
+
+Data is aggregated by NHSN antimicrobial category (carbapenems, 3rd gen cephalosporins, etc.) and location code.
+
+### Antimicrobial Resistance (AR)
+
+Tracks resistance patterns using the **first-isolate rule**:
+
+- One isolate per patient per organism per quarter
+- Prevents overweighting from repeat cultures
+- Phenotype detection: MRSA, VRE, ESBL, CRE, CRPA
+
+### Dashboard
+
+Access AU/AR reporting at `/au-ar/`:
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Overview with AU, AR, and denominator summaries |
+| **AU Detail** | DOT by location and antimicrobial with drill-down |
+| **AR Detail** | Resistance phenotypes and rates by organism |
+| **Denominators** | Patient days and device days by location |
+| **Submission** | NHSN export (CSV or CDA) |
+| **Help** | Documentation and demo data guide |
+
+### Demo Data
+
+Generate realistic demo data:
+
+```bash
+cd nhsn-reporting
+python scripts/generate_demo_data.py
+
+# View in dashboard
+cd ../dashboard && flask run
+# Visit http://localhost:5000/au-ar/
+```
+
+See [nhsn-reporting/README.md](nhsn-reporting/README.md#auar-reporting-module) for complete AU/AR documentation.
 
 ## Shared Infrastructure
 

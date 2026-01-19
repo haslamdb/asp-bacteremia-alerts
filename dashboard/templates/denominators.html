@@ -53,26 +53,26 @@
         <thead>
             <tr>
                 <th>Location</th>
-                <th class="text-right">Patient Days</th>
-                <th class="text-right">Central Line Days</th>
-                <th class="text-right">CL Utilization</th>
-                <th class="text-right">Catheter Days</th>
-                <th class="text-right">UC Utilization</th>
-                <th class="text-right">Ventilator Days</th>
-                <th class="text-right">Vent Utilization</th>
+                <th class="text-center">Patient Days</th>
+                <th class="text-center">Central Line Days</th>
+                <th class="text-center">CL Utilization</th>
+                <th class="text-center">Catheter Days</th>
+                <th class="text-center">UC Utilization</th>
+                <th class="text-center">Ventilator Days</th>
+                <th class="text-center">Vent Utilization</th>
             </tr>
         </thead>
         <tbody>
             {% for loc in denom_summary.locations %}
             <tr>
                 <td><strong>{{ loc.nhsn_location_code }}</strong></td>
-                <td class="text-right">{{ loc.totals.patient_days }}</td>
-                <td class="text-right">{{ loc.totals.central_line_days }}</td>
-                <td class="text-right">{{ (loc.totals.central_line_utilization * 100) | round(1) }}%</td>
-                <td class="text-right">{{ loc.totals.urinary_catheter_days }}</td>
-                <td class="text-right">{{ (loc.totals.urinary_catheter_utilization * 100) | round(1) }}%</td>
-                <td class="text-right">{{ loc.totals.ventilator_days }}</td>
-                <td class="text-right">{{ (loc.totals.ventilator_utilization * 100) | round(1) }}%</td>
+                <td class="text-center">{{ loc.totals.patient_days }}</td>
+                <td class="text-center">{{ loc.totals.central_line_days }}</td>
+                <td class="text-center">{{ (loc.totals.central_line_utilization * 100) | round(1) }}%</td>
+                <td class="text-center">{{ loc.totals.urinary_catheter_days }}</td>
+                <td class="text-center">{{ (loc.totals.urinary_catheter_utilization * 100) | round(1) }}%</td>
+                <td class="text-center">{{ loc.totals.ventilator_days }}</td>
+                <td class="text-center">{{ (loc.totals.ventilator_utilization * 100) | round(1) }}%</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -87,39 +87,39 @@
         <thead>
             <tr>
                 <th>Month</th>
-                <th class="text-right">Patient Days</th>
-                <th class="text-right">Central Line Days</th>
-                <th class="text-right">CL Util %</th>
-                <th class="text-right">Catheter Days</th>
-                <th class="text-right">UC Util %</th>
-                <th class="text-right">Ventilator Days</th>
-                <th class="text-right">Vent Util %</th>
+                <th class="text-center">Patient Days</th>
+                <th class="text-center">Central Line Days</th>
+                <th class="text-center">CL Util %</th>
+                <th class="text-center">Catheter Days</th>
+                <th class="text-center">UC Util %</th>
+                <th class="text-center">Ventilator Days</th>
+                <th class="text-center">Vent Util %</th>
             </tr>
         </thead>
         <tbody>
             {% for month in loc.months %}
             <tr>
                 <td><strong>{{ month.month }}</strong></td>
-                <td class="text-right">{{ month.patient_days }}</td>
-                <td class="text-right">{{ month.central_line_days }}</td>
-                <td class="text-right">{{ (month.central_line_utilization * 100) | round(1) }}%</td>
-                <td class="text-right">{{ month.urinary_catheter_days }}</td>
-                <td class="text-right">{{ (month.urinary_catheter_utilization * 100) | round(1) }}%</td>
-                <td class="text-right">{{ month.ventilator_days }}</td>
-                <td class="text-right">{{ (month.ventilator_utilization * 100) | round(1) }}%</td>
+                <td class="text-center">{{ month.patient_days }}</td>
+                <td class="text-center">{{ month.central_line_days }}</td>
+                <td class="text-center">{{ (month.central_line_utilization * 100) | round(1) }}%</td>
+                <td class="text-center">{{ month.urinary_catheter_days }}</td>
+                <td class="text-center">{{ (month.urinary_catheter_utilization * 100) | round(1) }}%</td>
+                <td class="text-center">{{ month.ventilator_days }}</td>
+                <td class="text-center">{{ (month.ventilator_utilization * 100) | round(1) }}%</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
             <tr class="total-row">
                 <td><strong>Total</strong></td>
-                <td class="text-right"><strong>{{ loc.totals.patient_days }}</strong></td>
-                <td class="text-right"><strong>{{ loc.totals.central_line_days }}</strong></td>
-                <td class="text-right"><strong>{{ (loc.totals.central_line_utilization * 100) | round(1) }}%</strong></td>
-                <td class="text-right"><strong>{{ loc.totals.urinary_catheter_days }}</strong></td>
-                <td class="text-right"><strong>{{ (loc.totals.urinary_catheter_utilization * 100) | round(1) }}%</strong></td>
-                <td class="text-right"><strong>{{ loc.totals.ventilator_days }}</strong></td>
-                <td class="text-right"><strong>{{ (loc.totals.ventilator_utilization * 100) | round(1) }}%</strong></td>
+                <td class="text-center"><strong>{{ loc.totals.patient_days }}</strong></td>
+                <td class="text-center"><strong>{{ loc.totals.central_line_days }}</strong></td>
+                <td class="text-center"><strong>{{ (loc.totals.central_line_utilization * 100) | round(1) }}%</strong></td>
+                <td class="text-center"><strong>{{ loc.totals.urinary_catheter_days }}</strong></td>
+                <td class="text-center"><strong>{{ (loc.totals.urinary_catheter_utilization * 100) | round(1) }}%</strong></td>
+                <td class="text-center"><strong>{{ loc.totals.ventilator_days }}</strong></td>
+                <td class="text-center"><strong>{{ (loc.totals.ventilator_utilization * 100) | round(1) }}%</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -247,8 +247,9 @@
     font-size: 0.875rem;
 }
 
-.text-right {
-    text-align: right;
+.text-center,
+.table th.text-center {
+    text-align: center;
 }
 
 .total-row {
