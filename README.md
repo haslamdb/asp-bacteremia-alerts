@@ -1,6 +1,16 @@
-# ASP Alerts
+# AEGIS
 
-Antimicrobial Stewardship Program (ASP) clinical decision support and alerting system. This monorepo contains modules for real-time monitoring, alerting, and analytics to support antimicrobial stewardship activities, including Healthcare-Associated Infection (HAI) detection and NHSN reporting.
+**Automated Evaluation and Guidance for Infection Surveillance**
+
+AEGIS is an intelligent clinical decision support platform for Antimicrobial Stewardship (ASP) and Infection Prevention (IP) teams. By integrating real-time EHR data from FHIR and Clarity with machine learning and AI, AEGIS aims to:
+
+- **Detect** healthcare-associated infections (HAIs) in real-time using automated surveillance
+- **Monitor** antimicrobial usage patterns and alert on opportunities for optimization
+- **Predict** infection risk using ML models to enable proactive prevention
+- **Report** to NHSN with automated HAI classification and submission
+- **Reduce** manual chart review burden through AI-assisted clinical extraction
+
+Our vision is to shift infection prevention from reactive detection to proactive risk assessment—identifying high-risk patients before infections occur and providing actionable guidance to clinicians at the point of care.
 
 > **Disclaimer:** All patient data in this repository is **simulated** and was generated using [Synthea](https://github.com/synthetichealth/synthea) or custom test data generators. **No actual patient data exists in this repository.** Any resemblance to real patients is coincidental.
 
@@ -8,7 +18,7 @@ Antimicrobial Stewardship Program (ASP) clinical decision support and alerting s
 
 **Dashboard:** [https://alerts.asp-ai-agent.com:8444](https://alerts.asp-ai-agent.com:8444)
 
-The demo environment includes synthetic patient data for testing alert workflows.
+The demo environment includes synthetic patient data for testing alert and HAI detection workflows.
 
 ## Architecture
 
