@@ -53,6 +53,42 @@ class Config:
     # Days after line removal that BSI can still be attributed
     POST_REMOVAL_WINDOW_DAYS: int = int(os.getenv("POST_REMOVAL_WINDOW_DAYS", "1"))
 
+    # --- CAUTI Criteria ---
+    # Minimum catheter days before UTI for CAUTI eligibility
+    CAUTI_MIN_CATHETER_DAYS: int = int(os.getenv("CAUTI_MIN_CATHETER_DAYS", "2"))
+    # Days after catheter removal that UTI can still be attributed
+    CAUTI_POST_REMOVAL_WINDOW_DAYS: int = int(os.getenv("CAUTI_POST_REMOVAL_WINDOW_DAYS", "1"))
+    # Minimum CFU/mL for significant bacteriuria (NHSN: ≥100,000)
+    CAUTI_MIN_CFU_THRESHOLD: int = int(os.getenv("CAUTI_MIN_CFU_THRESHOLD", "100000"))
+
+    # --- VAE Criteria ---
+    # Minimum ventilator days before VAE eligibility
+    VAE_MIN_VENT_DAYS: int = int(os.getenv("VAE_MIN_VENT_DAYS", "2"))
+    # Baseline stability period (days) before deterioration
+    VAE_BASELINE_PERIOD_DAYS: int = int(os.getenv("VAE_BASELINE_PERIOD_DAYS", "2"))
+    # Minimum PEEP increase to trigger VAC (cmH2O)
+    VAE_PEEP_INCREASE_THRESHOLD: float = float(os.getenv("VAE_PEEP_INCREASE_THRESHOLD", "3.0"))
+    # Minimum FiO2 increase to trigger VAC (percentage points)
+    VAE_FIO2_INCREASE_THRESHOLD: float = float(os.getenv("VAE_FIO2_INCREASE_THRESHOLD", "20.0"))
+
+    # --- SSI Criteria ---
+    # Default surveillance window for most procedures (days)
+    SSI_DEFAULT_SURVEILLANCE_DAYS: int = int(os.getenv("SSI_DEFAULT_SURVEILLANCE_DAYS", "30"))
+    # Extended surveillance for procedures with implants (days)
+    SSI_IMPLANT_SURVEILLANCE_DAYS: int = int(os.getenv("SSI_IMPLANT_SURVEILLANCE_DAYS", "90"))
+
+    # --- AU Reporting ---
+    # Default location types to include in AU reporting
+    AU_LOCATION_TYPES: str = os.getenv("AU_LOCATION_TYPES", "ICU,Ward,NICU,BMT")
+    # Include oral antibiotics in AU reporting
+    AU_INCLUDE_ORAL: bool = os.getenv("AU_INCLUDE_ORAL", "true").lower() == "true"
+
+    # --- AR Reporting ---
+    # Specimen types to include in AR reporting
+    AR_SPECIMEN_TYPES: str = os.getenv("AR_SPECIMEN_TYPES", "Blood,Urine,Respiratory,CSF")
+    # Only count first isolate per patient per quarter (NHSN requirement)
+    AR_FIRST_ISOLATE_ONLY: bool = os.getenv("AR_FIRST_ISOLATE_ONLY", "true").lower() == "true"
+
     # --- Database ---
     NHSN_DB_PATH: str = os.getenv(
         "NHSN_DB_PATH",

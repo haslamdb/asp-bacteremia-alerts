@@ -22,36 +22,38 @@ Tracking file for implementing the AEGIS expansion plan. See `aegis_implementati
 
 ## Phase 1: Infrastructure
 
-**Status:** Not Started
+**Status:** Complete (2026-01-19)
 
 ### Database Schema Extensions
-- [ ] CAUTI tables (cauti_candidates, cauti_classifications, cauti_reviews)
-- [ ] VAE tables (vae_candidates, vae_daily_assessments, vae_classifications, vae_reviews)
-- [ ] SSI tables (ssi_procedures, ssi_candidates, ssi_classifications, ssi_reviews)
-- [ ] AU tables (au_monthly_summary, au_antimicrobial_usage, au_patient_level)
-- [ ] AR tables (ar_quarterly_summary, ar_isolates, ar_susceptibilities, ar_phenotype_summary)
-- [ ] Shared denominator tables (denominators_daily, denominators_monthly)
+- [ ] CAUTI tables - Using generic nhsn_candidates with hai_type='cauti'
+- [ ] VAE tables - Using generic nhsn_candidates with hai_type='vae'
+- [ ] SSI tables - Using generic nhsn_candidates with hai_type='ssi'
+- [x] AU tables (au_monthly_summary, au_antimicrobial_usage, au_patient_level)
+- [x] AR tables (ar_quarterly_summary, ar_isolates, ar_susceptibilities, ar_phenotype_summary)
+- [x] Shared denominator tables (denominators_daily, denominators_monthly)
+- [x] Reporting views (au_usage_by_class, ar_resistance_rates, hai_rates_monthly)
 
 ### Shared Models
-- [ ] Add HAI type enums to models.py
-- [ ] Add CAUTI models (CAUTICandidate, CAUTIClassification, etc.)
-- [ ] Add VAE models (VAECandidate, VAEDailyAssessment, etc.)
-- [ ] Add SSI models (SSIProcedure, SSICandidate, etc.)
-- [ ] Add AU models (AUMonthlySummary, AUAntimicrobialUsage, etc.)
-- [ ] Add AR models (ARQuarterlySummary, ARIsolate, etc.)
+- [x] HAI type enums already exist in models.py
+- [x] Generic HAICandidate works for CAUTI/VAE/SSI (using hai_type field)
+- [x] AU models (AUMonthlySummary, AUAntimicrobialUsage, AUPatientLevel)
+- [x] AR models (ARQuarterlySummary, ARIsolate, ARSusceptibility, ARPhenotypeSummary)
+- [x] Denominator models (DenominatorDaily, DenominatorMonthly)
+- [x] Supporting enums (AntimicrobialRoute, SusceptibilityInterpretation, ResistancePhenotype)
 
 ### Configuration Updates
-- [ ] Add CAUTI settings to config.py
-- [ ] Add VAE settings to config.py
-- [ ] Add SSI settings to config.py
-- [ ] Add AU settings to config.py
-- [ ] Add AR settings to config.py
+- [x] Add CAUTI settings to config.py (MIN_CATHETER_DAYS, CFU_THRESHOLD)
+- [x] Add VAE settings to config.py (MIN_VENT_DAYS, PEEP/FiO2 thresholds)
+- [x] Add SSI settings to config.py (surveillance windows)
+- [x] Add AU settings to config.py (location types, include oral)
+- [x] Add AR settings to config.py (specimen types, first isolate only)
 
 ### Abstract Base Classes
-- [ ] Verify/create BaseCandidateDetector
-- [ ] Verify/create BaseHAIClassifier
-- [ ] Verify/create BaseExtractor
-- [ ] Verify/create BaseRulesEngine
+- [x] BaseCandidateDetector - Already exists
+- [x] BaseHAIClassifier - Already exists
+- [x] BaseNoteSource, BaseDeviceSource, BaseCultureSource - Already exist
+- [ ] BaseExtractor - Not needed (extractors are HAI-specific)
+- [ ] BaseRulesEngine - Not needed (rules engines are HAI-specific)
 
 ---
 
@@ -314,5 +316,6 @@ The plan proposes separate model classes for each HAI type. Our existing `HAICan
 
 | Date | Session | Work Completed |
 |------|---------|----------------|
-| 2026-01-19 | 1 | Created tracking file, beginning audit |
+| 2026-01-19 | 1 | Created tracking file, completed code audit |
+| 2026-01-19 | 1 | **Phase 1 Complete:** Added AU/AR tables to schema.sql, denominator tables, config settings for CAUTI/VAE/SSI/AU/AR, and AU/AR models to models.py |
 
