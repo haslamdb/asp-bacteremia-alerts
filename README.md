@@ -1,6 +1,6 @@
 # ASP Alerts
 
-Antimicrobial Stewardship Program (ASP) clinical decision support and alerting system. This monorepo contains modules for real-time monitoring, alerting, and analytics to support antimicrobial stewardship activities.
+Antimicrobial Stewardship Program (ASP) clinical decision support and alerting system. This monorepo contains modules for real-time monitoring, alerting, and analytics to support antimicrobial stewardship activities, including Healthcare-Associated Infection (HAI) detection and NHSN reporting.
 
 > **Disclaimer:** All patient data in this repository is **simulated** and was generated using [Synthea](https://github.com/synthetichealth/synthea) or custom test data generators. **No actual patient data exists in this repository.** Any resemblance to real patients is coincidental.
 
@@ -83,6 +83,99 @@ Web-based alert management dashboard for viewing, acknowledging, and resolving a
 - Auto-refresh on active alerts page
 
 **[Documentation →](dashboard/README.md)** | **[Demo Workflow →](docs/demo-workflow.md)**
+
+## HAI Monitoring and NHSN Reporting
+
+The `nhsn-reporting` module provides automated surveillance for Healthcare-Associated Infections (HAIs) as defined by the CDC's National Healthcare Safety Network (NHSN). This supports both real-time infection detection and quarterly reporting requirements.
+
+### What is NHSN?
+
+The [National Healthcare Safety Network (NHSN)](https://www.cdc.gov/nhsn/) is the CDC's system for tracking healthcare-associated infections. Hospitals are required to report HAI data for:
+- **CMS Quality Reporting** - Affects hospital reimbursement and public quality scores
+- **State Mandates** - Many states require HAI reporting by law
+- **Accreditation** - Joint Commission and other bodies require HAI surveillance
+- **Internal Quality Improvement** - Benchmarking against national rates
+
+### Supported HAI Types
+
+| HAI Type | Status | Description |
+|----------|--------|-------------|
+| **CLABSI** | Implemented | Central Line-Associated Bloodstream Infection |
+| **CAUTI** | Planned | Catheter-Associated Urinary Tract Infection |
+| **VAE** | Planned | Ventilator-Associated Events |
+| **SSI** | Planned | Surgical Site Infection |
+
+### How It Works
+
+```
+                         EHR Data Sources
+                    ┌──────────┴──────────┐
+                    │                     │
+              FHIR Server            Clarity DB
+            (Real-time data)      (Aggregate data)
+                    │                     │
+                    ▼                     ▼
+           ┌────────────────┐    ┌────────────────┐
+           │  HAI Detection │    │  Denominators  │
+           │  (BSI + Device │    │  (Line days,   │
+           │   + Timing)    │    │   Census days) │
+           └────────────────┘    └────────────────┘
+                    │                     │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌────────────────────┐
+                    │   LLM Extraction   │  Extract clinical facts
+                    │  (Ollama llama3.1) │  from notes (local, PHI-safe)
+                    └────────────────────┘
+                               │
+                               ▼
+                    ┌────────────────────┐
+                    │    Rules Engine    │  Apply NHSN criteria
+                    │   (Deterministic)  │  (fully auditable)
+                    └────────────────────┘
+                               │
+                               ▼
+                    ┌────────────────────┐
+                    │    IP Review       │  Human-in-the-loop
+                    │   (Dashboard)      │  final confirmation
+                    └────────────────────┘
+                               │
+                               ▼
+                    ┌────────────────────┐
+                    │  NHSN Submission   │  CSV export or
+                    │                    │  DIRECT protocol
+                    └────────────────────┘
+```
+
+### Key Design Principles
+
+1. **LLM extracts FACTS, rules apply LOGIC** - The LLM reads clinical notes to extract structured data (symptoms, alternate sources, line assessments). A deterministic rules engine then applies NHSN criteria. This separation ensures auditability and maintainability.
+
+2. **Human-in-the-loop** - All HAI candidates are routed to Infection Prevention (IP) for final review. The LLM provides classification and confidence as decision support, but humans make the final call.
+
+3. **PHI-safe inference** - Uses local Ollama with llama3.1 for all LLM operations. No PHI leaves your infrastructure; no BAA required with external AI providers.
+
+4. **Hybrid data architecture** - FHIR for real-time HAI detection (blood cultures, devices, notes), Clarity for aggregate denominator calculations (line days, patient days by unit).
+
+### NHSN Rate Calculations
+
+HAI rates are calculated per NHSN methodology:
+
+| Metric | Formula | Example |
+|--------|---------|---------|
+| **CLABSI Rate** | (CLABSI count / central line days) × 1,000 | 2 CLABSIs / 500 line days = 4.0 |
+| **CAUTI Rate** | (CAUTI count / catheter days) × 1,000 | 1 CAUTI / 300 catheter days = 3.3 |
+| **VAE Rate** | (VAE count / ventilator days) × 1,000 | 1 VAE / 200 vent days = 5.0 |
+
+The `DenominatorCalculator` class aggregates device days and patient days from Clarity flowsheet data, broken down by department and month for NHSN location mapping.
+
+### Submission Options
+
+- **CSV Export** - Download confirmed HAIs for manual entry into NHSN web application
+- **DIRECT Protocol** - Automated submission via HISP (Health Information Service Provider) using HL7 CDA R2 documents
+
+See [nhsn-reporting/README.md](nhsn-reporting/README.md) for complete documentation.
 
 ## Shared Infrastructure
 
