@@ -5,9 +5,10 @@
 AEGIS is an intelligent clinical decision support platform for Antimicrobial Stewardship (ASP) and Infection Prevention (IP) teams. By integrating real-time EHR data from FHIR and Clarity with machine learning and AI, AEGIS aims to:
 
 - **Detect** healthcare-associated infections (HAIs) in real-time using automated surveillance
-- **Monitor** antimicrobial usage patterns and alert on opportunities for optimization
+- **Alert** on serious infections with inadequate antimicrobial coverage
 - **Predict** infection risk using ML models to enable proactive prevention
-- **Report** to NHSN with automated HAI classification and submission
+- **Monitor** antimicrobial usage patterns and alert on opportunities for optimization
+- **Report** to NHSN with automated HAI classification, antibiotic usage (AU), and antimicrobial resistance (AR) reporting
 - **Reduce** manual chart review burden through AI-assisted clinical extraction
 
 Our vision is to shift infection prevention from reactive detection to proactive risk assessment—identifying high-risk patients before infections occur and providing actionable guidance to clinicians at the point of care.
