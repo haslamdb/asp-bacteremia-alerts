@@ -15,6 +15,10 @@
         {% set is_asp_alerts = request.endpoint and request.endpoint.startswith('asp_alerts.') %}
         {% set is_landing = request.endpoint == 'main.landing' %}
         <div class="nav-brand">
+            <svg class="nav-shield" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 5 L90 20 L90 45 C90 70 70 90 50 95 C30 90 10 70 10 45 L10 20 Z" fill="#115e59"/>
+                <path d="M50 15 L80 27 L80 45 C80 65 65 80 50 85 C35 80 20 65 20 45 L20 27 Z" fill="#0d9488"/>
+            </svg>
             {% if is_hai %}
             <a href="{{ url_for('hai_detection.dashboard') }}">HAI Detection</a>
             {% elif is_nhsn_reporting %}
