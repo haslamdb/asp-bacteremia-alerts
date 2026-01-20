@@ -143,7 +143,7 @@ cd nhsn-reporting
 python -m src.runner --once
 ```
 
-**View in dashboard:** https://nhsn.aegis-asp.com:8444/nhsn/candidates
+**View in dashboard:** https://alerts.aegis-asp.com:8444/hai-detection/
 
 ### CLABSI Demo Scenarios
 

@@ -91,7 +91,7 @@ Automated NHSN Healthcare-Associated Infection (HAI) detection and classificatio
 - Antimicrobial resistance phenotype detection (MRSA, VRE, ESBL, CRE, CRPA)
 - First-isolate rule deduplication per NHSN methodology
 - Denominator calculations (patient days, device days, utilization ratios)
-- Dashboard at `/au-ar/` with detail views and CSV export
+- Dashboard at `/nhsn-reporting/` with detail views and CSV export
 
 **[Documentation →](nhsn-reporting/README.md)**
 
