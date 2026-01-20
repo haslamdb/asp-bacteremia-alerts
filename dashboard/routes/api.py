@@ -54,8 +54,8 @@ def acknowledge_alert(alert_id):
     if is_form_request:
         # Browser request - redirect to detail page with flash message
         if success:
-            return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="acknowledged"))
-        return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="ack_failed"))
+            return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="acknowledged"))
+        return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="ack_failed"))
 
     # API response
     if success:
@@ -105,8 +105,8 @@ def snooze_alert(alert_id):
     if is_form_request:
         # Browser request - redirect to detail page
         if success:
-            return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="snoozed"))
-        return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="snooze_failed"))
+            return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="snoozed"))
+        return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="snooze_failed"))
 
     # API response
     if success:
@@ -164,8 +164,8 @@ def resolve_alert(alert_id):
 
     if wants_redirect:
         if success:
-            return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="resolved"))
-        return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="resolve_failed"))
+            return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="resolved"))
+        return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="resolve_failed"))
 
     # API response
     if success:
@@ -298,7 +298,7 @@ def add_note(alert_id):
     if not note:
         # For form submissions, redirect back with error
         if request.content_type and "form" in request.content_type:
-            return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="note_empty"))
+            return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="note_empty"))
         return jsonify({"error": "note field required"}), 400
 
     success = store.add_note(alert_id, note=note, added_by=user)
@@ -306,8 +306,8 @@ def add_note(alert_id):
     # Check if this is a form submission
     if request.content_type and "form" in request.content_type:
         if success:
-            return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="note_added"))
-        return redirect(url_for("views.alert_detail", alert_id=alert_id, msg="note_failed"))
+            return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="note_added"))
+        return redirect(url_for("asp_alerts.alert_detail", alert_id=alert_id, msg="note_failed"))
 
     if success:
         return jsonify({"success": True})
