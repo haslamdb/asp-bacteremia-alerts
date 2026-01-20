@@ -116,9 +116,40 @@ TEAMS_WEBHOOK_URL=https://prod-XX.westus.logic.azure.com/...
 
 Alerts are stored in a shared SQLite database and displayed in the web dashboard:
 
-- **View alerts** at [https://aegis-asp.com](https://aegis-asp.com)
+- **View alerts** at [https://aegis-asp.com/asp-alerts/](https://aegis-asp.com/asp-alerts/)
 - **Teams buttons** link to dashboard for acknowledge/resolve actions
+- **Clinical data links** in alerts for quick access to culture results and medications
 - **Audit trail** tracks all alert lifecycle events
+
+### Clinical Data Pages
+
+Each bacteremia alert includes links to FHIR-sourced clinical data:
+
+| Page | URL | Description |
+|------|-----|-------------|
+| **Culture Results** | `/asp-alerts/culture/{id}` | Blood culture organism with full susceptibility panel (S/I/R, MIC values) |
+| **Patient Medications** | `/asp-alerts/patient/{id}/medications` | Current antibiotic orders for the patient |
+
+These links appear in:
+- **Teams alerts** - "Culture Results" and "Medications" action buttons
+- **Email alerts** - Teal buttons linking to culture and medication pages
+- **Dashboard alert detail** - "Clinical Data" section with teal buttons
+
+### Susceptibility Display
+
+The culture results page shows antimicrobial susceptibility testing results:
+
+```
+Antibiotic              Result    MIC
+──────────────────────────────────────
+Oxacillin               R         >4 mcg/mL
+Vancomycin              S         1 mcg/mL
+Daptomycin              S         0.5 mcg/mL
+Linezolid               S         2 mcg/mL
+Cefazolin               R         >8 mcg/mL
+```
+
+Color-coded badges: **S** (green), **I** (yellow), **R** (red)
 
 Configure dashboard integration in `.env`:
 ```bash

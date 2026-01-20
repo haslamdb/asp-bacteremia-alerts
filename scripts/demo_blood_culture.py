@@ -33,7 +33,8 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-# Organism definitions with SNOMED codes
+# Organism definitions with SNOMED codes and susceptibility patterns
+# Susceptibilities: S = Susceptible, I = Intermediate, R = Resistant
 ORGANISMS = {
     "mrsa": {
         "code": "115329001",
@@ -41,6 +42,15 @@ ORGANISMS = {
         "condition_code": "266096002",
         "condition_display": "MRSA infection",
         "appropriate_abx": ["vancomycin", "daptomycin", "linezolid"],
+        "susceptibilities": {
+            "oxacillin": {"result": "R", "mic": ">4"},
+            "vancomycin": {"result": "S", "mic": "1"},
+            "daptomycin": {"result": "S", "mic": "0.5"},
+            "linezolid": {"result": "S", "mic": "2"},
+            "cefazolin": {"result": "R", "mic": ">8"},
+            "clindamycin": {"result": "R", "mic": ">8"},
+            "trimethoprim-sulfamethoxazole": {"result": "S", "mic": "<=0.5"},
+        },
     },
     "mssa": {
         "code": "3092008",
@@ -48,6 +58,13 @@ ORGANISMS = {
         "condition_code": "3092008",
         "condition_display": "Staphylococcus aureus infection",
         "appropriate_abx": ["cefazolin", "nafcillin", "vancomycin"],
+        "susceptibilities": {
+            "oxacillin": {"result": "S", "mic": "0.5"},
+            "vancomycin": {"result": "S", "mic": "1"},
+            "cefazolin": {"result": "S", "mic": "2"},
+            "clindamycin": {"result": "S", "mic": "0.25"},
+            "trimethoprim-sulfamethoxazole": {"result": "S", "mic": "<=0.5"},
+        },
     },
     "ecoli": {
         "code": "112283007",
@@ -55,6 +72,15 @@ ORGANISMS = {
         "condition_code": "112283007",
         "condition_display": "Escherichia coli infection",
         "appropriate_abx": ["ceftriaxone", "meropenem", "piperacillin-tazobactam"],
+        "susceptibilities": {
+            "ampicillin": {"result": "R", "mic": ">16"},
+            "ceftriaxone": {"result": "S", "mic": "<=1"},
+            "cefepime": {"result": "S", "mic": "<=1"},
+            "piperacillin-tazobactam": {"result": "S", "mic": "<=4"},
+            "meropenem": {"result": "S", "mic": "<=0.25"},
+            "ciprofloxacin": {"result": "R", "mic": ">2"},
+            "gentamicin": {"result": "S", "mic": "<=1"},
+        },
     },
     "pseudomonas": {
         "code": "52499004",
@@ -62,6 +88,15 @@ ORGANISMS = {
         "condition_code": "52499004",
         "condition_display": "Pseudomonas aeruginosa infection",
         "appropriate_abx": ["meropenem", "cefepime", "piperacillin-tazobactam"],
+        "susceptibilities": {
+            "piperacillin-tazobactam": {"result": "S", "mic": "<=16"},
+            "cefepime": {"result": "S", "mic": "<=2"},
+            "meropenem": {"result": "S", "mic": "<=1"},
+            "ciprofloxacin": {"result": "I", "mic": "1"},
+            "gentamicin": {"result": "S", "mic": "<=1"},
+            "tobramycin": {"result": "S", "mic": "<=1"},
+            "ceftazidime": {"result": "S", "mic": "<=4"},
+        },
     },
     "klebsiella": {
         "code": "56415008",
@@ -69,6 +104,15 @@ ORGANISMS = {
         "condition_code": "56415008",
         "condition_display": "Klebsiella infection",
         "appropriate_abx": ["ceftriaxone", "meropenem", "piperacillin-tazobactam"],
+        "susceptibilities": {
+            "ampicillin": {"result": "R", "mic": ">16"},
+            "ceftriaxone": {"result": "S", "mic": "<=1"},
+            "cefepime": {"result": "S", "mic": "<=1"},
+            "piperacillin-tazobactam": {"result": "S", "mic": "<=4"},
+            "meropenem": {"result": "S", "mic": "<=0.25"},
+            "ciprofloxacin": {"result": "S", "mic": "<=0.25"},
+            "gentamicin": {"result": "S", "mic": "<=1"},
+        },
     },
     "enterococcus": {
         "code": "78065002",
@@ -76,6 +120,12 @@ ORGANISMS = {
         "condition_code": "78065002",
         "condition_display": "Enterococcus infection",
         "appropriate_abx": ["vancomycin", "ampicillin"],
+        "susceptibilities": {
+            "ampicillin": {"result": "S", "mic": "<=2"},
+            "vancomycin": {"result": "S", "mic": "<=1"},
+            "linezolid": {"result": "S", "mic": "2"},
+            "daptomycin": {"result": "S", "mic": "1"},
+        },
     },
     "vre": {
         "code": "113727004",
@@ -83,6 +133,12 @@ ORGANISMS = {
         "condition_code": "413563001",
         "condition_display": "VRE infection",
         "appropriate_abx": ["daptomycin", "linezolid"],
+        "susceptibilities": {
+            "ampicillin": {"result": "R", "mic": ">16"},
+            "vancomycin": {"result": "R", "mic": ">256"},
+            "linezolid": {"result": "S", "mic": "2"},
+            "daptomycin": {"result": "S", "mic": "2"},
+        },
     },
     "candida": {
         "code": "78048006",
@@ -90,6 +146,12 @@ ORGANISMS = {
         "condition_code": "78048006",
         "condition_display": "Candida infection",
         "appropriate_abx": ["micafungin", "fluconazole", "caspofungin"],
+        "susceptibilities": {
+            "fluconazole": {"result": "S", "mic": "<=2"},
+            "micafungin": {"result": "S", "mic": "<=0.06"},
+            "caspofungin": {"result": "S", "mic": "<=0.25"},
+            "amphotericin-b": {"result": "S", "mic": "<=1"},
+        },
     },
 }
 
@@ -108,6 +170,37 @@ ANTIBIOTICS = {
     "fluconazole": {"code": "4450", "display": "Fluconazole"},
     "nafcillin": {"code": "7233", "display": "Nafcillin"},
     "caspofungin": {"code": "202553", "display": "Caspofungin"},
+}
+
+# LOINC codes for antibiotic susceptibility tests
+SUSCEPTIBILITY_LOINC = {
+    "oxacillin": {"code": "6932-8", "display": "Oxacillin [Susceptibility]"},
+    "vancomycin": {"code": "20475-8", "display": "Vancomycin [Susceptibility]"},
+    "daptomycin": {"code": "35811-4", "display": "Daptomycin [Susceptibility]"},
+    "linezolid": {"code": "29258-1", "display": "Linezolid [Susceptibility]"},
+    "cefazolin": {"code": "18864-9", "display": "Cefazolin [Susceptibility]"},
+    "clindamycin": {"code": "18878-9", "display": "Clindamycin [Susceptibility]"},
+    "trimethoprim-sulfamethoxazole": {"code": "18998-5", "display": "Trimethoprim+Sulfamethoxazole [Susceptibility]"},
+    "ampicillin": {"code": "18862-3", "display": "Ampicillin [Susceptibility]"},
+    "ceftriaxone": {"code": "18886-2", "display": "Ceftriaxone [Susceptibility]"},
+    "cefepime": {"code": "18879-7", "display": "Cefepime [Susceptibility]"},
+    "piperacillin-tazobactam": {"code": "18945-6", "display": "Piperacillin+Tazobactam [Susceptibility]"},
+    "meropenem": {"code": "18932-4", "display": "Meropenem [Susceptibility]"},
+    "ciprofloxacin": {"code": "18906-8", "display": "Ciprofloxacin [Susceptibility]"},
+    "gentamicin": {"code": "18928-2", "display": "Gentamicin [Susceptibility]"},
+    "tobramycin": {"code": "18996-9", "display": "Tobramycin [Susceptibility]"},
+    "ceftazidime": {"code": "18888-8", "display": "Ceftazidime [Susceptibility]"},
+    "fluconazole": {"code": "18924-1", "display": "Fluconazole [Susceptibility]"},
+    "micafungin": {"code": "57095-2", "display": "Micafungin [Susceptibility]"},
+    "caspofungin": {"code": "35783-5", "display": "Caspofungin [Susceptibility]"},
+    "amphotericin-b": {"code": "18863-1", "display": "Amphotericin B [Susceptibility]"},
+}
+
+# Interpretation codes for S/I/R
+SUSCEPTIBILITY_INTERPRETATION = {
+    "S": {"code": "S", "display": "Susceptible", "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"},
+    "I": {"code": "I", "display": "Intermediate", "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"},
+    "R": {"code": "R", "display": "Resistant", "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"},
 }
 
 # Names for demo patients
@@ -225,6 +318,115 @@ def create_blood_culture_report(
             }
         ],
     }
+
+
+def create_susceptibility_observations(
+    patient_id: str,
+    diagnostic_report_id: str,
+    organism_key: str,
+    hours_ago: float = 1,
+) -> list[dict]:
+    """Create susceptibility Observation FHIR resources for an organism.
+
+    Returns a list of Observation resources, one for each antibiotic tested.
+    These link back to the DiagnosticReport via derivedFrom.
+    """
+    organism = ORGANISMS[organism_key]
+    susceptibilities = organism.get("susceptibilities", {})
+
+    if not susceptibilities:
+        return []
+
+    resulted_time = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    observations = []
+
+    for antibiotic_name, result_data in susceptibilities.items():
+        # Get LOINC code for this antibiotic test
+        loinc_info = SUSCEPTIBILITY_LOINC.get(antibiotic_name)
+        if not loinc_info:
+            continue
+
+        # Get interpretation (S/I/R)
+        interpretation = SUSCEPTIBILITY_INTERPRETATION.get(result_data["result"])
+        if not interpretation:
+            continue
+
+        obs_id = str(uuid.uuid4())
+
+        observation = {
+            "resourceType": "Observation",
+            "id": obs_id,
+            "status": "final",
+            "category": [
+                {
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                            "code": "laboratory",
+                            "display": "Laboratory",
+                        }
+                    ]
+                }
+            ],
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://loinc.org",
+                        "code": loinc_info["code"],
+                        "display": loinc_info["display"],
+                    }
+                ],
+                "text": f"{antibiotic_name.replace('-', ' ').title()} Susceptibility",
+            },
+            "subject": {"reference": f"Patient/{patient_id}"},
+            "effectiveDateTime": resulted_time.isoformat(),
+            # Note: In Epic, these would be linked via DiagnosticReport.result
+            # The diagnostic_report_id is stored in a note/extension for reference
+            "note": [{"text": f"Culture: {diagnostic_report_id}"}],
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": interpretation["system"],
+                        "code": interpretation["code"],
+                        "display": interpretation["display"],
+                    }
+                ],
+                "text": interpretation["display"],
+            },
+            "interpretation": [
+                {
+                    "coding": [
+                        {
+                            "system": interpretation["system"],
+                            "code": interpretation["code"],
+                            "display": interpretation["display"],
+                        }
+                    ]
+                }
+            ],
+        }
+
+        # Add MIC value as a component if available
+        if result_data.get("mic"):
+            observation["component"] = [
+                {
+                    "code": {
+                        "coding": [
+                            {
+                                "system": "http://loinc.org",
+                                "code": "35659-7",
+                                "display": "Minimum inhibitory concentration (MIC)",
+                            }
+                        ],
+                        "text": "MIC",
+                    },
+                    "valueString": f"{result_data['mic']} mcg/mL",
+                }
+            ]
+
+        observations.append(observation)
+
+    return observations
 
 
 def create_medication_request(
@@ -388,6 +590,12 @@ def main():
 
     encounter = create_encounter(patient_id)
     diagnostic_report = create_blood_culture_report(patient_id, organism_key, args.culture_hours)
+    diagnostic_report_id = diagnostic_report["id"]
+
+    # Create susceptibility observations linked to the diagnostic report
+    susceptibility_observations = create_susceptibility_observations(
+        patient_id, diagnostic_report_id, organism_key, args.culture_hours - 1
+    )
 
     medication = None
     if antibiotic_key:
@@ -401,6 +609,7 @@ def main():
     print(f"{'='*60}")
     print(f"Patient:     {patient_name} (MRN: {mrn})")
     print(f"Organism:    {organism['display']}")
+    print(f"Suscept.:    {len(susceptibility_observations)} antibiotic tests")
     if antibiotic_key:
         coverage = "adequate" if antibiotic_key in organism["appropriate_abx"] else "INADEQUATE"
         print(f"Antibiotic:  {ANTIBIOTICS[antibiotic_key]['display']} ({coverage})")
@@ -413,6 +622,8 @@ def main():
         print("Dry run - resources not uploaded\n")
         print("Patient:", json.dumps(patient, indent=2)[:500], "...\n")
         print("DiagnosticReport:", json.dumps(diagnostic_report, indent=2)[:500], "...\n")
+        if susceptibility_observations:
+            print(f"Susceptibilities: {len(susceptibility_observations)} observations\n")
         if medication:
             print("Medication:", json.dumps(medication, indent=2)[:500], "...\n")
         return 0
@@ -427,19 +638,29 @@ def main():
         return 1
 
     resources = [patient, encounter, diagnostic_report]
+    # Add susceptibility observations
+    resources.extend(susceptibility_observations)
     if medication:
         resources.append(medication)
 
     for resource in resources:
         rtype = resource["resourceType"]
         if upload_to_fhir(resource, args.fhir_url):
-            print(f"  ✓ {rtype} created")
+            if rtype == "Observation":
+                # Don't print each susceptibility observation
+                pass
+            else:
+                print(f"  ✓ {rtype} created")
         else:
             print(f"  ✗ {rtype} failed")
             return 1
 
+    if susceptibility_observations:
+        print(f"  ✓ {len(susceptibility_observations)} Susceptibility Observations created")
+
     print(f"\n✓ Demo patient created successfully!")
     print(f"  Patient ID: {patient_id}")
+    print(f"  Culture ID: {diagnostic_report_id}")
     print(f"  MRN: {mrn}")
     if will_alert:
         print(f"\n  Run the bacteremia monitor to see the alert trigger.")

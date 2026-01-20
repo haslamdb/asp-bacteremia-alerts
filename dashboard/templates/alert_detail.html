@@ -118,6 +118,18 @@
             </div>
         </div>
 
+        {% if alert.alert_type.value == 'bacteremia' and alert.source_id %}
+        <div class="action-card">
+            <h3>Clinical Data</h3>
+            <div class="action-buttons-vertical">
+                <a href="{{ url_for('asp_alerts.culture_detail', culture_id=alert.source_id) }}" class="btn btn-teal btn-block">View Culture Results</a>
+                {% if alert.patient_id %}
+                <a href="{{ url_for('asp_alerts.patient_medications', patient_id=alert.patient_id) }}" class="btn btn-teal btn-block">View Medications</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="action-card">
             <h3>Resolve Alert</h3>
             <form action="{{ url_for('api.resolve_alert', alert_id=alert.id) }}" method="post" class="resolve-form">

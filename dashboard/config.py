@@ -14,6 +14,9 @@ class Config:
     DASHBOARD_BASE_URL = os.environ.get("DASHBOARD_BASE_URL", "http://localhost:5000")
     DASHBOARD_API_KEY = os.environ.get("DASHBOARD_API_KEY", "")
 
+    # FHIR Server
+    FHIR_BASE_URL = os.environ.get("FHIR_BASE_URL", "http://localhost:8081/fhir")
+
     # Alert Store
     ALERT_DB_PATH = os.environ.get(
         "ALERT_DB_PATH",

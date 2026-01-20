@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, redirect, url_for, current_app, request
 
 from common.alert_store import AlertStatus, AlertType, ResolutionReason
+from ..services.fhir import FHIRService
 
 asp_alerts_bp = Blueprint("asp_alerts", __name__, url_prefix="/asp-alerts")
 
@@ -193,3 +194,56 @@ def reports():
 def help_page():
     """Show help/demo workflow documentation."""
     return render_template("help.html")
+
+
+@asp_alerts_bp.route("/culture/<culture_id>")
+def culture_detail(culture_id):
+    """Show culture result with susceptibilities."""
+    fhir_url = current_app.config.get("FHIR_BASE_URL", "http://localhost:8081/fhir")
+    fhir = FHIRService(fhir_url)
+
+    culture = fhir.get_culture_with_susceptibilities(culture_id)
+    if not culture:
+        return render_template("culture_not_found.html", culture_id=culture_id), 404
+
+    return render_template("culture_detail.html", culture=culture)
+
+
+@asp_alerts_bp.route("/patient/<patient_id>/medications")
+def patient_medications(patient_id):
+    """Show current antibiotic medications for a patient."""
+    fhir_url = current_app.config.get("FHIR_BASE_URL", "http://localhost:8081/fhir")
+    fhir = FHIRService(fhir_url)
+
+    # Get patient info
+    patient = fhir._get(f"Patient/{patient_id}")
+    if not patient:
+        return render_template("patient_not_found.html", patient_id=patient_id), 404
+
+    # Extract patient name and MRN
+    patient_name = "Unknown"
+    patient_mrn = "Unknown"
+    names = patient.get("name", [])
+    if names:
+        name = names[0]
+        given = " ".join(name.get("given", []))
+        family = name.get("family", "")
+        patient_name = f"{given} {family}".strip() or "Unknown"
+
+    for ident in patient.get("identifier", []):
+        type_coding = ident.get("type", {}).get("coding", [])
+        for coding in type_coding:
+            if coding.get("code") == "MR":
+                patient_mrn = ident.get("value", "Unknown")
+                break
+
+    # Get medications
+    medications = fhir.get_patient_medications(patient_id, antibiotics_only=True)
+
+    return render_template(
+        "medications_detail.html",
+        patient_id=patient_id,
+        patient_name=patient_name,
+        patient_mrn=patient_mrn,
+        medications=medications,
+    )

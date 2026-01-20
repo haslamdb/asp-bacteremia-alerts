@@ -62,6 +62,13 @@ Real-time monitoring of blood culture results with antibiotic coverage assessmen
 - Coverage rules for common pathogens (MRSA, VRE, Pseudomonas, Candida, etc.)
 - Gram stain-based empiric coverage recommendations
 - Multi-channel alerts: Email, Microsoft Teams with action buttons
+- **Clinical data links** - Direct access to culture susceptibilities and patient medications from alerts
+
+**Clinical Data Pages:**
+| Page | URL | Description |
+|------|-----|-------------|
+| Culture Results | `/asp-alerts/culture/{id}` | Organism with susceptibility panel (S/I/R, MIC values) |
+| Patient Medications | `/asp-alerts/patient/{id}/medications` | Current antibiotic orders |
 
 **[Documentation →](asp-bacteremia-alerts/README.md)**
 
@@ -113,6 +120,7 @@ Web-based dashboard providing a unified interface for all AEGIS modules. The lan
 - Active and historical alert views with filtering
 - Acknowledge, snooze, and resolve actions
 - Resolution tracking with reasons and notes
+- **Clinical Data Pages** - Culture results with susceptibilities, patient medication lists
 - **Reports & Analytics** - Alert volume, resolution times, resolution breakdown
 - **HAI Detection** - IP review workflow with LLM-assisted classification
 - **NHSN Reporting** - Unified submission page for AU, AR, and HAI data

@@ -8,7 +8,7 @@ from datetime import datetime
 from .base import BaseAlerter
 from ..models import CoverageAssessment
 from ..config import config  # This adds common to sys.path
-from common.channels import TeamsWebhookChannel, TeamsMessage, build_teams_actions
+from common.channels import TeamsWebhookChannel, TeamsMessage, TeamsAction
 
 
 class TeamsAlerter(BaseAlerter):
@@ -65,6 +65,59 @@ class TeamsAlerter(BaseAlerter):
 
         return facts
 
+    def _build_actions(
+        self,
+        alert_id: str,
+        culture_id: str,
+        patient_id: str,
+    ) -> list[TeamsAction]:
+        """Build action buttons for the Teams card.
+
+        Args:
+            alert_id: The alert ID for acknowledge/resolve actions
+            culture_id: The culture (DiagnosticReport) FHIR ID
+            patient_id: The patient FHIR ID
+
+        Returns:
+            List of TeamsAction buttons
+        """
+        base_url = self.dashboard_base_url
+        key_param = f"?key={self.dashboard_api_key}" if self.dashboard_api_key else ""
+        key_suffix = f"&key={self.dashboard_api_key}" if self.dashboard_api_key else ""
+
+        actions = [
+            # Alert management actions
+            TeamsAction(
+                title="Acknowledge",
+                url=f"{base_url}/api/ack/{alert_id}{key_param}",
+                style="positive",
+            ),
+            TeamsAction(
+                title="Snooze 4h",
+                url=f"{base_url}/api/snooze/{alert_id}?hours=4{key_suffix}",
+                style="default",
+            ),
+            # Clinical data links
+            TeamsAction(
+                title="Culture Results",
+                url=f"{base_url}/asp-alerts/culture/{culture_id}",
+                style="default",
+            ),
+            TeamsAction(
+                title="Medications",
+                url=f"{base_url}/asp-alerts/patient/{patient_id}/medications",
+                style="default",
+            ),
+            # Alert detail/resolve
+            TeamsAction(
+                title="View / Resolve",
+                url=f"{base_url}/asp-alerts/alerts/{alert_id}",
+                style="default",
+            ),
+        ]
+
+        return actions
+
     def send_alert(
         self,
         assessment: CoverageAssessment,
@@ -89,10 +142,10 @@ class TeamsAlerter(BaseAlerter):
         # Build action buttons if alert_id is provided
         actions = []
         if self.include_actions and alert_id and self.dashboard_base_url:
-            actions = build_teams_actions(
+            actions = self._build_actions(
                 alert_id=alert_id,
-                base_url=self.dashboard_base_url,
-                api_key=self.dashboard_api_key,
+                culture_id=assessment.culture.fhir_id,
+                patient_id=assessment.patient.fhir_id,
             )
 
         message = TeamsMessage(

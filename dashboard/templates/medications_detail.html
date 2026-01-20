@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Antibiotics - {{ patient_name }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Current Antibiotics</h1>
+    <a href="{{ url_for('asp_alerts.alerts_active') }}" class="btn btn-secondary">Back to Alerts</a>
+</div>
+
+<div class="medications-detail-card">
+    <div class="patient-header">
+        <h2>{{ patient_name }}</h2>
+        <span class="patient-mrn">MRN: {{ patient_mrn }}</span>
+    </div>
+
+    <div class="medications-section">
+        <h3>Active Antibiotic Orders</h3>
+        {% if medications %}
+        <table class="medications-table">
+            <thead>
+                <tr>
+                    <th>Medication</th>
+                    <th>Status</th>
+                    <th>Ordered</th>
+                    <th>Dose</th>
+                    <th>Route</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for med in medications %}
+                <tr>
+                    <td class="med-name">{{ med.name }}</td>
+                    <td>
+                        <span class="status-badge status-{{ med.status }}">
+                            {{ med.status|upper }}
+                        </span>
+                    </td>
+                    <td>{{ med.ordered_at.strftime('%Y-%m-%d %H:%M') if med.ordered_at else '-' }}</td>
+                    <td>{{ med.dose or '-' }}</td>
+                    <td>{{ med.route or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-medications">
+            <p>No active antibiotic orders found for this patient.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.medications-detail-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    max-width: 900px;
+}
+
+.patient-header {
+    border-bottom: 2px solid #0d9488;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.patient-header h2 {
+    margin: 0;
+    color: #0d9488;
+}
+
+.patient-mrn {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.medications-section h3 {
+    margin-bottom: 1rem;
+    color: #374151;
+}
+
+.medications-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.medications-table th,
+.medications-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.medications-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+.medications-table tr:hover {
+    background: #f9fafb;
+}
+
+.med-name {
+    font-weight: 500;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-on-hold {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-completed {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.status-draft {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.no-medications {
+    padding: 2rem;
+    text-align: center;
+    color: #6b7280;
+    background: #f9fafb;
+    border-radius: 4px;
+}
+</style>
+{% endblock %}

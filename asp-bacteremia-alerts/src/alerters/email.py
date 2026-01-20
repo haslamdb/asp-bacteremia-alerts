@@ -61,6 +61,18 @@ class EmailAlerter(BaseAlerter):
         current_abx = [a.medication_name for a in assessment.current_antibiotics]
         abx_list = ", ".join(current_abx) if current_abx else "<em>None</em>"
 
+        # Build clinical data links
+        clinical_links = ""
+        if self.dashboard_base_url:
+            culture_url = f"{self.dashboard_base_url}/asp-alerts/culture/{assessment.culture.fhir_id}"
+            meds_url = f"{self.dashboard_base_url}/asp-alerts/patient/{assessment.patient.fhir_id}/medications"
+            clinical_links = f'''
+                <div style="margin-top: 15px;">
+                    <a href="{culture_url}" style="display: inline-block; background-color: #0d9488; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-right: 10px;">View Culture Results</a>
+                    <a href="{meds_url}" style="display: inline-block; background-color: #0d9488; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">View Medications</a>
+                </div>
+            '''
+
         # Build alert link if we have an alert_id and dashboard URL
         alert_link = ""
         if alert_id and self.dashboard_base_url:
@@ -139,6 +151,8 @@ class EmailAlerter(BaseAlerter):
                     {assessment.recommendation}
                 </div>
 
+                {clinical_links}
+
                 {alert_link}
 
                 <div class="footer">
@@ -156,6 +170,13 @@ class EmailAlerter(BaseAlerter):
         """Format email body as plain text."""
         current_abx = [a.medication_name for a in assessment.current_antibiotics]
         abx_list = ", ".join(current_abx) if current_abx else "None"
+
+        # Build clinical data links
+        clinical_links = ""
+        if self.dashboard_base_url:
+            culture_url = f"{self.dashboard_base_url}/asp-alerts/culture/{assessment.culture.fhir_id}"
+            meds_url = f"{self.dashboard_base_url}/asp-alerts/patient/{assessment.patient.fhir_id}/medications"
+            clinical_links = f"\nView Culture Results: {culture_url}\nView Medications: {meds_url}\n"
 
         # Build alert link if we have an alert_id and dashboard URL
         alert_link = ""
@@ -176,7 +197,7 @@ Status:      {assessment.coverage_status.value.upper()}
 
 RECOMMENDATION:
 {assessment.recommendation}
-{alert_link}
+{clinical_links}{alert_link}
 {'=' * 50}
 Alert generated at {assessment.assessed_at.strftime('%Y-%m-%d %H:%M:%S')}
 Culture ID: {assessment.culture.fhir_id}

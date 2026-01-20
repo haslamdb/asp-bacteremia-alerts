@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Culture Result - {{ culture.patient_name }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Blood Culture Result</h1>
+    <a href="{{ url_for('asp_alerts.alerts_active') }}" class="btn btn-secondary">Back to Alerts</a>
+</div>
+
+<div class="culture-detail-layout">
+    <div class="culture-detail-card">
+        <div class="culture-header">
+            <h2>{{ culture.organism }}</h2>
+            {% if culture.organism_code %}
+            <span class="organism-code">SNOMED: {{ culture.organism_code }}</span>
+            {% endif %}
+        </div>
+
+        <div class="info-section">
+            <h3>Patient Information</h3>
+            <dl>
+                <dt>Name</dt>
+                <dd>{{ culture.patient_name }}</dd>
+                <dt>MRN</dt>
+                <dd>{{ culture.patient_mrn }}</dd>
+            </dl>
+        </div>
+
+        <div class="info-section">
+            <h3>Culture Details</h3>
+            <dl>
+                <dt>Culture ID</dt>
+                <dd style="font-size: 0.75rem; word-break: break-all;">{{ culture.id }}</dd>
+                <dt>Collected</dt>
+                <dd>{{ culture.collected_at.strftime('%Y-%m-%d %H:%M') if culture.collected_at else 'Unknown' }}</dd>
+                <dt>Resulted</dt>
+                <dd>{{ culture.resulted_at.strftime('%Y-%m-%d %H:%M') if culture.resulted_at else 'Unknown' }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="susceptibilities-card">
+        <h3>Antimicrobial Susceptibilities</h3>
+        {% if culture.susceptibilities %}
+        <table class="susceptibility-table">
+            <thead>
+                <tr>
+                    <th>Antibiotic</th>
+                    <th>Result</th>
+                    <th>MIC</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for susc in culture.susceptibilities %}
+                <tr>
+                    <td>{{ susc.antibiotic }}</td>
+                    <td>
+                        <span class="susc-badge susc-{{ susc.result|lower }}">
+                            {{ susc.result }}
+                        </span>
+                        <span class="susc-text">{{ susc.result_display }}</span>
+                    </td>
+                    <td>{{ susc.mic or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No susceptibility data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="action-links">
+    <a href="{{ url_for('asp_alerts.patient_medications', patient_id=culture.patient_id) }}" class="btn btn-primary">View Current Antibiotics</a>
+</div>
+
+<style>
+.culture-detail-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .culture-detail-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.culture-detail-card,
+.susceptibilities-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+}
+
+.culture-header {
+    border-bottom: 2px solid #0d9488;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.culture-header h2 {
+    margin: 0;
+    color: #0d9488;
+    font-size: 1.25rem;
+}
+
+.organism-code {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.susceptibility-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.susceptibility-table th,
+.susceptibility-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.susceptibility-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+.susceptibility-table tr:hover {
+    background: #f9fafb;
+}
+
+.susc-badge {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    line-height: 1.5rem;
+    text-align: center;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+}
+
+.susc-s {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.susc-i {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.susc-r {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.susc-text {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.no-data {
+    color: #6b7280;
+    font-style: italic;
+}
+
+.action-links {
+    margin-top: 1.5rem;
+}
+</style>
+{% endblock %}

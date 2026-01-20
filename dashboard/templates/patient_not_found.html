@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Not Found - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <h1>Patient Not Found</h1>
+    <p>The patient with ID <code>{{ patient_id }}</code> could not be found.</p>
+    <p>It may have been deleted, the FHIR server may be unavailable, or the ID is incorrect.</p>
+    <a href="{{ url_for('asp_alerts.alerts_active') }}" class="btn btn-primary">View Active Alerts</a>
+</div>
+{% endblock %}

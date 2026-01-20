@@ -680,6 +680,17 @@ table a.btn:hover {
     box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
 }
 
+.btn-teal {
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    color: var(--color-white);
+    box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3);
+}
+
+.btn-teal:hover {
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+}
+
 .btn-warning {
     background: linear-gradient(135deg, var(--color-warning) 0%, #B45309 100%);
     color: var(--color-white);
