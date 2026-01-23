@@ -4,12 +4,30 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import Blueprint, render_template, request, jsonify, current_app, Response
+# CRITICAL: Add nhsn-reporting to the FRONT of sys.path before any other imports
+# This ensures nhsn-reporting's src package is found instead of hai-detection's
+_nhsn_path = Path(__file__).parent.parent.parent / "nhsn-reporting"
+_nhsn_src_path = str(_nhsn_path)
 
-# Add nhsn-reporting to path
-nhsn_path = Path(__file__).parent.parent.parent / "nhsn-reporting"
-if str(nhsn_path) not in sys.path:
-    sys.path.insert(0, str(nhsn_path))
+# Remove any cached 'src' module to force reload from nhsn-reporting
+# This is needed because hai.py may have already imported hai-detection's src
+if 'src' in sys.modules:
+    del sys.modules['src']
+if 'src.models' in sys.modules:
+    del sys.modules['src.models']
+if 'src.db' in sys.modules:
+    del sys.modules['src.db']
+if 'src.config' in sys.modules:
+    del sys.modules['src.config']
+if 'src.data' in sys.modules:
+    del sys.modules['src.data']
+
+# Insert nhsn-reporting at the front of sys.path
+if _nhsn_src_path in sys.path:
+    sys.path.remove(_nhsn_src_path)
+sys.path.insert(0, _nhsn_src_path)
+
+from flask import Blueprint, render_template, request, jsonify, current_app, Response
 
 nhsn_reporting_bp = Blueprint("nhsn_reporting", __name__, url_prefix="/nhsn-reporting")
 

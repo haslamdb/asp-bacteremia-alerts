@@ -12,6 +12,7 @@ class AlertType(Enum):
     BACTEREMIA = "bacteremia"
     BROAD_SPECTRUM_USAGE = "broad_spectrum_usage"
     NHSN_CLABSI = "nhsn_clabsi"        # NHSN CLABSI candidate
+    NHSN_SSI = "nhsn_ssi"              # NHSN SSI candidate
     NHSN_REVIEW = "nhsn_review"        # NHSN review queue item
     CUSTOM = "custom"
 

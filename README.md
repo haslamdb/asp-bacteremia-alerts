@@ -30,7 +30,7 @@ The landing page provides access to four main sections:
 | Section | URL | Description |
 |---------|-----|-------------|
 | **ASP Alerts** | [/asp-alerts/](https://aegis-asp.com/asp-alerts/) | Antimicrobial stewardship alerts (bacteremia, usage monitoring) |
-| **HAI Detection** | [/hai-detection/](https://aegis-asp.com/hai-detection/) | CLABSI candidate screening and IP review workflow |
+| **HAI Detection** | [/hai-detection/](https://aegis-asp.com/hai-detection/) | CLABSI and SSI candidate screening and IP review workflow |
 | **NHSN Reporting** | [/nhsn-reporting/](https://aegis-asp.com/nhsn-reporting/) | AU, AR, and HAI data aggregation with NHSN submission |
 | **Dashboards** | [/dashboards/](https://aegis-asp.com/dashboards/) | Analytics dashboards (coming soon) |
 
@@ -46,7 +46,8 @@ aegis/
 ├── dashboard/                      # Web dashboard for alert management
 ├── asp-bacteremia-alerts/          # Blood culture coverage monitoring
 ├── antimicrobial-usage-alerts/     # Broad-spectrum usage monitoring
-├── nhsn-reporting/                 # NHSN HAI detection and classification
+├── hai-detection/                  # HAI candidate detection, LLM extraction, IP review
+├── nhsn-reporting/                 # AU/AR reporting, NHSN submission
 ├── scripts/                        # Demo and utility scripts
 └── docs/                           # Documentation
 ```
@@ -84,24 +85,33 @@ Monitors broad-spectrum antibiotic usage duration. Alerts when meropenem, vancom
 
 **[Documentation →](antimicrobial-usage-alerts/README.md)**
 
-### nhsn-reporting
+### hai-detection
 
-Automated NHSN Healthcare-Associated Infection (HAI) detection and classification, plus Antibiotic Use (AU) and Antimicrobial Resistance (AR) reporting. Uses rule-based screening combined with LLM-assisted classification to identify CLABSI candidates and route them through an IP review workflow.
+Healthcare-Associated Infection (HAI) candidate detection, LLM-assisted classification, and IP review workflow. Uses rule-based screening combined with LLM fact extraction and deterministic NHSN rules to identify HAI candidates.
 
-**HAI Detection Features:**
-- CLABSI detection per CDC/NHSN surveillance criteria
+**Features:**
+- **CLABSI detection** per CDC/NHSN surveillance criteria
+- **SSI detection** with Superficial, Deep, and Organ/Space classification
 - Clinical note retrieval from FHIR or Clarity
-- Local Ollama LLM classification (PHI-safe, no BAA required)
+- Local Ollama LLM extraction (PHI-safe, no BAA required)
+- **LLM extracts facts, rules apply logic** - Separation ensures auditability
 - Dashboard integration for IP review workflow
 - Common contaminant handling (requires 2 positive cultures)
-- **NHSN Submission** - Export CSV or submit directly via DIRECT protocol
-- **CDA Document Generation** - HL7 CDA R2 compliant documents for automated submission
+- Override tracking for LLM quality assessment
 
-**AU/AR Reporting Features:**
+**[Documentation →](hai-detection/README.md)**
+
+### nhsn-reporting
+
+NHSN data aggregation and submission including Antibiotic Use (AU), Antimicrobial Resistance (AR), and HAI event submission. Receives confirmed HAI events from hai-detection for NHSN reporting.
+
+**Features:**
 - Days of Therapy (DOT) tracking by antimicrobial category and location
 - Antimicrobial resistance phenotype detection (MRSA, VRE, ESBL, CRE, CRPA)
 - First-isolate rule deduplication per NHSN methodology
 - Denominator calculations (patient days, device days, utilization ratios)
+- **NHSN Submission** - Export CSV or submit directly via DIRECT protocol
+- **CDA Document Generation** - HL7 CDA R2 compliant documents for automated submission
 - Dashboard at `/nhsn-reporting/` with detail views and CSV export
 
 **[Documentation →](nhsn-reporting/README.md)**
@@ -112,7 +122,7 @@ Web-based dashboard providing a unified interface for all AEGIS modules. The lan
 
 **Sections:**
 - **ASP Alerts** (`/asp-alerts/`) - Antimicrobial stewardship alert management
-- **HAI Detection** (`/hai-detection/`) - CLABSI candidate screening and IP review workflow
+- **HAI Detection** (`/hai-detection/`) - CLABSI and SSI candidate screening and IP review workflow
 - **NHSN Reporting** (`/nhsn-reporting/`) - AU, AR, and HAI data aggregation with NHSN submission
 - **Dashboards** (`/dashboards/`) - Analytics dashboards (coming soon)
 
@@ -134,7 +144,7 @@ Web-based dashboard providing a unified interface for all AEGIS modules. The lan
 
 ## HAI Monitoring and NHSN Reporting
 
-The `nhsn-reporting` module provides automated surveillance for Healthcare-Associated Infections (HAIs) as defined by the CDC's National Healthcare Safety Network (NHSN). This supports both real-time infection detection and quarterly reporting requirements.
+The `hai-detection` and `nhsn-reporting` modules together provide automated surveillance for Healthcare-Associated Infections (HAIs) as defined by the CDC's National Healthcare Safety Network (NHSN). This supports both real-time infection detection and quarterly reporting requirements.
 
 ### What is NHSN?
 
@@ -149,9 +159,9 @@ The [National Healthcare Safety Network (NHSN)](https://www.cdc.gov/nhsn/) is th
 | HAI Type | Status | Description |
 |----------|--------|-------------|
 | **CLABSI** | Implemented | Central Line-Associated Bloodstream Infection |
+| **SSI** | Implemented | Surgical Site Infection (Superficial, Deep, Organ/Space) |
 | **CAUTI** | Planned | Catheter-Associated Urinary Tract Infection |
 | **VAE** | Planned | Ventilator-Associated Events |
-| **SSI** | Planned | Surgical Site Infection |
 
 ### How It Works
 
@@ -223,11 +233,11 @@ The `DenominatorCalculator` class aggregates device days and patient days from C
 - **CSV Export** - Download confirmed HAIs for manual entry into NHSN web application
 - **DIRECT Protocol** - Automated submission via HISP (Health Information Service Provider) using HL7 CDA R2 documents
 
-See [nhsn-reporting/README.md](nhsn-reporting/README.md) for complete documentation.
+See [hai-detection/README.md](hai-detection/README.md) for HAI detection documentation and [nhsn-reporting/README.md](nhsn-reporting/README.md) for submission and AU/AR documentation.
 
 ## AU/AR Reporting
 
-The `nhsn-reporting` module also provides NHSN Antibiotic Use (AU) and Antimicrobial Resistance (AR) reporting per CDC methodology.
+The `nhsn-reporting` module provides NHSN Antibiotic Use (AU) and Antimicrobial Resistance (AR) reporting per CDC methodology.
 
 ### Antibiotic Usage (AU)
 
@@ -354,9 +364,18 @@ python scripts/demo_blood_culture.py --organism mrsa
 # Create a patient on meropenem for 5 days (exceeds 72h threshold)
 python scripts/demo_antimicrobial_usage.py --antibiotic meropenem --days 5
 
+# Create CLABSI candidates for HAI detection
+python scripts/demo_clabsi.py --all
+
+# Create SSI candidates for HAI detection
+python scripts/demo_ssi.py --all
+
 # Run monitors to detect and send alerts
 cd asp-bacteremia-alerts && python -m src.monitor
 cd antimicrobial-usage-alerts && python -m src.runner --once
+
+# Run HAI detection (CLABSI + SSI)
+cd hai-detection && python -m src.runner --full
 ```
 
 See [docs/demo-workflow.md](docs/demo-workflow.md) for complete walkthrough.
@@ -442,18 +461,27 @@ aegis/
 │       ├── alerters/          # Notification handlers
 │       ├── monitor.py         # Usage monitoring service
 │       └── runner.py          # CLI entry point
-├── nhsn-reporting/
+├── hai-detection/
 │   └── src/
-│       ├── candidates/        # Rule-based HAI detection
+│       ├── candidates/        # Rule-based HAI detection (CLABSI, SSI)
 │       ├── classifiers/       # LLM classification
+│       ├── extraction/        # LLM fact extraction (CLABSI, SSI)
+│       ├── rules/             # NHSN rules engines (CLABSI, SSI)
 │       ├── data/              # FHIR/Clarity data access
 │       ├── llm/               # Ollama/Claude backends
 │       ├── notes/             # Clinical note processing
 │       ├── review/            # IP review workflow
 │       └── monitor.py         # Main orchestration service
+├── nhsn-reporting/
+│   └── src/
+│       ├── data/              # AU/AR data extraction
+│       ├── cda/               # CDA document generation
+│       └── direct/            # NHSN DIRECT protocol submission
 ├── scripts/                   # Demo and utility scripts
 │   ├── demo_blood_culture.py
 │   ├── demo_antimicrobial_usage.py
+│   ├── demo_clabsi.py         # CLABSI candidate generator
+│   ├── demo_ssi.py            # SSI candidate generator
 │   └── generate_pediatric_data.py
 └── docs/                      # Documentation
     └── demo-workflow.md       # Complete demo guide

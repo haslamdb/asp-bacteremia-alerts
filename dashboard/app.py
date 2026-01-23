@@ -38,7 +38,7 @@ def create_app(config=None):
     from .routes.main import main_bp
     from .routes.views import asp_alerts_bp
     from .routes.api import api_bp
-    from .routes.nhsn import hai_detection_bp
+    from .routes.hai import hai_detection_bp
     from .routes.au_ar import nhsn_reporting_bp
     from .routes.dashboards import dashboards_bp
 

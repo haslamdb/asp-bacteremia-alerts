@@ -34,8 +34,14 @@ class Config:
     SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "aegis@example.com")
     SENDER_NAME = os.environ.get("SENDER_NAME", "AEGIS")
 
-    # NHSN Module
+    # HAI Detection Module
+    HAI_NOTIFICATION_EMAIL = os.environ.get("HAI_NOTIFICATION_EMAIL", "")
+
+    # NHSN Reporting Module
     NHSN_NOTIFICATION_EMAIL = os.environ.get("NHSN_NOTIFICATION_EMAIL", "")
+
+    # Teams Notifications (for status updates when alerts are acknowledged/resolved)
+    TEAMS_WEBHOOK_URL = os.environ.get("TEAMS_WEBHOOK_URL", "")
 
 
 class DevelopmentConfig(Config):

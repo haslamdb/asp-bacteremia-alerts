@@ -4,8 +4,39 @@ from functools import wraps
 from flask import Blueprint, jsonify, request, redirect, url_for, current_app
 
 from common.alert_store import AlertStatus
+from common.channels.teams import TeamsWebhookChannel
 
 api_bp = Blueprint("api", __name__)
+
+
+def send_teams_status_update(alert, status: str, updated_by: str, resolution_reason: str | None = None):
+    """Send a status update to Teams if configured.
+
+    Args:
+        alert: The StoredAlert object
+        status: New status (acknowledged, resolved, snoozed)
+        updated_by: Who performed the action
+        resolution_reason: Optional reason (for resolved alerts)
+    """
+    webhook_url = current_app.config.get("TEAMS_WEBHOOK_URL")
+    if not webhook_url:
+        return
+
+    base_url = current_app.config.get("DASHBOARD_BASE_URL", "http://localhost:5000")
+    details_url = f"{base_url}/asp-alerts/alerts/{alert.id}"
+
+    # Build a title from alert fields
+    title = alert.title or alert.patient_name or alert.alert_type.value
+
+    channel = TeamsWebhookChannel(webhook_url)
+    channel.send_status_update(
+        alert_id=alert.id,
+        status=status,
+        title=title,
+        updated_by=updated_by,
+        resolution_reason=resolution_reason,
+        details_url=details_url,
+    )
 
 
 def check_api_key(f):
@@ -41,9 +72,15 @@ def acknowledge_alert(alert_id):
     store = current_app.alert_store
 
     # Get username from query param or header
-    acknowledged_by = request.args.get("user") or request.headers.get("X-User", "Dashboard User")
+    acknowledged_by = request.args.get("user") or request.headers.get("X-User", "David Haslam")
 
     success = store.acknowledge(alert_id, acknowledged_by=acknowledged_by)
+
+    # Send Teams status update if successful
+    if success:
+        alert = store.get_alert(alert_id)
+        if alert:
+            send_teams_status_update(alert, "acknowledged", acknowledged_by)
 
     # Check if this is a browser form submission (redirect) or API call (JSON)
     is_form_request = (
@@ -92,9 +129,15 @@ def snooze_alert(alert_id):
     if hours is None:
         hours = 4
 
-    snoozed_by = request.args.get("user") or request.headers.get("X-User", "Dashboard User")
+    snoozed_by = request.args.get("user") or request.headers.get("X-User", "David Haslam")
 
     success = store.snooze(alert_id, hours=hours, snoozed_by=snoozed_by)
+
+    # Send Teams status update if successful
+    if success:
+        alert = store.get_alert(alert_id)
+        if alert:
+            send_teams_status_update(alert, "snoozed", snoozed_by)
 
     # Check if this is a browser form submission (redirect) or API call (JSON)
     is_form_request = (
@@ -144,7 +187,7 @@ def resolve_alert(alert_id):
     resolved_by = (
         request.args.get("user") or
         data.get("resolved_by") or
-        request.headers.get("X-User", "Dashboard User")
+        request.headers.get("X-User", "David Haslam")
     )
     resolution_reason = request.args.get("reason") or data.get("resolution_reason")
     notes = request.args.get("notes") or data.get("notes")
@@ -155,6 +198,12 @@ def resolve_alert(alert_id):
         resolution_reason=resolution_reason,
         notes=notes,
     )
+
+    # Send Teams status update if successful
+    if success:
+        alert = store.get_alert(alert_id)
+        if alert:
+            send_teams_status_update(alert, "resolved", resolved_by, resolution_reason)
 
     # Check if this is a form submission or API call
     wants_redirect = (
@@ -253,6 +302,7 @@ def update_status(alert_id):
         return jsonify({"error": f"Invalid status: {new_status}"}), 400
 
     # Route to appropriate method
+    resolution_reason = None
     if status == AlertStatus.ACKNOWLEDGED:
         success = store.acknowledge(alert_id, acknowledged_by=user)
     elif status == AlertStatus.SNOOZED:
@@ -272,6 +322,9 @@ def update_status(alert_id):
 
     if success:
         alert = store.get_alert(alert_id)
+        # Send Teams status update
+        if alert:
+            send_teams_status_update(alert, new_status, user, resolution_reason)
         return jsonify({
             "success": True,
             "alert": alert.to_dict() if alert else None,
@@ -289,7 +342,7 @@ def add_note(alert_id):
     # Handle form or JSON data
     if request.form:
         note = request.form.get("note")
-        user = request.form.get("user") or "Dashboard User"
+        user = request.form.get("user") or "David Haslam"
     else:
         data = request.json or {}
         note = data.get("note")

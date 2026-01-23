@@ -164,6 +164,51 @@ python -m src.runner --once
 
 ---
 
+## Step 6b: Demo - SSI Candidate (NHSN Module)
+
+The HAI Detection module also detects Surgical Site Infections (SSI). Demo scenarios include Superficial, Deep, and Organ/Space SSI cases.
+
+**Terminal 4:**
+```bash
+cd aegis
+
+# Create one of each SSI scenario type
+python scripts/demo_ssi.py --all
+
+# Or create specific scenarios:
+python scripts/demo_ssi.py --scenario superficial    # Superficial Incisional SSI
+python scripts/demo_ssi.py --scenario deep           # Deep Incisional SSI
+python scripts/demo_ssi.py --scenario organ-space    # Organ/Space SSI
+python scripts/demo_ssi.py --scenario not-ssi        # Not SSI (normal healing)
+```
+
+**Run the HAI monitor and classifier:**
+```bash
+cd hai-detection
+python -m src.runner --full
+```
+
+**View in dashboard:** https://aegis-asp.com/hai-detection/
+
+### SSI Demo Scenarios
+
+| Scenario | Command | Procedure | Key Evidence | Classification |
+|----------|---------|-----------|--------------|----------------|
+| Superficial SSI | `--scenario superficial` | Lap cholecystectomy | Purulent drainage, S. aureus culture | **Superficial SSI** |
+| Deep SSI | `--scenario deep` | Sigmoid colectomy | Fascial dehiscence, fever 39.2C | **Deep SSI** |
+| Organ/Space SSI | `--scenario organ-space` | Sigmoid colectomy | Pelvic abscess on CT, E. coli drain culture | **Organ/Space SSI** |
+| Not SSI | `--scenario not-ssi` | Total knee arthroplasty | Wound healing well, no signs of infection | **Not SSI** |
+
+### SSI Classification Workflow
+
+1. **Superficial Incisional SSI** - Infection of skin and subcutaneous tissue
+2. **Deep Incisional SSI** - Infection of fascia and muscle layers
+3. **Organ/Space SSI** - Infection of any anatomical area opened during surgery
+4. **Not SSI** - Normal post-operative course, no infection
+5. **Needs More Info** - Requires additional review
+
+---
+
 ## Step 7: Demo - Blood Culture Alert
 
 Now we'll add a patient with MRSA bacteremia but no vancomycin coverage.

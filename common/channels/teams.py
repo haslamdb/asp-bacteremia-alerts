@@ -246,6 +246,70 @@ class TeamsWebhookChannel:
         """Check if channel is configured."""
         return bool(self.webhook_url)
 
+    def send_status_update(
+        self,
+        alert_id: str,
+        status: str,
+        title: str,
+        updated_by: str = "Dashboard User",
+        resolution_reason: str | None = None,
+        details_url: str | None = None,
+    ) -> bool:
+        """
+        Send a status update card for an alert (thread-reply style).
+
+        This sends a follow-up message to notify the channel that an alert
+        has been acknowledged or resolved.
+
+        Args:
+            alert_id: The alert ID being updated
+            status: New status (acknowledged, resolved, snoozed)
+            title: Brief description of the alert (for reference)
+            updated_by: Who performed the action
+            resolution_reason: Optional reason (for resolved alerts)
+            details_url: Optional URL to view full details
+
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        if not self.webhook_url:
+            return False
+
+        # Determine color and icon based on status
+        status_config = {
+            "acknowledged": ("Accent", "Acknowledged"),
+            "resolved": ("Good", "Resolved"),
+            "snoozed": ("Warning", "Snoozed"),
+        }
+        color, status_display = status_config.get(status.lower(), ("Default", status.title()))
+
+        facts = [
+            ("Alert", title[:50] + "..." if len(title) > 50 else title),
+            ("Status", status_display),
+            ("By", updated_by),
+        ]
+
+        if resolution_reason:
+            # Format the reason nicely
+            reason_display = resolution_reason.replace("_", " ").title()
+            facts.append(("Reason", reason_display))
+
+        actions = []
+        if details_url:
+            actions.append(TeamsAction(
+                title="View Details",
+                url=details_url,
+                style="default",
+            ))
+
+        return self.send(TeamsMessage(
+            title=f"Alert {status_display}",
+            facts=facts,
+            color=color,
+            alert_id=alert_id,
+            actions=actions,
+        ))
+
 
 def test_webhook(webhook_url: str) -> bool:
     """

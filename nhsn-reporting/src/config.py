@@ -1,4 +1,8 @@
-"""Configuration for NHSN reporting module."""
+"""Configuration for NHSN Reporting module.
+
+This module handles NHSN submission, AU/AR data extraction, and denominator reporting.
+HAI detection configuration is in the hai-detection module.
+"""
 
 import os
 import sys
@@ -24,58 +28,11 @@ if str(_project_root) not in sys.path:
 
 
 class Config:
-    """NHSN reporting configuration."""
+    """NHSN Reporting configuration."""
 
     # --- Data Sources ---
-    NOTE_SOURCE: str = os.getenv("NOTE_SOURCE", "fhir")  # fhir, clarity, or both
     FHIR_BASE_URL: str = os.getenv("FHIR_BASE_URL", "http://localhost:8081/fhir")
     CLARITY_CONNECTION_STRING: str | None = os.getenv("CLARITY_CONNECTION_STRING")
-
-    # --- LLM Backend ---
-    LLM_BACKEND: str = os.getenv("LLM_BACKEND", "ollama")  # ollama or claude
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:70b")
-    CLAUDE_API_KEY: str | None = os.getenv("CLAUDE_API_KEY")
-    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
-
-    # --- Classification Thresholds ---
-    # Above this confidence: auto-classify as HAI (no review needed)
-    AUTO_CLASSIFY_THRESHOLD: float = float(
-        os.getenv("AUTO_CLASSIFY_THRESHOLD", "0.85")
-    )
-    # Above this confidence: route to IP review
-    # Below this: requires manual review
-    IP_REVIEW_THRESHOLD: float = float(os.getenv("IP_REVIEW_THRESHOLD", "0.60"))
-
-    # --- CLABSI Criteria ---
-    # Minimum device days before culture for CLABSI eligibility
-    MIN_DEVICE_DAYS: int = int(os.getenv("MIN_DEVICE_DAYS", "2"))
-    # Days after line removal that BSI can still be attributed
-    POST_REMOVAL_WINDOW_DAYS: int = int(os.getenv("POST_REMOVAL_WINDOW_DAYS", "1"))
-
-    # --- CAUTI Criteria ---
-    # Minimum catheter days before UTI for CAUTI eligibility
-    CAUTI_MIN_CATHETER_DAYS: int = int(os.getenv("CAUTI_MIN_CATHETER_DAYS", "2"))
-    # Days after catheter removal that UTI can still be attributed
-    CAUTI_POST_REMOVAL_WINDOW_DAYS: int = int(os.getenv("CAUTI_POST_REMOVAL_WINDOW_DAYS", "1"))
-    # Minimum CFU/mL for significant bacteriuria (NHSN: ≥100,000)
-    CAUTI_MIN_CFU_THRESHOLD: int = int(os.getenv("CAUTI_MIN_CFU_THRESHOLD", "100000"))
-
-    # --- VAE Criteria ---
-    # Minimum ventilator days before VAE eligibility
-    VAE_MIN_VENT_DAYS: int = int(os.getenv("VAE_MIN_VENT_DAYS", "2"))
-    # Baseline stability period (days) before deterioration
-    VAE_BASELINE_PERIOD_DAYS: int = int(os.getenv("VAE_BASELINE_PERIOD_DAYS", "2"))
-    # Minimum PEEP increase to trigger VAC (cmH2O)
-    VAE_PEEP_INCREASE_THRESHOLD: float = float(os.getenv("VAE_PEEP_INCREASE_THRESHOLD", "3.0"))
-    # Minimum FiO2 increase to trigger VAC (percentage points)
-    VAE_FIO2_INCREASE_THRESHOLD: float = float(os.getenv("VAE_FIO2_INCREASE_THRESHOLD", "20.0"))
-
-    # --- SSI Criteria ---
-    # Default surveillance window for most procedures (days)
-    SSI_DEFAULT_SURVEILLANCE_DAYS: int = int(os.getenv("SSI_DEFAULT_SURVEILLANCE_DAYS", "30"))
-    # Extended surveillance for procedures with implants (days)
-    SSI_IMPLANT_SURVEILLANCE_DAYS: int = int(os.getenv("SSI_IMPLANT_SURVEILLANCE_DAYS", "90"))
 
     # --- AU Reporting ---
     # Default location types to include in AU reporting
@@ -92,23 +49,14 @@ class Config:
     # --- Database ---
     NHSN_DB_PATH: str = os.getenv(
         "NHSN_DB_PATH",
-        str(Path.home() / ".aegis" / "nhsn.db"),
-    )
-    ALERT_DB_PATH: str = os.getenv(
-        "ALERT_DB_PATH",
-        str(Path.home() / ".aegis" / "alerts.db"),
+        str(Path.home() / ".aegis" / "nhsn.db"),  # Shared database
     )
     MOCK_CLARITY_DB_PATH: str = os.getenv(
         "MOCK_CLARITY_DB_PATH",
         str(Path.home() / ".aegis" / "mock_clarity.db"),
     )
 
-    # --- Monitoring ---
-    POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL", "300"))  # seconds
-    LOOKBACK_HOURS: int = int(os.getenv("LOOKBACK_HOURS", "24"))
-
     # --- Notifications ---
-    TEAMS_WEBHOOK_URL: str | None = os.getenv("TEAMS_WEBHOOK_URL")
     DASHBOARD_BASE_URL: str = os.getenv("DASHBOARD_BASE_URL", "http://localhost:5000")
 
     # --- Email Notifications ---
@@ -117,14 +65,8 @@ class Config:
     SMTP_USERNAME: str | None = os.getenv("SMTP_USERNAME")
     SMTP_PASSWORD: str | None = os.getenv("SMTP_PASSWORD")
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "aegis-nhsn@example.com")
-    SENDER_NAME: str = os.getenv("SENDER_NAME", "AEGIS HAI Alerts")
+    SENDER_NAME: str = os.getenv("SENDER_NAME", "AEGIS NHSN Reporting")
     NHSN_NOTIFICATION_EMAIL: str | None = os.getenv("NHSN_NOTIFICATION_EMAIL")
-
-    # --- Note Processing ---
-    # Maximum note length to send to LLM (in characters)
-    MAX_NOTE_LENGTH: int = int(os.getenv("MAX_NOTE_LENGTH", "50000"))
-    # Maximum notes to retrieve per patient
-    MAX_NOTES_PER_PATIENT: int = int(os.getenv("MAX_NOTES_PER_PATIENT", "20"))
 
     # --- Epic FHIR (if using Epic) ---
     EPIC_CLIENT_ID: str | None = os.getenv("EPIC_CLIENT_ID")
@@ -160,16 +102,6 @@ class Config:
         return cls.FHIR_BASE_URL
 
     @classmethod
-    def is_ollama_configured(cls) -> bool:
-        """Check if Ollama is configured."""
-        return cls.LLM_BACKEND == "ollama" and bool(cls.OLLAMA_BASE_URL)
-
-    @classmethod
-    def is_claude_configured(cls) -> bool:
-        """Check if Claude API is configured."""
-        return cls.LLM_BACKEND == "claude" and bool(cls.CLAUDE_API_KEY)
-
-    @classmethod
     def is_clarity_configured(cls) -> bool:
         """Check if Clarity database is configured (real or mock)."""
         return bool(cls.CLARITY_CONNECTION_STRING) or Path(cls.MOCK_CLARITY_DB_PATH).exists()
@@ -191,11 +123,6 @@ class Config:
         if Path(cls.MOCK_CLARITY_DB_PATH).exists():
             return f"sqlite:///{cls.MOCK_CLARITY_DB_PATH}"
         return None
-
-    @classmethod
-    def is_teams_configured(cls) -> bool:
-        """Check if Teams webhook is configured."""
-        return bool(cls.TEAMS_WEBHOOK_URL)
 
     @classmethod
     def is_email_configured(cls) -> bool:

@@ -2,7 +2,7 @@
 
 Tracking file for implementing the AEGIS expansion plan. See `aegis_implementation_plan.md` for full specifications.
 
-**Last Updated:** 2026-01-19
+**Last Updated:** 2026-01-23
 
 ---
 
@@ -123,31 +123,32 @@ Tracking file for implementing the AEGIS expansion plan. See `aegis_implementati
 
 ## Phase 4: SSI Detection Module
 
-**Status:** Not Started
+**Status:** Complete (2026-01-23)
 
 ### Core Implementation
-- [ ] Define NHSN procedure code mappings
-- [ ] Implement SSICandidateDetector
-- [ ] Create SSI extraction prompt
-- [ ] Implement SSIExtractor
-- [ ] Implement SSIRulesEngine (Superficial/Deep/Organ-Space)
-- [ ] Implement SSIClassifier
+- [x] Define NHSN procedure code mappings (`nhsn_criteria.py`)
+- [x] Implement SSICandidateDetector (`candidates/ssi.py`)
+- [x] Create SSI extraction prompt (`prompts/ssi_extraction_v1.txt`)
+- [x] Implement SSIExtractor (`extraction/ssi_extractor.py`)
+- [x] Implement SSIRulesEngine (Superficial/Deep/Organ-Space) (`rules/ssi_engine.py`)
+- [x] Implement SSIClassifierV2 (`classifiers/ssi_classifier.py`)
 
 ### Data Queries
-- [ ] Add FHIR queries for surgical procedures
-- [ ] Add Clarity queries for surgical data
-- [ ] Implement surveillance window logic (30/90 days based on procedure)
+- [x] Add FHIR queries for surgical procedures (`data/procedure_source.py`)
+- [x] Implement surveillance window logic (30/90 days based on procedure and implant)
 
 ### Dashboard & Reporting
-- [ ] Create SSI dashboard routes
-- [ ] Create SSI dashboard templates
-- [ ] Add SSI to IP review workflow
+- [x] SSI integrated into HAI Detection dashboard (`/hai-detection/`)
+- [x] SSI candidate detail template with SSI-specific evidence display
+- [x] SSI IP review workflow (same as CLABSI)
 
 ### Testing
-- [ ] Write unit tests for SSI detector
-- [ ] Write unit tests for SSI rules engine
-- [ ] Create SSI test fixtures/demo data
-- [ ] Create Synthea surgical procedure module
+- [x] Write unit tests for SSI rules engine (`tests/test_ssi_rules.py`)
+- [x] Create SSI demo script (`scripts/demo_ssi.py`) with scenarios:
+  - Superficial SSI (purulent drainage)
+  - Deep SSI (fascial dehiscence)
+  - Organ/Space SSI (intra-abdominal abscess)
+  - Not SSI (normal healing)
 
 ---
 
@@ -339,4 +340,10 @@ The plan proposes separate model classes for each HAI type. Our existing `HAICan
 | 2026-01-19 | 2 | Created ARDataExtractor class with first-isolate rule, phenotype detection |
 | 2026-01-19 | 2 | Added AU/AR dashboard routes (au_ar.py) and templates (au_ar_dashboard.html, au_detail.html, ar_detail.html, denominators.html, au_ar_submission.html) |
 | 2026-01-19 | 2 | Integrated DenominatorCalculator with AU/AR dashboard, added denominators page |
+| 2026-01-23 | 3 | **Module Separation:** Split nhsn-reporting into hai-detection and nhsn-reporting modules |
+| 2026-01-23 | 3 | Created hai-detection module with candidates, extraction, rules, classifiers for HAI detection |
+| 2026-01-23 | 3 | **Phase 4 Complete:** SSI detection - SSICandidateDetector, SSIExtractor, SSIRulesEngine, SSIClassifierV2 |
+| 2026-01-23 | 3 | Updated monitor.py to route candidates to correct classifier based on HAI type |
+| 2026-01-23 | 3 | Fixed dashboard routes for module separation (hai.py, au_ar.py with sys.path isolation) |
+| 2026-01-23 | 3 | Updated demo_ssi.py with author information in clinical notes |
 

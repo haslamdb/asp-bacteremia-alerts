@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}CLABSI History - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>CLABSI History</h1>
+    <p class="subtitle">Resolved candidates - confirmed CLABSI or rejected</p>
+</div>
+
+{% if error %}
+<div class="alert alert-warning">
+    <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="filters">
+    <form method="get" class="filter-form">
+        <label>
+            Status:
+            <select name="status" onchange="this.form.submit()">
+                <option value="">All Resolved</option>
+                <option value="confirmed" {% if current_status == 'confirmed' %}selected{% endif %}>Confirmed CLABSI</option>
+                <option value="rejected" {% if current_status == 'rejected' %}selected{% endif %}>Not CLABSI</option>
+            </select>
+        </label>
+        <input type="hidden" name="type" value="{{ current_type or 'clabsi' }}">
+    </form>
+</div>
+
+<!-- Stats Summary -->
+{% if stats %}
+<div class="stats-row">
+    <span class="stat-item stat-success">
+        <strong>{{ stats.confirmed_hai or 0 }}</strong> Confirmed CLABSI
+    </span>
+    <span class="stat-item stat-secondary">
+        <strong>{{ stats.total_candidates - stats.confirmed_hai - stats.pending_classification - stats.pending_review if stats.total_candidates else 0 }}</strong> Rejected
+    </span>
+</div>
+{% endif %}
+
+<!-- History Table -->
+{% if candidates %}
+<div class="table-container">
+<table class="table table-full">
+    <thead>
+        <tr>
+            <th>Patient</th>
+            <th>Organism</th>
+            <th>Culture Date</th>
+            <th>Device</th>
+            <th>Device Days</th>
+            <th>Result</th>
+            <th>Resolved</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in candidates %}
+        <tr class="{% if c.status.value == 'confirmed' %}confirmed{% else %}rejected{% endif %}">
+            <td>
+                <strong>{{ c.patient.mrn }}</strong>
+                {% if c.patient.name %}
+                <br><small class="text-muted">{{ c.patient.name }}</small>
+                {% endif %}
+            </td>
+            <td>
+                {% if c.culture.organism %}
+                    {{ c.culture.organism }}
+                {% else %}
+                    <span class="text-muted">Unknown</span>
+                {% endif %}
+            </td>
+            <td>{{ c.culture.collection_date.strftime('%Y-%m-%d') }}<br><small>{{ c.culture.collection_date.strftime('%H:%M') }}</small></td>
+            <td>
+                {% if c.device_info %}
+                    {{ c.device_info.device_type | replace('_', ' ') | title }}
+                    {% if c.device_info.site %}
+                    <br><small class="text-muted">{{ c.device_info.site }}</small>
+                    {% endif %}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <strong>{{ c.device_days_at_culture if c.device_days_at_culture is not none else '?' }}</strong>
+            </td>
+            <td>
+                {% if c.status.value == 'confirmed' %}
+                    <span class="badge badge-success">Confirmed CLABSI</span>
+                {% else %}
+                    <span class="badge badge-secondary">Not CLABSI</span>
+                {% endif %}
+            </td>
+            <td>
+                <span data-timestamp="{{ c.created_at.isoformat() }}">{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </td>
+            <td>
+                <a href="{{ url_for('hai_detection.candidate_detail', candidate_id=c.id) }}" class="btn btn-sm">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>No Resolved Cases</h3>
+    <p>
+        {% if current_status %}
+            No candidates with status "{{ current_status }}" found.
+        {% else %}
+            No CLABSI candidates have been resolved yet.
+        {% endif %}
+    </p>
+    <p>
+        <a href="{{ url_for('hai_detection.dashboard') }}" class="btn btn-primary">View Active Cases</a>
+    </p>
+</div>
+{% endif %}
+
+<div class="page-actions">
+    <a href="{{ url_for('hai_detection.dashboard') }}" class="btn">&larr; Back to Dashboard</a>
+</div>
+
+<style>
+.filters {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #F8FAFC;
+    border-radius: 10px;
+}
+
+.filter-form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.filter-form label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-form select {
+    padding: 0.5rem;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+}
+
+.filter-form select:focus {
+    outline: none;
+    border-color: #0891B2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+}
+
+.stats-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.stat-item {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+}
+
+.stat-item.stat-success { background: #D1FAE5; color: #047857; }
+.stat-item.stat-secondary { background: #E2E8F0; color: #475569; }
+
+/* Full-width table container */
+.table-container {
+    width: 100%;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.table-full {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.table-full th,
+.table-full td {
+    padding: 1rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.table-full th {
+    background: #F8FAFC;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748B;
+    white-space: nowrap;
+}
+
+.table-full tbody tr {
+    transition: background 0.15s ease;
+}
+
+.table-full tbody tr:hover {
+    background: #F1F5F9;
+}
+
+.table-full tbody tr:last-child td {
+    border-bottom: none;
+}
+
+tr.confirmed {
+    background: #F0FDF4;
+}
+
+tr.confirmed:hover {
+    background: #DCFCE7;
+}
+
+tr.rejected {
+    background: white;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.badge-success { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; }
+.badge-secondary { background: #94A3B8; color: white; }
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: #F8FAFC;
+    border-radius: 10px;
+}
+
+.empty-state h3 {
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #64748b;
+}
+
+.page-actions {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    gap: 1rem;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #64748b;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.alert-warning {
+    background: #FEF3C7;
+    border: 1px solid #D97706;
+    color: #92400e;
+}
+</style>
+{% endblock %}

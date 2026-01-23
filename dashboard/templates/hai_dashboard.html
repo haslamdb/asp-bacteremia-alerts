@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}HAI Detection - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>HAI Detection</h1>
+    <p class="subtitle">Healthcare-Associated Infection Candidate Detection</p>
+</div>
+
+{% if error %}
+<div class="alert alert-warning">
+    <strong>Note:</strong> Unable to load some data. The HAI detection module may not be fully configured.
+    <br><small>{{ error }}</small>
+</div>
+{% endif %}
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card stat-primary">
+        <div class="stat-value">{{ pending_reviews | length }}</div>
+        <div class="stat-label">Pending Review</div>
+        <div class="stat-sublabel">Awaiting IP Decision</div>
+    </div>
+    <div class="stat-card stat-success">
+        <div class="stat-value">{{ stats.confirmed_hai or 0 }}</div>
+        <div class="stat-label">Confirmed HAI</div>
+        {% if stats.since_date %}<div class="stat-sublabel">Since {{ stats.since_date }}</div>{% endif %}
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.rejected_hai or 0 }}</div>
+        <div class="stat-label">Confirmed Not HAI</div>
+        {% if stats.since_date %}<div class="stat-sublabel">Since {{ stats.since_date }}</div>{% endif %}
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-value">{{ stats.total_candidates or 0 }}</div>
+        <div class="stat-label">Total Candidates</div>
+        <div class="stat-sublabel">All time</div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="section">
+    <h2>Quick Actions</h2>
+    <div class="quick-links">
+        <a href="{{ url_for('hai_detection.history') }}" class="btn btn-secondary">History</a>
+        <a href="{{ url_for('hai_detection.reports') }}" class="btn btn-success">Reports & Analytics</a>
+        <a href="{{ url_for('hai_detection.submission') }}" class="btn btn-nhsn">NHSN Submission</a>
+        <a href="{{ url_for('nhsn_reporting.dashboard') }}" class="btn btn-au-ar">AU/AR Reporting</a>
+        <a href="{{ url_for('hai_detection.help_page') }}" class="btn btn-info">Help</a>
+    </div>
+</div>
+
+<!-- Active Cases -->
+<div class="section">
+    <h2>Active Cases</h2>
+    {% if pending_reviews %}
+    <table class="table table-wide">
+        <thead>
+            <tr>
+                <th>Patient</th>
+                <th>HAI Type</th>
+                <th>Organism</th>
+                <th>Culture Date</th>
+                <th class="text-center">Device Days</th>
+                <th class="text-center">LLM Decision</th>
+                <th class="text-center">Confidence</th>
+                <th>Queued</th>
+                <th class="text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in pending_reviews %}
+            <tr>
+                <td>
+                    <strong>{{ r.patient_mrn }}</strong>
+                    {% if r.patient_name %}
+                    <br><small>{{ r.patient_name }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ r.hai_type | upper }}</td>
+                <td>{{ r.organism or 'Unknown' }}</td>
+                <td>{{ r.culture_date[:16] | replace('T', ' ') }}</td>
+                <td class="text-center">{{ r.device_days or '-' }}</td>
+                <td class="text-center">
+                    {% if r.decision %}
+                    <span class="badge badge-{{ 'danger' if r.decision == 'hai_confirmed' else 'success' if r.decision == 'not_hai' else 'warning' }}">
+                        {% if r.decision == 'hai_confirmed' %}HAI{% elif r.decision == 'not_hai' %}Not HAI{% else %}{{ r.decision | replace('_', ' ') | title }}{% endif %}
+                    </span>
+                    {% else %}
+                    <span class="badge">Pending</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if r.confidence %}
+                    {{ (r.confidence * 100) | round(0) | int }}%
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-timestamp="{{ r.queued_at }}">{{ r.queued_at }}</td>
+                <td class="text-center">
+                    <a href="{{ url_for('hai_detection.candidate_detail', candidate_id=r.candidate_id) }}" class="btn btn-sm btn-primary">Review</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No active cases. All cases have been reviewed. <a href="{{ url_for('hai_detection.history') }}">View history</a></p>
+    {% endif %}
+</div>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.stat-primary {
+    border-left: 4px solid #0891B2;
+    background: linear-gradient(135deg, #E0F2FE 0%, #ffffff 100%);
+}
+.stat-card.stat-primary .stat-value { color: #0E7490; }
+.stat-card.stat-warning { border-left: 4px solid #D97706; }
+.stat-card.stat-info { border-left: 4px solid #0891B2; }
+.stat-card.stat-success { border-left: 4px solid #059669; }
+.stat-card.stat-critical { border-left: 4px solid #DC2626; }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #1e293b;
+}
+
+.stat-value.stat-date {
+    font-size: 1.25rem;
+}
+
+.stat-label {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.stat-sublabel {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    margin-top: 0.125rem;
+}
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.section h2 {
+    color: #1e293b;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.quick-links {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%);
+    color: white;
+}
+
+.btn-nhsn {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+}
+
+.btn-au-ar {
+    background: linear-gradient(135deg, #A4367B 0%, #831843 100%);
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+tr.excluded {
+    opacity: 0.6;
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-success { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; }
+.badge-warning { background: linear-gradient(135deg, #D97706 0%, #B45309 100%); color: white; }
+.badge-info { background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%); color: white; }
+.badge-secondary { background: #94A3B8; color: white; }
+.badge-danger { background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%); color: white; }
+
+.table-wide { width: 100%; table-layout: auto; }
+.text-center { text-align: center; }
+
+.alert {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.alert-warning {
+    background: #FEF3C7;
+    border: 1px solid #D97706;
+    color: #92400e;
+}
+</style>
+{% endblock %}

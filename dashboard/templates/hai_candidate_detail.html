@@ -1,0 +1,752 @@
+{% extends "base.html" %}
+
+{% block title %}Candidate Detail - {{ app_name }}{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger">
+    <strong>Error:</strong> {{ error }}
+</div>
+<a href="{{ url_for('hai_detection.dashboard') }}" class="btn">&larr; Back to Dashboard</a>
+{% elif not candidate %}
+<div class="empty-state">
+    <h2>Candidate Not Found</h2>
+    <p>The requested candidate could not be found.</p>
+    <a href="{{ url_for('hai_detection.dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+</div>
+{% else %}
+
+<div class="page-header">
+    <h1>{{ candidate.hai_type.value | upper }} Candidate</h1>
+    <a href="{{ url_for('hai_detection.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="alert-detail-layout">
+    <!-- Left Column: Candidate Information -->
+    <div class="alert-detail-main">
+        <!-- Status Badge -->
+        <div class="candidate-status-bar">
+            <span class="badge badge-{{ 'success' if candidate.status.value == 'confirmed' else 'danger' if candidate.status.value == 'rejected' else 'warning' if candidate.status.value == 'pending' else 'info' if candidate.status.value == 'pending_review' else 'secondary' }} badge-lg">
+                {{ candidate.status.value | replace('_', ' ') | title }}
+            </span>
+        </div>
+
+        <!-- Patient Info -->
+        <div class="alert-detail-card">
+            <div class="info-section">
+                <h3>Patient Information</h3>
+                <dl>
+                    <dt>MRN</dt>
+                    <dd>{{ candidate.patient.mrn }}</dd>
+                    <dt>Name</dt>
+                    <dd>{{ candidate.patient.name or 'N/A' }}</dd>
+                    <dt>Location</dt>
+                    <dd>{{ candidate.patient.location or 'N/A' }}</dd>
+                </dl>
+            </div>
+
+            <div class="info-section">
+                <h3>{% if candidate.hai_type.value == 'ssi' %}Specimen{% else %}Culture{% endif %} Information</h3>
+                <dl>
+                    <dt>Collection Date</dt>
+                    <dd>{{ candidate.culture.collection_date.strftime('%Y-%m-%d %H:%M') }}</dd>
+                    <dt>Organism</dt>
+                    <dd class="{% if candidate.culture.organism %}font-bold{% endif %}">
+                        {{ candidate.culture.organism or 'Pending identification' }}
+                    </dd>
+                    <dt>Specimen Source</dt>
+                    <dd>{{ candidate.culture.specimen_source or 'Blood' }}</dd>
+                    {% if candidate.culture.result_date %}
+                    <dt>Result Date</dt>
+                    <dd>{{ candidate.culture.result_date.strftime('%Y-%m-%d %H:%M') }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+
+            {% if candidate.hai_type.value == 'clabsi' %}
+            <div class="info-section">
+                <h3>Central Line Information</h3>
+                {% if candidate.device_info %}
+                <dl>
+                    <dt>Device Type</dt>
+                    <dd>{{ candidate.device_info.device_type | replace('_', ' ') | title }}</dd>
+                    <dt>Insertion Date</dt>
+                    <dd>{{ candidate.device_info.insertion_date.strftime('%Y-%m-%d') if candidate.device_info.insertion_date else 'Unknown' }}</dd>
+                    <dt>Device Days at Culture</dt>
+                    <dd class="font-bold text-lg">{{ candidate.device_days_at_culture if candidate.device_days_at_culture is not none else '?' }}</dd>
+                    {% if candidate.device_info.site %}
+                    <dt>Site</dt>
+                    <dd>{{ candidate.device_info.site }}</dd>
+                    {% endif %}
+                    {% if candidate.device_info.removal_date %}
+                    <dt>Removal Date</dt>
+                    <dd>{{ candidate.device_info.removal_date.strftime('%Y-%m-%d') }}</dd>
+                    {% endif %}
+                </dl>
+                {% else %}
+                <p class="text-muted">No device information available.</p>
+                {% endif %}
+            </div>
+            {% elif candidate.hai_type.value == 'ssi' and ssi_data %}
+            <div class="info-section">
+                <h3>Procedure Information</h3>
+                <dl>
+                    <dt>Procedure</dt>
+                    <dd class="font-bold">{{ ssi_data.procedure_name }}</dd>
+                    <dt>NHSN Category</dt>
+                    <dd>{{ ssi_data.nhsn_category }}</dd>
+                    <dt>Procedure Date</dt>
+                    <dd>{{ ssi_data.procedure_date.strftime('%Y-%m-%d') if ssi_data.procedure_date else 'Unknown' }}</dd>
+                    <dt>Days Post-Op</dt>
+                    <dd class="font-bold text-lg">{{ ssi_data.days_post_op }}</dd>
+                    {% if ssi_data.wound_class %}
+                    <dt>Wound Class</dt>
+                    <dd>{{ ssi_data.wound_class }} - {{ {'1': 'Clean', '2': 'Clean-Contaminated', '3': 'Contaminated', '4': 'Dirty-Infected'}.get(ssi_data.wound_class|string, 'Unknown') }}</dd>
+                    {% endif %}
+                    {% if ssi_data.implant_used %}
+                    <dt>Implant</dt>
+                    <dd>Yes{% if ssi_data.implant_type %} ({{ ssi_data.implant_type }}){% endif %}</dd>
+                    {% endif %}
+                    <dt>Surveillance Window</dt>
+                    <dd>{{ ssi_data.surveillance_days }} days</dd>
+                    {% if ssi_data.ssi_type %}
+                    <dt>SSI Type</dt>
+                    <dd class="font-bold">{{ ssi_data.ssi_type | replace('_', ' ') | title }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+            {% else %}
+            <div class="info-section">
+                <h3>Device/Procedure Information</h3>
+                <p class="text-muted">No device or procedure information available.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- NHSN Criteria -->
+        <div class="alert-detail-card">
+            <div class="info-section">
+                <h3>NHSN Criteria Assessment</h3>
+                <div class="criteria-list">
+                    <div class="criteria-item {% if candidate.meets_initial_criteria %}criteria-met{% else %}criteria-failed{% endif %}">
+                        <span class="criteria-icon">{% if candidate.meets_initial_criteria %}✓{% else %}✗{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>Initial Screening Criteria</strong>
+                            {% if not candidate.meets_initial_criteria %}
+                            <p class="text-muted">{{ candidate.exclusion_reason }}</p>
+                            {% elif candidate.hai_type.value == 'ssi' %}
+                            <p class="text-muted">NHSN operative procedure within surveillance window</p>
+                            {% else %}
+                            <p class="text-muted">BSI with central line present &gt;2 days</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="criteria-item {% if classifications %}criteria-met{% else %}criteria-pending{% endif %}">
+                        <span class="criteria-icon">{% if classifications %}✓{% else %}?{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>LLM Classification</strong>
+                            {% if classifications %}
+                            <p class="text-muted">LLM review complete</p>
+                            {% else %}
+                            <p class="text-muted">Awaiting LLM classification</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="criteria-item {% if candidate.status.value in ['confirmed', 'rejected'] %}criteria-met{% else %}criteria-pending{% endif %}">
+                        <span class="criteria-icon">{% if candidate.status.value in ['confirmed', 'rejected'] %}✓{% else %}?{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>IP Review</strong>
+                            {% if candidate.status.value == 'confirmed' %}
+                            <p class="text-muted">Confirmed as HAI</p>
+                            {% elif candidate.status.value == 'rejected' %}
+                            <p class="text-muted">Confirmed not HAI</p>
+                            {% else %}
+                            <p class="text-muted">Requires IP decision</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LLM Classifications -->
+        {% if classifications %}
+        <div class="alert-detail-card">
+            <div class="info-section">
+                <h3>LLM Classifications</h3>
+                {% for c in classifications %}
+                <div class="classification-item">
+                    <div class="classification-header">
+                        <span class="badge badge-{{ 'success' if c.decision.value == 'hai_confirmed' else 'danger' if c.decision.value == 'not_hai' else 'warning' }}">
+                            {% if c.decision.value == 'hai_confirmed' %}HAI{% elif c.decision.value == 'not_hai' %}Not HAI{% else %}{{ c.decision.value | replace('_', ' ') | title }}{% endif %}
+                        </span>
+                        <span class="confidence">{{ (c.confidence * 100) | round(1) }}% confidence</span>
+                        <span class="text-muted">{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+
+                    {% if c.reasoning %}
+                    <div class="classification-reasoning">
+                        <strong>Reasoning:</strong>
+                        <p>{{ c.reasoning }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if c.alternative_source %}
+                    <div class="classification-alt">
+                        <strong>Alternative Source:</strong> {{ c.alternative_source }}
+                    </div>
+                    {% endif %}
+
+                    {% if c.supporting_evidence %}
+                    <div class="evidence evidence-supporting">
+                        <strong>Supporting Evidence:</strong>
+                        <ul>
+                        {% for e in c.supporting_evidence %}
+                            <li>
+                                <span class="evidence-text">{{ e.text }}</span>
+                                {% if e.relevance %}<span class="evidence-relevance">— {{ e.relevance }}</span>{% endif %}
+                                <br><small class="evidence-source">Source: {{ e.source }}</small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if c.contradicting_evidence %}
+                    <div class="evidence evidence-contradicting">
+                        <strong>Contradicting Evidence:</strong>
+                        <ul>
+                        {% for e in c.contradicting_evidence %}
+                            <li>
+                                <span class="evidence-text">{{ e.text }}</span>
+                                {% if e.relevance %}<span class="evidence-relevance">— {{ e.relevance }}</span>{% endif %}
+                                <br><small class="evidence-source">Source: {{ e.source }}</small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="classification-meta">
+                        <small>Model: {{ c.model_used }} | Prompt: {{ c.prompt_version }} | Tokens: {{ c.tokens_used }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Classification Actions -->
+    <div class="alert-detail-sidebar">
+        {% if candidate.status.value in ['pending_review', 'classified', 'pending'] %}
+        <div class="action-card">
+            <h3>Classification Decision</h3>
+            <div class="form-group">
+                <label for="reviewer">Reviewer Name</label>
+                <input type="text" name="reviewer" id="reviewer" required placeholder="Enter your name" class="form-control">
+            </div>
+
+            <div class="classification-buttons">
+                <button type="button" class="btn btn-clabsi btn-block" data-decision="confirmed">
+                    {{ candidate.hai_type.value | upper }}
+                </button>
+                <button type="button" class="btn btn-not-clabsi btn-block" data-decision="rejected">
+                    Not {{ candidate.hai_type.value | upper }}
+                </button>
+            </div>
+
+            <div class="classification-divider">
+                <span>If Not {{ candidate.hai_type.value | upper }}, specify reason:</span>
+            </div>
+
+            <div class="secondary-buttons">
+                <button type="button" class="btn btn-mbi btn-block" data-decision="mbi_lcbi">
+                    MBI-LCBI
+                </button>
+                <button type="button" class="btn btn-secondary-source btn-block" data-decision="secondary">
+                    Secondary
+                </button>
+                <button type="button" class="btn btn-info-needed btn-block" data-decision="needs_more_info">
+                    Needs More Info
+                </button>
+            </div>
+        </div>
+
+        <div class="action-card">
+            <h3>Notes</h3>
+            <div class="form-group">
+                <textarea name="notes" id="notes" rows="4" class="form-textarea" placeholder="Add details about your classification decision..."></textarea>
+            </div>
+        </div>
+
+        <div id="review-result" class="hidden"></div>
+
+        {% elif candidate.status.value == 'confirmed' %}
+        <div class="action-card resolved-card">
+            <h3>Classification Complete</h3>
+            <div class="review-complete review-confirmed">
+                <span class="status-icon">✓</span>
+                <strong>Confirmed as {{ candidate.hai_type.value | upper }}</strong>
+                <p>This candidate has been confirmed and will be reported to NHSN.</p>
+            </div>
+        </div>
+        {% elif candidate.status.value == 'rejected' %}
+        <div class="action-card resolved-card">
+            <h3>Classification Complete</h3>
+            <div class="review-complete review-rejected">
+                <span class="status-icon">✗</span>
+                <strong>Rejected - Not {{ candidate.hai_type.value | upper }}</strong>
+                <p>This candidate was determined not to be a {{ candidate.hai_type.value | upper }}.</p>
+            </div>
+        </div>
+        {% elif candidate.status.value == 'excluded' %}
+        <div class="action-card resolved-card">
+            <h3>Classification Complete</h3>
+            <div class="review-complete review-excluded">
+                <span class="status-icon">-</span>
+                <strong>Excluded</strong>
+                <p>{{ candidate.exclusion_reason or 'Did not meet initial criteria' }}</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="action-card">
+            <h3>Classification Decision</h3>
+            <div class="review-pending">
+                <p>Awaiting LLM classification before IP review.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.classification-buttons button, .secondary-buttons button').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const decision = this.getAttribute('data-decision');
+        const reviewer = document.getElementById('reviewer').value;
+        const notes = document.getElementById('notes').value;
+        const resultDiv = document.getElementById('review-result');
+
+        if (!reviewer.trim()) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Please enter your name</div>';
+            resultDiv.classList.remove('hidden');
+            document.getElementById('reviewer').focus();
+            return;
+        }
+
+        // Highlight selected button
+        document.querySelectorAll('.classification-buttons button, .secondary-buttons button').forEach(b => {
+            b.classList.remove('selected');
+        });
+        this.classList.add('selected');
+
+        const data = {
+            candidate_id: '{{ candidate.id }}',
+            reviewer: reviewer,
+            decision: decision,
+            notes: notes
+        };
+
+        try {
+            const response = await fetch('{{ url_for("hai_detection.api_submit_review", candidate_id=candidate.id) }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                resultDiv.innerHTML = '<div class="alert alert-success">Classification submitted! Redirecting...</div>';
+                resultDiv.classList.remove('hidden');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + result.error + '</div>';
+                resultDiv.classList.remove('hidden');
+            }
+        } catch (err) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Failed to submit: ' + err.message + '</div>';
+            resultDiv.classList.remove('hidden');
+        }
+    });
+});
+</script>
+
+<style>
+.alert-detail-card {
+    padding: 1.5rem;
+}
+
+.candidate-status-bar {
+    margin-bottom: 1rem;
+}
+
+.badge-lg {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.font-bold { font-weight: 600; }
+.text-lg { font-size: 1.25rem; }
+
+/* Criteria List */
+.criteria-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.criteria-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.criteria-item.criteria-met {
+    background: #f0fdf4;
+    border-left: 4px solid #10b981;
+}
+
+.criteria-item.criteria-failed {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+}
+
+.criteria-item.criteria-pending {
+    background: #fefce8;
+    border-left: 4px solid #f59e0b;
+}
+
+.criteria-icon {
+    font-size: 1.5rem;
+    width: 2rem;
+    text-align: center;
+}
+
+.criteria-met .criteria-icon { color: #10b981; }
+.criteria-failed .criteria-icon { color: #ef4444; }
+.criteria-pending .criteria-icon { color: #f59e0b; }
+
+.criteria-text p {
+    margin: 0.25rem 0 0 0;
+}
+
+/* Classification Item */
+.classification-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.classification-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.confidence {
+    font-weight: 600;
+}
+
+.classification-reasoning,
+.classification-alt,
+.evidence {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    background: #f8fafc;
+}
+
+.evidence-supporting { border-left: 3px solid #10b981; }
+.evidence-contradicting { border-left: 3px solid #ef4444; }
+
+.evidence ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+}
+
+.evidence ul li {
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
+.evidence-text {
+    font-weight: 500;
+}
+
+.evidence-relevance {
+    color: #64748b;
+    font-style: italic;
+}
+
+.evidence-source {
+    color: #3b82f6;
+    font-size: 0.8rem;
+}
+
+.classification-meta {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+}
+
+/* Classification Buttons */
+.classification-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.classification-divider {
+    margin: 1rem 0;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.8rem;
+    position: relative;
+}
+
+.classification-divider::before,
+.classification-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 20%;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.classification-divider::before {
+    left: 0;
+}
+
+.classification-divider::after {
+    right: 0;
+}
+
+.secondary-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.btn-clabsi {
+    background: #dc2626;
+    color: white;
+    border: 2px solid #dc2626;
+    padding: 1rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.btn-clabsi:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.btn-not-clabsi {
+    background: #16a34a;
+    color: white;
+    border: 2px solid #16a34a;
+    padding: 1rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.btn-not-clabsi:hover {
+    background: #15803d;
+    border-color: #15803d;
+}
+
+.btn-mbi {
+    background: #f59e0b;
+    color: white;
+    border: 2px solid #f59e0b;
+    padding: 0.6rem 0.25rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.btn-mbi:hover {
+    background: #d97706;
+    border-color: #d97706;
+}
+
+.btn-secondary-source {
+    background: #8b5cf6;
+    color: white;
+    border: 2px solid #8b5cf6;
+    padding: 0.6rem 0.25rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.btn-secondary-source:hover {
+    background: #7c3aed;
+    border-color: #7c3aed;
+}
+
+.btn-info-needed {
+    background: #6b7280;
+    color: white;
+    border: 2px solid #6b7280;
+    padding: 0.6rem 0.25rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.btn-info-needed:hover {
+    background: #4b5563;
+    border-color: #4b5563;
+}
+
+.classification-buttons button.selected,
+.secondary-buttons button.selected {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* Form Controls */
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    resize: vertical;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Review Complete States */
+.review-complete {
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.review-complete .status-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.review-confirmed {
+    background: #f0fdf4;
+    border: 1px solid #10b981;
+}
+
+.review-confirmed .status-icon { color: #10b981; }
+
+.review-rejected {
+    background: #fef2f2;
+    border: 1px solid #ef4444;
+}
+
+.review-rejected .status-icon { color: #ef4444; }
+
+.review-excluded {
+    background: #f8fafc;
+    border: 1px solid #94a3b8;
+}
+
+.review-excluded .status-icon { color: #64748b; }
+
+.review-pending {
+    padding: 1.5rem;
+    background: #fefce8;
+    border-radius: 8px;
+    text-align: center;
+    color: #92400e;
+}
+
+/* Alerts */
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.alert-danger {
+    background: #fef2f2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+}
+
+.alert-success {
+    background: #f0fdf4;
+    border: 1px solid #10b981;
+    color: #065f46;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.text-muted {
+    color: #64748b;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+}
+
+/* Badge colors */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-success { background: #10b981; color: white; }
+.badge-danger { background: #ef4444; color: white; }
+.badge-warning { background: #f59e0b; color: white; }
+.badge-info { background: #3b82f6; color: white; }
+.badge-secondary { background: #64748b; color: white; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .classification-buttons {
+        grid-template-columns: 1fr;
+    }
+    .secondary-buttons {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .secondary-buttons {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}HAI Detection Help - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>HAI Detection - Demo & Help</h1>
+    <a href="{{ url_for('hai_detection.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="help-content">
+    <div class="help-card">
+        <h2>Overview</h2>
+        <p>The NHSN HAI Reporting module assists Infection Preventionists in identifying and classifying
+           Healthcare-Associated Infections (HAIs) for NHSN reporting. Currently supported:</p>
+        <ul>
+            <li><strong>CLABSI</strong> - Central Line-Associated Bloodstream Infections</li>
+            <li><strong>SSI</strong> - Surgical Site Infections (Superficial, Deep, Organ/Space)</li>
+        </ul>
+        <p>The system uses a four-stage workflow:</p>
+        <ol>
+            <li><strong>Rule-based screening</strong> - Identifies candidates (BSI + line for CLABSI; procedure + infection signals for SSI)</li>
+            <li><strong>LLM fact extraction</strong> - Extracts clinical facts from notes (symptoms, alternate sources, wound assessments)</li>
+            <li><strong>Rules engine</strong> - Applies deterministic NHSN criteria to extracted facts</li>
+            <li><strong>IP Review</strong> - <strong>ALL candidates</strong> go to IP for final decision</li>
+        </ol>
+        <p><strong>Key principle:</strong> The LLM extracts facts and provides a preliminary classification with confidence score,
+           but the Infection Preventionist always makes the final determination. This ensures human oversight on all HAI decisions.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>Quick Start - Generate Demo Data</h2>
+
+        <h3>Create CLABSI Candidates</h3>
+        <p>Generate demo patients with CLABSI scenarios for testing:</p>
+        <pre><code># Create one CLABSI + one Not CLABSI (random type)
+cd /home/david/projects/aegis
+python scripts/demo_clabsi.py
+
+# Create all scenario types
+python scripts/demo_clabsi.py --all
+
+# Create a specific scenario
+python scripts/demo_clabsi.py --scenario clabsi
+python scripts/demo_clabsi.py --scenario mbi
+python scripts/demo_clabsi.py --scenario secondary-uti
+python scripts/demo_clabsi.py --scenario secondary-pneumonia</code></pre>
+
+        <h3>Create SSI Candidates</h3>
+        <p>Generate demo patients with SSI (Surgical Site Infection) scenarios:</p>
+        <pre><code># Create one SSI + one Not SSI (random type)
+cd /home/david/projects/aegis
+python scripts/demo_ssi.py
+
+# Create all scenario types
+python scripts/demo_ssi.py --all
+
+# Create a specific scenario
+python scripts/demo_ssi.py --scenario superficial
+python scripts/demo_ssi.py --scenario deep
+python scripts/demo_ssi.py --scenario organ-space
+python scripts/demo_ssi.py --scenario not-ssi</code></pre>
+
+        <h3>Run the Full Pipeline</h3>
+        <p>After creating demo data, run the HAI monitor to detect and classify candidates:</p>
+        <pre><code>cd /home/david/projects/aegis/hai-detection
+python -m src.runner --full</code></pre>
+
+        <p>This will:</p>
+        <ol>
+            <li>Detect new CLABSI candidates from FHIR</li>
+            <li>Run LLM extraction and rules engine classification</li>
+            <li>Create review entries in the IP Review Queue</li>
+        </ol>
+
+        <p>Then go to the <a href="{{ url_for('hai_detection.dashboard') }}">Dashboard</a> to review and make final decisions on the new cases.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>CLABSI Demo Scenarios</h2>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Command</th>
+                    <th>Organism</th>
+                    <th>Key Evidence</th>
+                    <th>Classification</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Clear CLABSI</strong></td>
+                    <td><code>--scenario clabsi</code></td>
+                    <td>S. aureus</td>
+                    <td>Line site infection, negative UA, clear CXR</td>
+                    <td><span class="badge badge-critical">CLABSI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MBI-LCBI</strong></td>
+                    <td><code>--scenario mbi</code></td>
+                    <td>E. coli</td>
+                    <td>BMT patient, ANC 0, Grade 3 mucositis</td>
+                    <td><span class="badge badge-warning">Not CLABSI - MBI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Secondary (UTI)</strong></td>
+                    <td><code>--scenario secondary-uti</code></td>
+                    <td>E. coli</td>
+                    <td>Same organism in blood + urine, pyelonephritis on CT</td>
+                    <td><span class="badge badge-info">Not CLABSI - Secondary</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Secondary (PNA)</strong></td>
+                    <td><code>--scenario secondary-pneumonia</code></td>
+                    <td>Pseudomonas</td>
+                    <td>Same organism in blood + respiratory, VAP on CXR</td>
+                    <td><span class="badge badge-info">Not CLABSI - Secondary</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="help-card">
+        <h2>SSI Demo Scenarios</h2>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Command</th>
+                    <th>Procedure</th>
+                    <th>Key Evidence</th>
+                    <th>Classification</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Superficial SSI</strong></td>
+                    <td><code>--scenario superficial</code></td>
+                    <td>Cholecystectomy</td>
+                    <td>Purulent drainage, erythema, positive wound culture</td>
+                    <td><span class="badge badge-warning">Superficial SSI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Deep SSI</strong></td>
+                    <td><code>--scenario deep</code></td>
+                    <td>Colectomy</td>
+                    <td>Fascial dehiscence, fever &gt;38C, deep tissue involved</td>
+                    <td><span class="badge badge-critical">Deep SSI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Organ/Space SSI</strong></td>
+                    <td><code>--scenario organ-space</code></td>
+                    <td>Colectomy</td>
+                    <td>Pelvic abscess on CT, positive drain culture</td>
+                    <td><span class="badge badge-critical">Organ/Space SSI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Not SSI</strong></td>
+                    <td><code>--scenario not-ssi</code></td>
+                    <td>Total Knee</td>
+                    <td>Wound healing well, no infection signs</td>
+                    <td><span class="badge badge-success">Not SSI</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="help-card">
+        <h2>IP Review Decisions</h2>
+        <p>When reviewing a CLABSI candidate, you (the Infection Preventionist) make the final determination.
+           The LLM classification and confidence score are shown as decision support, but you always have the final say.</p>
+
+        <div class="decision-grid">
+            <div class="decision-item decision-clabsi">
+                <h4>Confirmed HAI (CLABSI)</h4>
+                <p>Confirmed central line-associated bloodstream infection. Use when:</p>
+                <ul>
+                    <li>Central line in place &gt;2 calendar days</li>
+                    <li>No alternative source for the BSI</li>
+                    <li>Pathogenic organism OR 2+ positive cultures for skin contaminant</li>
+                </ul>
+                <p><em>Will be counted as CLABSI and available for NHSN submission.</em></p>
+            </div>
+
+            <div class="decision-item decision-not-clabsi">
+                <h4>Confirmed Not HAI</h4>
+                <p>The BSI is not a CLABSI. Use when:</p>
+                <ul>
+                    <li>Clear alternative source identified (UTI, pneumonia, etc.)</li>
+                    <li>Single culture for skin contaminant (likely contamination)</li>
+                    <li>Does not meet NHSN CLABSI criteria</li>
+                </ul>
+                <p><em>Case will be closed and not reported to NHSN.</em></p>
+            </div>
+
+            <div class="decision-item decision-mbi">
+                <h4>MBI-LCBI</h4>
+                <p>Mucosal Barrier Injury Laboratory-Confirmed Bloodstream Infection. Use when ALL criteria met:</p>
+                <ul>
+                    <li>Neutropenia (ANC &lt;500) OR allogeneic HSCT with Grade 3-4 GI GVHD</li>
+                    <li>Eligible MBI organism (gut flora: E. coli, Klebsiella, Enterococcus, Candida, etc.)</li>
+                    <li>Mucosal barrier injury present (mucositis, GVHD)</li>
+                </ul>
+                <p><em>MBI-LCBI is counted separately from CLABSI for NHSN reporting.</em></p>
+            </div>
+
+            <div class="decision-item decision-secondary">
+                <h4>Secondary</h4>
+                <p>BSI is secondary to another primary infection. Use when:</p>
+                <ul>
+                    <li>Same organism isolated from another site (urine, respiratory, wound)</li>
+                    <li>Clinical presentation consistent with primary infection at other site</li>
+                    <li>BSI developed after or concurrent with other site infection</li>
+                </ul>
+                <p><em>Common sources: UTI, pneumonia, intra-abdominal infection, skin/soft tissue</em></p>
+            </div>
+
+            <div class="decision-item decision-needs-info">
+                <h4>Needs More Info</h4>
+                <p>Additional review or information needed. Use when:</p>
+                <ul>
+                    <li>Clinical notes are incomplete</li>
+                    <li>Need to review additional cultures or imaging</li>
+                    <li>Want to discuss with ID or primary team</li>
+                </ul>
+                <p><em>Candidate stays in the review queue for follow-up. When you later submit a final decision
+                   (Confirmed or Not HAI), any prior "Needs More Info" reviews are automatically superseded.</em></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="help-card">
+        <h2>NHSN CLABSI Criteria Quick Reference</h2>
+
+        <h3>Inclusion Criteria</h3>
+        <ul>
+            <li>Patient has a central line at time of BSI OR within 1 calendar day of line removal</li>
+            <li>Central line was in place for &gt;2 calendar days on the date of event</li>
+            <li>Patient has a laboratory-confirmed bloodstream infection (LCBI)</li>
+            <li>BSI is not secondary to an infection at another site</li>
+        </ul>
+
+        <h3>LCBI Criteria</h3>
+        <p><strong>Criterion 1 (Pathogen):</strong> Recognized pathogen identified from blood culture not related to infection at another site</p>
+        <p><strong>Criterion 2 (Contaminant):</strong> Common skin contaminant (e.g., CoNS, Corynebacterium) identified from 2+ blood cultures drawn on separate occasions, PLUS patient has fever (&gt;38.0°C), chills, or hypotension</p>
+
+        <h3>Exclusion: Secondary BSI</h3>
+        <p>A BSI is considered secondary if the same organism is isolated from another site AND:</p>
+        <ul>
+            <li>The other site infection meets NHSN site-specific criteria, OR</li>
+            <li>The clinical presentation is consistent with infection at the other site</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>NHSN SSI Criteria Quick Reference</h2>
+
+        <h3>Surveillance Window</h3>
+        <ul>
+            <li><strong>30 days</strong> - Standard for most procedures</li>
+            <li><strong>90 days</strong> - Procedures with implants (prosthetics, hardware)</li>
+        </ul>
+
+        <h3>Wound Classification</h3>
+        <ul>
+            <li><strong>Class 1 (Clean)</strong> - No inflammation, no break in technique, respiratory/GI/GU not entered</li>
+            <li><strong>Class 2 (Clean-Contaminated)</strong> - Controlled entry into GI/GU/respiratory tract</li>
+            <li><strong>Class 3 (Contaminated)</strong> - Acute inflammation, gross spillage from GI tract</li>
+            <li><strong>Class 4 (Dirty-Infected)</strong> - Old traumatic wound, existing infection</li>
+        </ul>
+
+        <h3>Superficial Incisional SSI (any one)</h3>
+        <ul>
+            <li>Purulent drainage from superficial incision</li>
+            <li>Organisms from aseptically-obtained culture from superficial incision</li>
+            <li>Signs (pain, swelling, erythema, heat) + incision opened by surgeon (unless culture-negative)</li>
+            <li>Physician diagnosis of superficial incisional SSI</li>
+        </ul>
+
+        <h3>Deep Incisional SSI (any one)</h3>
+        <ul>
+            <li>Purulent drainage from deep incision (but not organ/space)</li>
+            <li>Deep incision spontaneously dehisces OR deliberately opened AND fever (&gt;38°C) or pain</li>
+            <li>Abscess in deep incision found on exam, reoperation, imaging, or histopath</li>
+            <li>Physician diagnosis of deep incisional SSI</li>
+        </ul>
+
+        <h3>Organ/Space SSI (any one)</h3>
+        <ul>
+            <li>Purulent drainage from drain placed in organ/space</li>
+            <li>Organisms from culture of fluid/tissue from organ/space</li>
+            <li>Abscess in organ/space found on exam, reoperation, imaging, or histopath</li>
+            <li>Physician diagnosis of organ/space SSI</li>
+        </ul>
+
+        <h3>Common Organ/Space Sites</h3>
+        <p>NHSN codes: IAB (intra-abdominal), MED (mediastinitis), BONE (osteomyelitis), DISC (disc space), JNT (joint), MEN (meningitis)</p>
+    </div>
+
+    <div class="help-card">
+        <h2>LLM-Assisted Classification</h2>
+        <p>The system uses a two-stage approach: <strong>LLM extraction</strong> followed by <strong>rules engine</strong>.</p>
+
+        <h3>Stage 1: LLM Fact Extraction</h3>
+        <p>A local LLM (Ollama llama3.1) reads clinical notes and extracts structured facts:</p>
+        <ul>
+            <li><strong>Alternate infection sources</strong> - Pneumonia, UTI, SSTI, intra-abdominal</li>
+            <li><strong>Symptoms</strong> - Fever, WBC changes, hypotension</li>
+            <li><strong>MBI factors</strong> - Neutropenia, mucositis, HSCT status, GVHD</li>
+            <li><strong>Line assessment</strong> - Exit site findings, clinical suspicion</li>
+            <li><strong>Contamination signals</strong> - Team treating as contaminant</li>
+        </ul>
+        <p><em>The LLM answers factual questions about documentation - it does NOT make classification decisions.</em></p>
+
+        <h3>Stage 2: Rules Engine</h3>
+        <p>Deterministic NHSN criteria are applied to the extracted facts:</p>
+        <ol>
+            <li>Basic eligibility check (line days, timing)</li>
+            <li>MBI-LCBI criteria evaluation</li>
+            <li>Secondary BSI check (same organism at other site)</li>
+            <li>Contamination check (single commensal culture)</li>
+            <li>Default to CLABSI if no exclusions apply</li>
+        </ol>
+
+        <h3>IP Makes Final Decision</h3>
+        <p>ALL candidates are routed to IP review regardless of confidence score. The LLM classification and confidence
+           are displayed as <strong>decision support</strong>, but IP always makes the final determination.</p>
+
+        <p>This approach ensures:</p>
+        <ul>
+            <li><strong>Human oversight</strong> on all HAI determinations</li>
+            <li><strong>Transparency</strong> - Every decision can be traced to specific criteria</li>
+            <li><strong>Override tracking</strong> - When IP disagrees with LLM, it's logged for quality assessment</li>
+        </ul>
+
+        <p><strong>Privacy:</strong> All PHI stays on-premise. The Ollama LLM runs locally and no data is sent to external services.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>Troubleshooting</h2>
+
+        <h3>FHIR server not responding</h3>
+        <pre><code># Check if container is running
+docker ps | grep hapi
+
+# Restart if needed
+cd asp-bacteremia-alerts
+docker-compose down && docker-compose up -d</code></pre>
+
+        <h3>Clear HAI data and start fresh</h3>
+        <pre><code># Clear HAI/NHSN database (shared database)
+rm -f ~/.aegis/nhsn.db
+
+# Clear FHIR server data
+cd asp-bacteremia-alerts
+docker-compose down && docker-compose up -d</code></pre>
+
+        <h3>LLM classification not running</h3>
+        <pre><code># Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# If not running, start Ollama
+ollama serve</code></pre>
+
+        <h3>Check available Ollama models</h3>
+        <pre><code>ollama list</code></pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Architecture</h2>
+        <pre class="architecture-diagram">
++-------------------+     +-------------------+
+|   Demo Scripts    |----&gt;|  HAPI FHIR        |
+| demo_clabsi.py    |     |  Server :8081     |
+| demo_ssi.py       |     |                   |
++-------------------+     +---------+---------+
+                                    |
+                                    v
+                         +-------------------+
+                         |  HAI Monitor      |
+                         |  (Rule-based      |
+                         |   Screening)      |
+                         +---------+---------+
+                                   |
+              +--------------------+--------------------+
+              |                                        |
+    +-------------------+                    +-------------------+
+    |  CLABSI Detector  |                    |   SSI Detector    |
+    |  (BSI + Line)     |                    |  (Procedure +     |
+    |                   |                    |   Infection)      |
+    +-------------------+                    +-------------------+
+              |                                        |
+              +--------------------+--------------------+
+                                   |
+              +--------------------+--------------------+
+              v                                        v
+    +-------------------+                    +-------------------+
+    |  LLM Extraction   |                    |   Rules Engine    |
+    |  (Ollama llama3.1)|---&gt; Facts -------&gt;|  (NHSN Criteria)  |
+    +-------------------+                    +---------+---------+
+                                                       |
+                                                       v
+                                             +-------------------+
+                                             |   IP Review       |
+                                             | (Final Decision)  |
+                                             +---------+---------+
+                                                       |
+                         +-----------------------------+
+                         v                             v
+               +-------------------+          +-------------------+
+               |  Confirmed HAI    |          | Confirmed Not HAI |
+               |  (NHSN Events)    |          |    (Rejected)     |
+               +-------------------+          +-------------------+
+        </pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Links</h2>
+        <ul>
+            <li><a href="{{ url_for('hai_detection.dashboard') }}">Dashboard</a> - Active cases awaiting IP review</li>
+            <li><a href="{{ url_for('hai_detection.history') }}">History</a> - Completed reviews (confirmed HAI and confirmed not HAI)</li>
+            <li><a href="{{ url_for('hai_detection.reports') }}">Reports & Analytics</a> - LLM quality metrics and override tracking</li>
+            <li><a href="{{ url_for('hai_detection.submission') }}">NHSN Submission</a> - Export or submit confirmed events to NHSN</li>
+            <li><a href="{{ url_for('asp_alerts.help_page') }}">ASP Alerts Help</a> - Help for bacteremia and antimicrobial usage alerts</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.decision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.decision-item {
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid;
+}
+
+.decision-item h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.decision-item p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.decision-item ul {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+}
+
+.decision-item li {
+    margin: 0.25rem 0;
+}
+
+.decision-clabsi {
+    background: #fef2f2;
+    border-color: #dc2626;
+}
+
+.decision-not-clabsi {
+    background: #f0fdf4;
+    border-color: #16a34a;
+}
+
+.decision-mbi {
+    background: #fffbeb;
+    border-color: #f59e0b;
+}
+
+.decision-secondary {
+    background: #f5f3ff;
+    border-color: #8b5cf6;
+}
+
+.decision-needs-info {
+    background: #f8fafc;
+    border-color: #6b7280;
+}
+</style>
+{% endblock %}

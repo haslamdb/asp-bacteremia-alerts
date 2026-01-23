@@ -86,16 +86,11 @@ class TeamsAlerter(BaseAlerter):
         key_suffix = f"&key={self.dashboard_api_key}" if self.dashboard_api_key else ""
 
         actions = [
-            # Alert management actions
+            # Primary action - resolve/manage alert
             TeamsAction(
-                title="Acknowledge",
-                url=f"{base_url}/api/ack/{alert_id}{key_param}",
+                title="View / Resolve",
+                url=f"{base_url}/asp-alerts/alerts/{alert_id}",
                 style="positive",
-            ),
-            TeamsAction(
-                title="Snooze 4h",
-                url=f"{base_url}/api/snooze/{alert_id}?hours=4{key_suffix}",
-                style="default",
             ),
             # Clinical data links
             TeamsAction(
@@ -108,10 +103,10 @@ class TeamsAlerter(BaseAlerter):
                 url=f"{base_url}/asp-alerts/patient/{patient_id}/medications",
                 style="default",
             ),
-            # Alert detail/resolve
+            # Snooze at end
             TeamsAction(
-                title="View / Resolve",
-                url=f"{base_url}/asp-alerts/alerts/{alert_id}",
+                title="Snooze 4h",
+                url=f"{base_url}/api/snooze/{alert_id}?hours=4{key_suffix}",
                 style="default",
             ),
         ]
