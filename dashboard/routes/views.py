@@ -48,13 +48,14 @@ def alerts_active():
 
     alerts = store.list_alerts(**filter_kwargs)
 
-    # Sort alerts: bacteremia first, then no indication, then broad spectrum, then by severity
+    # Sort alerts: bacteremia first, then guideline deviation, then no indication, then broad spectrum, then by severity
     severity_order = {"critical": 0, "warning": 1, "info": 2}
     type_order = {
         AlertType.BACTEREMIA: 0,
-        AlertType.ABX_NO_INDICATION: 1,
-        AlertType.BROAD_SPECTRUM_USAGE: 2,
-        AlertType.CUSTOM: 3,
+        AlertType.GUIDELINE_DEVIATION: 1,
+        AlertType.ABX_NO_INDICATION: 2,
+        AlertType.BROAD_SPECTRUM_USAGE: 3,
+        AlertType.CUSTOM: 4,
     }
     alerts.sort(key=lambda a: (
         type_order.get(a.alert_type, 99),

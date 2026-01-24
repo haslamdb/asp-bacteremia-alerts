@@ -232,6 +232,56 @@ Tracking file for implementing the AEGIS expansion plan. See `aegis_implementati
 
 ---
 
+## Guideline Adherence Module
+
+**Status:** Complete (2026-01-24)
+
+### Core Infrastructure
+- [x] Created guideline-adherence/src/ module structure
+- [x] GuidelineAdherenceMonitor class with real-time monitoring
+- [x] GuidelineFHIRClient with vitals, MedicationAdministration, lab queries
+- [x] AdherenceDatabase (SQLite) for episode and element tracking
+- [x] Added GUIDELINE_DEVIATION to AlertType enum
+
+### Element Checkers
+- [x] Base ElementChecker abstract class
+- [x] LabChecker - blood culture, lactate, inflammatory markers
+- [x] MedicationChecker - antibiotic timing, fluid bolus
+- [x] NoteChecker - reassessment documentation
+- [x] FebrileInfantChecker - age-stratified conditional logic
+
+### Guideline Bundles (7 total)
+- [x] Pediatric Sepsis (CMS SEP-1) - 6 elements
+- [x] Pediatric CAP - 6 elements
+- [x] Febrile Neutropenia - 6 elements
+- [x] Surgical Prophylaxis - 5 elements
+- [x] Pediatric UTI - 7 elements
+- [x] SSTI/Cellulitis - 6 elements
+- [x] **Febrile Infant (AAP 2021)** - 12 elements with age stratification
+
+### Febrile Infant Bundle (AAP 2021)
+- [x] Age-stratified requirements (8-21d, 22-28d, 29-60d)
+- [x] Inflammatory marker threshold evaluation (PCT >0.5, ANC >4000, CRP >2.0)
+- [x] Conditional element applicability based on age and IMs
+- [x] LP requirements (required 8-21d, conditional 22-28d)
+- [x] HSV risk assessment (8-28 days)
+- [x] LOINC mappings for UA, blood cx, PCT, ANC, CRP, CSF
+
+### Dashboard Integration
+- [x] Dashboard routes (guideline_adherence.py)
+- [x] Templates: dashboard, active episodes, episode detail, metrics, bundle detail, help
+- [x] GUIDELINE_DEVIATION alerts in ASP Alerts queue
+- [x] Element-level compliance visualization
+
+### CLI Runner
+- [x] `--once` mode for single run
+- [x] `--bundle` filter for specific bundle
+- [x] `--dry-run` for no alerts
+- [x] `--daemon` for continuous monitoring
+- [x] `--verbose` for detailed output
+
+---
+
 ## Code Audit Notes
 
 **Audit Date:** 2026-01-19
@@ -346,4 +396,11 @@ The plan proposes separate model classes for each HAI type. Our existing `HAICan
 | 2026-01-23 | 3 | Updated monitor.py to route candidates to correct classifier based on HAI type |
 | 2026-01-23 | 3 | Fixed dashboard routes for module separation (hai.py, au_ar.py with sys.path isolation) |
 | 2026-01-23 | 3 | Updated demo_ssi.py with author information in clinical notes |
+| 2026-01-24 | 4 | **Guideline Adherence Module Complete:** Real-time monitoring with GUIDELINE_DEVIATION alerts |
+| 2026-01-24 | 4 | Created guideline-adherence/src/ module with monitor, checkers, FHIR client, database |
+| 2026-01-24 | 4 | Implemented Sepsis bundle (CMS SEP-1) with 6 elements and time windows |
+| 2026-01-24 | 4 | **Febrile Infant Bundle (AAP 2021):** Age-stratified logic (8-21d, 22-28d, 29-60d), 12 elements |
+| 2026-01-24 | 4 | Created FebrileInfantChecker with inflammatory marker thresholds (PCT, ANC, CRP) |
+| 2026-01-24 | 4 | Added dashboard templates for guideline adherence (dashboard, metrics, episode detail, help) |
+| 2026-01-24 | 4 | Integrated GUIDELINE_DEVIATION alerts into ASP Alerts queue |
 

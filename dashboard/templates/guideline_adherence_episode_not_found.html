@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Episode Not Found - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Episode Not Found</h1>
+</div>
+
+<div class="empty-state">
+    <p>The episode <code>{{ episode_id }}</code> was not found.</p>
+    <p style="margin-top: 1rem;">
+        <a href="{{ url_for('guideline_adherence.active_episodes') }}" class="btn btn-primary">View Active Episodes</a>
+        <a href="{{ url_for('guideline_adherence.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </p>
+</div>
+
+<style>
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    color: var(--color-gray-500);
+}
+
+.empty-state code {
+    background: var(--color-gray-100);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+</style>
+{% endblock %}

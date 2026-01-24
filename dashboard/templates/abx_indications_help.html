@@ -146,6 +146,64 @@
     </div>
 
     <div class="help-card">
+        <h2>Related Modules</h2>
+        <p>The Antibiotic Indications module works alongside other AEGIS stewardship tools:</p>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Module</th>
+                    <th>Purpose</th>
+                    <th>Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Guideline Adherence</strong></td>
+                    <td>Monitors complete care pathways (cultures + labs + antibiotics) with time windows</td>
+                    <td><a href="{{ url_for('guideline_adherence.dashboard') }}">Dashboard</a></td>
+                </tr>
+                <tr>
+                    <td><strong>ASP Alerts</strong></td>
+                    <td>Unified alert queue for all stewardship interventions</td>
+                    <td><a href="{{ url_for('asp.alerts_active') }}">Active Alerts</a></td>
+                </tr>
+                <tr>
+                    <td><strong>Surgical Prophylaxis</strong></td>
+                    <td>Detailed surgical prophylaxis monitoring with timing and duration</td>
+                    <td><a href="{{ url_for('surgical_prophylaxis.dashboard') }}">Dashboard</a></td>
+                </tr>
+            </tbody>
+        </table>
+        <h3>Key Distinction</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Aspect</th>
+                    <th>Antibiotic Indications</th>
+                    <th>Guideline Adherence</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Question</strong></td>
+                    <td>"Is this order justified?"</td>
+                    <td>"Did we follow the full pathway?"</td>
+                </tr>
+                <tr>
+                    <td><strong>Scope</strong></td>
+                    <td>Antibiotic orders only</td>
+                    <td>Full bundle (cultures, labs, imaging, antibiotics)</td>
+                </tr>
+                <tr>
+                    <td><strong>Alert Type</strong></td>
+                    <td>ABX_NO_INDICATION</td>
+                    <td>GUIDELINE_DEVIATION</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="help-card">
         <h2>References</h2>
         <ul>
             <li>Chua KP, Fischer MA, Linder JA. Appropriateness of outpatient antibiotic prescribing among privately insured US patients: ICD-10-CM based cross sectional study. BMJ. 2019;364:k5092.</li>

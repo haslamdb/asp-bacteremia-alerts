@@ -209,6 +209,47 @@ python -m src.runner --full
 
 ---
 
+## Step 6c: Demo - Guideline Adherence (Febrile Infant)
+
+The Guideline Adherence module monitors bundle element completion in real-time and creates alerts when elements are not met within their time windows.
+
+**Terminal 4:**
+```bash
+cd aegis/guideline-adherence
+
+# Run the guideline adherence monitor (dry run first)
+python -m src.runner --once --dry-run --verbose
+
+# Run with alerts enabled
+python -m src.runner --once --bundle febrile_infant_2024 --verbose
+```
+
+**View in dashboard:** https://aegis-asp.com/guideline-adherence/
+
+### Guideline Adherence Demo Scenarios
+
+| Bundle | Command | Key Elements | Alert Trigger |
+|--------|---------|--------------|---------------|
+| Pediatric Sepsis | `--bundle sepsis_peds_2024` | Blood cx, lactate, ABX ≤1h | Element not met within time window |
+| Febrile Infant | `--bundle febrile_infant_2024` | UA, blood cx, IMs, LP (age-based) | Age-stratified element missed |
+
+### Febrile Infant Age Groups (AAP 2021)
+
+| Age | LP Required | Antibiotics | Disposition |
+|-----|-------------|-------------|-------------|
+| 8-21 days | Yes | Yes - parenteral | Admit |
+| 22-28 days (IMs abnormal) | Yes | Yes - parenteral | Admit |
+| 22-28 days (IMs normal) | Consider | Consider | Home OK |
+| 29-60 days | Based on IMs | Based on findings | Varies |
+
+### Alert Types
+
+- **GUIDELINE_DEVIATION** - Bundle element not completed within required time window
+- Alerts appear in ASP Alerts queue with recommendations
+- Dashboard shows compliance metrics by bundle/element
+
+---
+
 ## Step 7: Demo - Blood Culture Alert
 
 Now we'll add a patient with MRSA bacteremia but no vancomycin coverage.

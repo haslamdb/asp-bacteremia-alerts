@@ -11,10 +11,10 @@
 <div class="help-content">
     <div class="help-card">
         <h2>Overview</h2>
-        <p>The Guideline Adherence module tracks adherence to evidence-based clinical guidelines/bundles at the
-           <strong>population level</strong>. Unlike the Antibiotic Indications module (which assesses individual
-           orders in real-time), this module generates <strong>aggregate metrics over time</strong> for quality
-           improvement and Joint Commission (JC) reporting.</p>
+        <p>The Guideline Adherence module provides <strong>real-time monitoring</strong> of evidence-based clinical
+           guideline bundles. It generates <strong>GUIDELINE_DEVIATION alerts</strong> when bundle elements are not
+           completed within their time windows, and tracks <strong>aggregate compliance metrics</strong> for
+           quality improvement and Joint Commission (JC) reporting.</p>
     </div>
 
     <div class="help-card">
@@ -36,7 +36,7 @@
                 <tr>
                     <td><strong>Timing</strong></td>
                     <td>Real-time (per order)</td>
-                    <td>Retrospective (daily/weekly/monthly)</td>
+                    <td>Real-time monitoring with time windows</td>
                 </tr>
                 <tr>
                     <td><strong>Scope</strong></td>
@@ -44,17 +44,56 @@
                     <td>Full care bundle (cultures, labs, imaging, consults, antibiotics)</td>
                 </tr>
                 <tr>
+                    <td><strong>Alert Trigger</strong></td>
+                    <td>No documented indication</td>
+                    <td>Bundle element not completed within time window</td>
+                </tr>
+                <tr>
                     <td><strong>Output</strong></td>
-                    <td>Alert/flag for ASP intervention</td>
-                    <td>Compliance % for dashboard/report</td>
+                    <td>ASP alert for review</td>
+                    <td>ASP alert + compliance metrics dashboard</td>
                 </tr>
                 <tr>
                     <td><strong>Audience</strong></td>
                     <td>Pharmacist, ordering provider</td>
-                    <td>ASP leadership, QI, JC surveyors</td>
+                    <td>ASP team, QI, JC surveyors</td>
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <div class="help-card">
+        <h2>How It Works</h2>
+        <div class="workflow">
+            <div class="workflow-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h4>Bundle Triggered</h4>
+                    <p>Patient identified with qualifying diagnosis (e.g., sepsis ICD-10 codes A41.x, R65.2x)</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h4>Elements Monitored</h4>
+                    <p>Each bundle element is tracked against its time window (e.g., antibiotics within 1 hour)</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h4>Alert if Not Met</h4>
+                    <p>When time window expires without completion, a GUIDELINE_DEVIATION alert is created in ASP Alerts</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h4>Review & Resolve</h4>
+                    <p>ASP team reviews alert, documents action, resolves in ASP Alerts queue</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="help-card">
@@ -69,202 +108,315 @@
             </thead>
             <tbody>
                 <tr>
+                    <td><strong>Pediatric Sepsis</strong></td>
+                    <td>6</td>
+                    <td>Blood culture, lactate, ABX &le;1h, fluids, reassessment</td>
+                </tr>
+                <tr>
                     <td><strong>Pediatric CAP</strong></td>
                     <td>6</td>
-                    <td>Blood culture timing, empiric choice, duration</td>
+                    <td>CXR, SpO2, empiric choice, duration &le;7d</td>
                 </tr>
                 <tr>
                     <td><strong>Febrile Neutropenia</strong></td>
                     <td>6</td>
-                    <td>Time to antibiotics, appropriate agent, cultures</td>
-                </tr>
-                <tr>
-                    <td><strong>Pediatric Sepsis</strong></td>
-                    <td>6</td>
-                    <td>Lactate, culture timing, fluid resuscitation</td>
+                    <td>Cultures, ABX &le;1h, risk stratification</td>
                 </tr>
                 <tr>
                     <td><strong>Surgical Prophylaxis</strong></td>
                     <td>5</td>
-                    <td>Timing, agent selection, duration &le;24h</td>
+                    <td>Agent selection, timing &le;60min, duration &le;24h</td>
                 </tr>
                 <tr>
                     <td><strong>Pediatric UTI</strong></td>
-                    <td>8</td>
-                    <td>Culture method, empiric choice, imaging</td>
+                    <td>7</td>
+                    <td>UA, culture, empiric choice, imaging</td>
                 </tr>
                 <tr>
                     <td><strong>SSTI/Cellulitis</strong></td>
                     <td>6</td>
-                    <td>MRSA coverage decision, I&D if purulent</td>
+                    <td>Margins marked, MRSA coverage, I&D if needed</td>
+                </tr>
+                <tr>
+                    <td><strong>Febrile Infant (AAP 2021)</strong></td>
+                    <td>12</td>
+                    <td>UA, blood cx, inflammatory markers, LP (age-stratified), HSV consideration</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <div class="help-card">
-        <h2>Bundle Elements Include Non-Antibiotic Elements</h2>
-        <p>Guidelines include elements that are essential for quality care beyond antibiotics:</p>
-        <table class="help-table">
-            <thead>
-                <tr>
-                    <th>Element Type</th>
-                    <th>Examples</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>Cultures</strong></td>
-                    <td>Blood culture before antibiotics, urine culture technique</td>
-                </tr>
-                <tr>
-                    <td><strong>Labs</strong></td>
-                    <td>Lactate for sepsis, procalcitonin, CBC</td>
-                </tr>
-                <tr>
-                    <td><strong>Imaging</strong></td>
-                    <td>Chest X-ray for pneumonia, ultrasound for UTI</td>
-                </tr>
-                <tr>
-                    <td><strong>Antibiotics</strong></td>
-                    <td>Appropriate agent, timing, duration</td>
-                </tr>
-                <tr>
-                    <td><strong>Procedures</strong></td>
-                    <td>I&D for purulent SSTI, source control</td>
-                </tr>
-                <tr>
-                    <td><strong>Process</strong></td>
-                    <td>Consult ordered, follow-up arranged</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="help-card">
-        <h2>Example: Pediatric CAP Bundle</h2>
+        <h2>Sepsis Bundle Details (CMS SEP-1)</h2>
+        <p>The Pediatric Sepsis Bundle is based on Surviving Sepsis Campaign guidelines:</p>
         <table class="help-table">
             <thead>
                 <tr>
                     <th>Element</th>
-                    <th>Type</th>
+                    <th>Time Window</th>
+                    <th>Data Source</th>
                     <th>Required</th>
-                    <th>Timing</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Blood culture obtained</td>
-                    <td>Culture</td>
-                    <td>Recommended</td>
-                    <td>Before antibiotics</td>
+                    <td>1 hour</td>
+                    <td>Lab orders (LOINC 600-7)</td>
+                    <td>Yes</td>
                 </tr>
                 <tr>
-                    <td>Chest X-ray performed</td>
-                    <td>Imaging</td>
-                    <td>Required</td>
-                    <td>Within 24h</td>
+                    <td>Lactate measured</td>
+                    <td>3 hours</td>
+                    <td>Lab results (LOINC 2524-7)</td>
+                    <td>Yes</td>
                 </tr>
                 <tr>
-                    <td>Appropriate empiric antibiotic</td>
-                    <td>Antibiotic</td>
-                    <td>Required</td>
-                    <td>Within 4h</td>
+                    <td>Antibiotics within 1h</td>
+                    <td>1 hour</td>
+                    <td>Medication Administration</td>
+                    <td>Yes</td>
                 </tr>
                 <tr>
-                    <td>Narrow-spectrum preferred</td>
-                    <td>Antibiotic</td>
-                    <td>Recommended</td>
-                    <td>-</td>
+                    <td>Fluid bolus (if shock)</td>
+                    <td>1 hour</td>
+                    <td>Medication Administration</td>
+                    <td>Conditional</td>
                 </tr>
                 <tr>
-                    <td>Duration &le;5 days (uncomplicated)</td>
-                    <td>Antibiotic</td>
-                    <td>Required</td>
-                    <td>At discharge</td>
+                    <td>Repeat lactate if &gt;2</td>
+                    <td>6 hours</td>
+                    <td>Lab results</td>
+                    <td>Conditional</td>
                 </tr>
                 <tr>
-                    <td>Follow-up arranged</td>
-                    <td>Process</td>
-                    <td>Recommended</td>
-                    <td>At discharge</td>
+                    <td>48h reassessment</td>
+                    <td>72 hours</td>
+                    <td>Clinical notes</td>
+                    <td>Yes</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <div class="help-card">
-        <h2>Dashboard Features (Coming Soon)</h2>
-        <h3>Aggregate Compliance View</h3>
-        <ul>
-            <li>Overall compliance rate (% of encounters meeting all required elements)</li>
-            <li>Trend over time (weekly/monthly)</li>
-            <li>Comparison by unit, service, or provider</li>
-            <li>Element-level breakdown (which elements are failing?)</li>
-        </ul>
-
-        <h3>Drill-Down Capabilities</h3>
-        <ul>
-            <li>View non-compliant encounters</li>
-            <li>Filter by missing element</li>
-            <li>Identify common failure patterns</li>
-            <li>Provider-level feedback reports</li>
-        </ul>
-    </div>
-
-    <div class="help-card">
-        <h2>Data Requirements</h2>
-        <p>To track guideline adherence, AEGIS needs access to:</p>
+        <h2>Febrile Infant Bundle Details (AAP 2021)</h2>
+        <p>The Febrile Infant Bundle implements the AAP Clinical Practice Guideline for well-appearing febrile infants 8-60 days old:</p>
         <table class="help-table">
             <thead>
                 <tr>
-                    <th>Data Type</th>
-                    <th>FHIR Resource</th>
-                    <th>Example Elements</th>
+                    <th>Age Group</th>
+                    <th>LP Required</th>
+                    <th>Antibiotics</th>
+                    <th>Disposition</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Diagnoses</td>
-                    <td>Condition</td>
-                    <td>ICD-10 codes for triggering guidelines</td>
+                    <td>8-21 days</td>
+                    <td>Yes (all)</td>
+                    <td>Yes - parenteral</td>
+                    <td>Admit all</td>
                 </tr>
                 <tr>
-                    <td>Antibiotics</td>
-                    <td>MedicationRequest/Administration</td>
-                    <td>Agent, timing, duration</td>
+                    <td>22-28 days, IMs abnormal</td>
+                    <td>Yes</td>
+                    <td>Yes - parenteral</td>
+                    <td>Admit</td>
                 </tr>
                 <tr>
-                    <td>Cultures</td>
-                    <td>ServiceRequest, Observation</td>
-                    <td>Blood culture, urine culture, timing</td>
+                    <td>22-28 days, IMs normal</td>
+                    <td>Consider</td>
+                    <td>Consider</td>
+                    <td>Home with close f/u acceptable</td>
                 </tr>
                 <tr>
-                    <td>Labs</td>
-                    <td>Observation</td>
-                    <td>Lactate, CBC, procalcitonin</td>
+                    <td>29-60 days, IMs abnormal</td>
+                    <td>Consider</td>
+                    <td>Yes</td>
+                    <td>Varies</td>
                 </tr>
                 <tr>
-                    <td>Imaging</td>
-                    <td>ImagingStudy</td>
-                    <td>CXR, CT, ultrasound</td>
-                </tr>
-                <tr>
-                    <td>Vitals</td>
-                    <td>Observation</td>
-                    <td>Temperature, heart rate, BP</td>
+                    <td>29-60 days, IMs normal</td>
+                    <td>Not required</td>
+                    <td>If UTI only</td>
+                    <td>Home observation acceptable</td>
                 </tr>
             </tbody>
         </table>
+        <p><strong>Inflammatory Marker Thresholds (Abnormal):</strong></p>
+        <ul>
+            <li>Procalcitonin &gt; 0.5 ng/mL</li>
+            <li>ANC &gt; 4,000/&mu;L</li>
+            <li>CRP &gt; 2.0 mg/dL</li>
+        </ul>
+        <p><strong>HSV Consideration:</strong> Required for infants 8-28 days. Consider acyclovir if maternal HSV history, vesicular rash, seizures, or CSF pleocytosis.</p>
+    </div>
+
+    <div class="help-card">
+        <h2>Running the Monitor</h2>
+        <h3>CLI Commands</h3>
+        <pre class="code-block">
+# Run monitor once (check all active episodes)
+cd /home/david/projects/aegis/guideline-adherence
+python -m src.runner --once
+
+# Run for specific bundle only
+python -m src.runner --once --bundle sepsis_peds_2024
+
+# Dry run (no alerts created)
+python -m src.runner --once --dry-run --verbose
+
+# Run as daemon (every 15 minutes)
+python -m src.runner --daemon --interval 15</pre>
+
+        <h3>Cron Setup</h3>
+        <pre class="code-block">
+# Add to crontab for automatic monitoring every 15 minutes
+*/15 * * * * cd /home/david/projects/aegis/guideline-adherence && \
+    python -m src.runner --once >> /var/log/aegis/guideline-adherence.log 2>&1</pre>
+    </div>
+
+    <div class="help-card">
+        <h2>Alert Content</h2>
+        <p>GUIDELINE_DEVIATION alerts appear in ASP Alerts and include:</p>
+        <ul>
+            <li><strong>Bundle Info:</strong> Which guideline bundle triggered the alert</li>
+            <li><strong>Element Details:</strong> Specific element that was not met</li>
+            <li><strong>Time Window:</strong> Required completion timeframe and when it expired</li>
+            <li><strong>Recommendation:</strong> Suggested action for ASP team</li>
+            <li><strong>Overall Adherence:</strong> Current compliance percentage for this episode</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>Dashboard Features</h2>
+        <h3>Compliance Metrics</h3>
+        <ul>
+            <li>Overall compliance rate by bundle</li>
+            <li>Element-level compliance breakdown</li>
+            <li>Trend over time (7/30/90 days)</li>
+            <li>Active episodes being monitored</li>
+        </ul>
+
+        <h3>Episode Detail View</h3>
+        <ul>
+            <li>Element timeline with status indicators</li>
+            <li>Completion timestamps and values</li>
+            <li>Deviation history and alerts</li>
+            <li>Bundle reference information</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>Joint Commission (JC) Compliance</h2>
+        <p>This module supports MM.09.01.01 EP 18-19 compliance by:</p>
+        <ul>
+            <li>Implementing evidence-based guidelines for infectious disease treatment</li>
+            <li>Real-time monitoring of antimicrobial stewardship protocols</li>
+            <li>Generating aggregate compliance metrics for quality improvement</li>
+            <li>Providing drill-down capability to individual episodes</li>
+            <li>Documenting interventions through the alert resolution workflow</li>
+        </ul>
     </div>
 
     <div class="help-card">
         <h2>References</h2>
         <ul>
-            <li>Bradley JS, et al. The Management of Community-Acquired Pneumonia in Infants and Children Older Than 3 Months of Age: Clinical Practice Guidelines by PIDS and IDSA. Clin Infect Dis. 2011.</li>
             <li>Surviving Sepsis Campaign. International Guidelines for Management of Sepsis and Septic Shock. 2021.</li>
+            <li>Bradley JS, et al. The Management of Community-Acquired Pneumonia in Infants and Children Older Than 3 Months of Age: PIDS and IDSA. Clin Infect Dis. 2011.</li>
             <li>The Joint Commission. MM.09.01.01 - Antimicrobial Stewardship Standard. Effective January 1, 2023.</li>
+            <li>CMS Severe Sepsis and Septic Shock Early Management Bundle (SEP-1).</li>
         </ul>
     </div>
 </div>
+
+<style>
+.help-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.help-card h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--color-gray-800);
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 0.5rem;
+}
+
+.help-card h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-gray-700);
+}
+
+.help-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.help-table th,
+.help-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.help-table th {
+    background: var(--color-gray-50);
+    font-weight: 600;
+}
+
+.workflow {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    background: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.step-content h4 {
+    margin: 0;
+}
+
+.step-content p {
+    margin: 0.25rem 0 0;
+    color: var(--color-gray-600);
+}
+
+.code-block {
+    background: var(--color-gray-800);
+    color: var(--color-gray-100);
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    font-size: 0.875rem;
+    font-family: monospace;
+    white-space: pre;
+    margin: 0.5rem 0;
+}
+</style>
 {% endblock %}

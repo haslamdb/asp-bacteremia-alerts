@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Compliance Metrics - Guideline Adherence - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Compliance Metrics</h1>
+    <a href="{{ url_for('guideline_adherence.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="filters">
+    <form method="get" class="filter-form">
+        <label>
+            Bundle:
+            <select name="bundle" onchange="this.form.submit()">
+                <option value="">All Bundles</option>
+                {% for bundle_id, bundle in bundles.items() %}
+                <option value="{{ bundle_id }}" {% if current_bundle == bundle_id %}selected{% endif %}>{{ bundle.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Time Period:
+            <select name="days" onchange="this.form.submit()">
+                <option value="7" {% if current_days == 7 %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if current_days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if current_days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="365" {% if current_days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </label>
+    </form>
+</div>
+
+{% if metrics %}
+<!-- Summary Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ metrics.episode_counts.total or 0 }}</div>
+        <div class="stat-label">Total Episodes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ metrics.episode_counts.active or 0 }}</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ metrics.episode_counts.complete or 0 }}</div>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
+<!-- Element Compliance Rates -->
+{% if metrics.element_rates %}
+<div class="section">
+    <h2>Element Compliance Rates</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Element</th>
+                <th>Compliance Rate</th>
+                <th>Assessments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for er in metrics.element_rates|sort(attribute='compliance_rate') %}
+            <tr>
+                <td>{{ er.element_name or er.element_id }}</td>
+                <td>
+                    <div class="compliance-bar">
+                        <div class="bar-fill {% if er.compliance_rate >= 90 %}success{% elif er.compliance_rate >= 70 %}warning{% else %}danger{% endif %}" style="width: {{ er.compliance_rate }}%"></div>
+                        <span class="bar-label">{{ er.compliance_rate }}%</span>
+                    </div>
+                </td>
+                <td>{{ er.total_assessed }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% else %}
+<div class="empty-state">
+    <p>No compliance data available for the selected filters.</p>
+</div>
+{% endif %}
+
+<!-- Per-Bundle Breakdown -->
+{% if bundle_metrics and not current_bundle %}
+<div class="section">
+    <h2>Compliance by Bundle</h2>
+    <div class="bundle-grid">
+        {% for bm in bundle_metrics %}
+        <a href="{{ url_for('guideline_adherence.bundle_detail', bundle_id=bm.bundle_id) }}" class="bundle-card">
+            <h3>{{ bm.bundle_name }}</h3>
+            {% if bm.metrics and bm.metrics.element_rates %}
+                {% set total_rate = namespace(sum=0, count=0) %}
+                {% for er in bm.metrics.element_rates %}
+                    {% set total_rate.sum = total_rate.sum + er.compliance_rate %}
+                    {% set total_rate.count = total_rate.count + 1 %}
+                {% endfor %}
+                {% set avg = (total_rate.sum / total_rate.count)|round(1) if total_rate.count > 0 else 0 %}
+                <div class="bundle-compliance {% if avg >= 90 %}success{% elif avg >= 70 %}warning{% else %}danger{% endif %}">
+                    {{ avg }}%
+                </div>
+            {% else %}
+                <div class="bundle-compliance">--</div>
+            {% endif %}
+            <div class="bundle-episodes">
+                {{ bm.metrics.episode_counts.total if bm.metrics else 0 }} episodes
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<style>
+.filters {
+    margin-bottom: 1.5rem;
+}
+
+.filter-form {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.filter-form label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-form select {
+    padding: 0.5rem;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-md);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.section {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.section h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--color-gray-600);
+    font-size: 0.875rem;
+}
+
+.compliance-bar {
+    position: relative;
+    height: 1.5rem;
+    background: var(--color-gray-100);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.bar-fill.success { background: var(--color-success); }
+.bar-fill.warning { background: var(--color-warning); }
+.bar-fill.danger { background: var(--color-danger); }
+
+.bar-label {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.bundle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.bundle-card {
+    display: block;
+    padding: 1.5rem;
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: inherit;
+    text-align: center;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.bundle-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.bundle-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    color: var(--color-gray-800);
+}
+
+.bundle-compliance {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+}
+
+.bundle-compliance.success { color: var(--color-success); }
+.bundle-compliance.warning { color: var(--color-warning); }
+.bundle-compliance.danger { color: var(--color-danger); }
+
+.bundle-episodes {
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    color: var(--color-gray-500);
+}
+</style>
+{% endblock %}

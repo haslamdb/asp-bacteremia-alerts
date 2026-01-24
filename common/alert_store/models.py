@@ -12,6 +12,7 @@ class AlertType(Enum):
     BACTEREMIA = "bacteremia"
     BROAD_SPECTRUM_USAGE = "broad_spectrum_usage"
     ABX_NO_INDICATION = "abx_no_indication"  # No documented indication for antibiotic
+    GUIDELINE_DEVIATION = "guideline_deviation"  # Guideline bundle element not met
     NHSN_CLABSI = "nhsn_clabsi"        # NHSN CLABSI candidate
     NHSN_SSI = "nhsn_ssi"              # NHSN SSI candidate
     NHSN_VAE = "nhsn_vae"              # NHSN VAE candidate
