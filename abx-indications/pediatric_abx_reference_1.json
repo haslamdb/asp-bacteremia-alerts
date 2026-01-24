@@ -1,0 +1,863 @@
+{
+  "metadata": {
+    "name": "Pediatric Antibiotic Indication Reference",
+    "version": "1.0.0",
+    "base_source": "Chua et al. BMJ 2019",
+    "description": "ICD-10 antibiotic indication classification with pediatric inpatient modifications",
+    "categories": {
+      "A": "Always appropriate - antibiotic indicated",
+      "S": "Sometimes appropriate - clinical judgment needed",
+      "N": "Never appropriate - antibiotic not indicated",
+      "P": "Prophylaxis indication",
+      "FN": "Febrile neutropenia"
+    }
+  },
+  "pediatric_inpatient_overrides": {
+    "R78.81": {
+      "category": "A",
+      "rationale": "Bacteremia requires treatment in inpatient setting"
+    },
+    "J69.0": {
+      "category": "S",
+      "rationale": "Aspiration pneumonitis often requires empiric antibiotics"
+    },
+    "J69.1": {
+      "category": "S",
+      "rationale": "Lipoid pneumonia may require antibiotics if superinfected"
+    },
+    "J69.8": {
+      "category": "S",
+      "rationale": "Aspiration pneumonitis - clinical judgment needed"
+    },
+    "K65.0": {
+      "category": "A",
+      "rationale": "Generalized acute peritonitis"
+    },
+    "K65.1": {
+      "category": "A",
+      "rationale": "Peritoneal abscess"
+    },
+    "K65.2": {
+      "category": "A",
+      "rationale": "Spontaneous bacterial peritonitis"
+    },
+    "K65.3": {
+      "category": "A",
+      "rationale": "Choleperitonitis"
+    },
+    "K65.4": {
+      "category": "A",
+      "rationale": "Sclerosing mesenteritis"
+    },
+    "K65.8": {
+      "category": "A",
+      "rationale": "Other peritonitis"
+    },
+    "K65.9": {
+      "category": "A",
+      "rationale": "Peritonitis, unspecified"
+    },
+    "K83.0": {
+      "category": "A",
+      "rationale": "Cholangitis requires antibiotics"
+    },
+    "K83.09": {
+      "category": "A",
+      "rationale": "Other cholangitis"
+    },
+    "J86.0": {
+      "category": "A",
+      "rationale": "Pyothorax with fistula"
+    },
+    "J86.9": {
+      "category": "A",
+      "rationale": "Pyothorax without fistula"
+    },
+    "T82.7XXA": {
+      "category": "A",
+      "rationale": "Infection of cardiac/vascular device - initial"
+    },
+    "T83.51XA": {
+      "category": "A",
+      "rationale": "Infection of urinary catheter - initial"
+    },
+    "T84.50XA": {
+      "category": "A",
+      "rationale": "Infection of joint prosthesis - initial"
+    },
+    "T85.79XA": {
+      "category": "A",
+      "rationale": "Infection of other internal prosthetic device - initial"
+    }
+  },
+  "febrile_neutropenia": {
+    "neutropenia_codes": [
+      "D70.8",
+      "D70.4",
+      "D70",
+      "D70.0",
+      "D70.2",
+      "D70.1",
+      "D70.3",
+      "D70.9"
+    ],
+    "fever_codes": [
+      "R50.81",
+      "R50.83",
+      "R50.2",
+      "R50.9",
+      "R50.82",
+      "R50.84",
+      "R50",
+      "R50.8"
+    ],
+    "logic": "If ANY neutropenia code + ANY fever code (or fever_present=True) \u2192 Category FN"
+  },
+  "surgical_prophylaxis": {
+    "33400": {
+      "procedure_name": "Ventricular septal defect repair",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 48,
+      "redosing_interval_hours": 4,
+      "special_considerations": "Vancomycin for MRSA colonization or institutional MRSA rates >10%"
+    },
+    "33405": {
+      "procedure_name": "Aortic valve replacement",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 48,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "33426": {
+      "procedure_name": "Mitral valve repair",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 48,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "33533": {
+      "procedure_name": "CABG with arterial graft",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 48,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "33945": {
+      "procedure_name": "Heart transplant",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin"
+      ],
+      "max_duration_hours": 48,
+      "redosing_interval_hours": null,
+      "special_considerations": "May extend based on transplant protocol"
+    },
+    "32480": {
+      "procedure_name": "Lobectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "ampicillin-sulbactam"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "32440": {
+      "procedure_name": "Pneumonectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "ampicillin-sulbactam"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "47562": {
+      "procedure_name": "Laparoscopic cholecystectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": "Single dose often sufficient for low-risk"
+    },
+    "47600": {
+      "procedure_name": "Open cholecystectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "cefoxitin",
+        "ampicillin-sulbactam"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "47100": {
+      "procedure_name": "Liver biopsy, wedge",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "47135": {
+      "procedure_name": "Liver transplant",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "piperacillin-tazobactam",
+        "ampicillin-sulbactam"
+      ],
+      "max_duration_hours": 48,
+      "redosing_interval_hours": null,
+      "special_considerations": "Follow transplant protocol; may need antifungal"
+    },
+    "44140": {
+      "procedure_name": "Colectomy, partial",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin + metronidazole",
+        "ertapenem",
+        "cefoxitin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": "Mechanical bowel prep + oral antibiotics may be added"
+    },
+    "44150": {
+      "procedure_name": "Colectomy, total",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin + metronidazole",
+        "ertapenem",
+        "cefoxitin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "44950": {
+      "procedure_name": "Appendectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefoxitin",
+        "cefazolin + metronidazole"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": "If perforated/gangrenous, treat as infection not prophylaxis"
+    },
+    "44960": {
+      "procedure_name": "Appendectomy for ruptured appendix",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [
+        "piperacillin-tazobactam",
+        "ceftriaxone + metronidazole"
+      ],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "TREATMENT indication, not prophylaxis - 5-7 days typical"
+    },
+    "45100": {
+      "procedure_name": "Rectal biopsy",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "45110": {
+      "procedure_name": "Proctectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin + metronidazole",
+        "ertapenem"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "43280": {
+      "procedure_name": "Laparoscopic fundoplication",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "43631": {
+      "procedure_name": "Gastrectomy, partial",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "50540": {
+      "procedure_name": "Pyeloplasty",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "TMP-SMX"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": "Culture urine preop; adjust based on culture"
+    },
+    "50220": {
+      "procedure_name": "Nephrectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "50360": {
+      "procedure_name": "Kidney transplant",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": "Follow transplant protocol"
+    },
+    "51040": {
+      "procedure_name": "Cystostomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "fluoroquinolone"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "52000": {
+      "procedure_name": "Cystourethroscopy",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [
+        "TMP-SMX",
+        "fluoroquinolone"
+      ],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Prophylaxis only if risk factors present"
+    },
+    "54150": {
+      "procedure_name": "Circumcision (surgical)",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "54640": {
+      "procedure_name": "Orchiopexy",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Consider single dose if prosthetic material used"
+    },
+    "55700": {
+      "procedure_name": "Prostate biopsy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "fluoroquinolone",
+        "TMP-SMX"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "27130": {
+      "procedure_name": "Total hip arthroplasty",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "27447": {
+      "procedure_name": "Total knee arthroplasty",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "27236": {
+      "procedure_name": "Open treatment of femoral fracture",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "22800": {
+      "procedure_name": "Spinal fusion, posterior",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": "Consider extending if hardware placed"
+    },
+    "22630": {
+      "procedure_name": "Spinal fusion with interbody technique",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "28296": {
+      "procedure_name": "Bunionectomy with implant",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "29881": {
+      "procedure_name": "Knee arthroscopy with meniscectomy",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Prophylaxis not routinely indicated for clean arthroscopy"
+    },
+    "61510": {
+      "procedure_name": "Craniectomy for tumor",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin (if MRSA risk)"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": 4,
+      "special_considerations": null
+    },
+    "61312": {
+      "procedure_name": "Craniectomy for hematoma",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "62223": {
+      "procedure_name": "VP shunt creation",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "vancomycin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": "Some centers use vancomycin routinely due to CoNS risk"
+    },
+    "63030": {
+      "procedure_name": "Laminotomy with discectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "63045": {
+      "procedure_name": "Laminectomy with facetectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "35301": {
+      "procedure_name": "Carotid endarterectomy",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "35656": {
+      "procedure_name": "Femoral-popliteal bypass",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "36558": {
+      "procedure_name": "Central venous catheter insertion",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Prophylaxis not indicated for line placement alone"
+    },
+    "36561": {
+      "procedure_name": "Port-a-cath insertion",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Consider single dose in immunocompromised"
+    },
+    "21310": {
+      "procedure_name": "Closed treatment nasal bone fracture",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "30520": {
+      "procedure_name": "Septoplasty",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Prophylaxis generally not indicated for clean nasal surgery"
+    },
+    "42820": {
+      "procedure_name": "Tonsillectomy with adenoidectomy",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "Antibiotics do not reduce infection rates"
+    },
+    "42821": {
+      "procedure_name": "Tonsillectomy with adenoidectomy, age <12",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "69436": {
+      "procedure_name": "Tympanostomy with tube insertion",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "31622": {
+      "procedure_name": "Bronchoscopy with biopsy",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "15734": {
+      "procedure_name": "Muscle flap",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "15756": {
+      "procedure_name": "Free muscle flap with microvascular anastomosis",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "43830": {
+      "procedure_name": "Gastrostomy tube placement",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "44127": {
+      "procedure_name": "Enterectomy for NEC/congenital anomaly",
+      "prophylaxis_indicated": false,
+      "recommended_agents": [
+        "ampicillin + gentamicin + metronidazole"
+      ],
+      "max_duration_hours": 0,
+      "redosing_interval_hours": null,
+      "special_considerations": "If for NEC, this is TREATMENT not prophylaxis"
+    },
+    "49491": {
+      "procedure_name": "Inguinal hernia repair, preterm infant",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": "Single dose typically sufficient"
+    },
+    "49500": {
+      "procedure_name": "Inguinal hernia repair, infant <6mo",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "43313": {
+      "procedure_name": "Esophagoplasty for tracheoesophageal fistula",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin",
+        "ampicillin-sulbactam"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    },
+    "44126": {
+      "procedure_name": "Enterectomy for atresia",
+      "prophylaxis_indicated": true,
+      "recommended_agents": [
+        "cefazolin + metronidazole",
+        "ampicillin-sulbactam"
+      ],
+      "max_duration_hours": 24,
+      "redosing_interval_hours": null,
+      "special_considerations": null
+    }
+  },
+  "medical_prophylaxis": {
+    "rheumatic_fever_secondary": {
+      "indication_name": "Secondary prophylaxis for rheumatic fever",
+      "recommended_agents": [
+        "penicillin V",
+        "penicillin G benzathine"
+      ],
+      "duration": "Until age 21 or 10 years post-episode (whichever longer)",
+      "icd10_codes": [
+        "I00",
+        "I01",
+        "I02",
+        "I05",
+        "I06",
+        "I07",
+        "I08",
+        "I09"
+      ],
+      "special_considerations": "Duration depends on cardiac involvement"
+    },
+    "sbp_prophylaxis": {
+      "indication_name": "SBP prophylaxis in cirrhosis",
+      "recommended_agents": [
+        "TMP-SMX",
+        "norfloxacin",
+        "ciprofloxacin"
+      ],
+      "duration": "Ongoing while indication persists",
+      "icd10_codes": [
+        "K70.31",
+        "K74.60",
+        "K74.69"
+      ],
+      "special_considerations": "For patients with ascites and prior SBP or GI bleed"
+    },
+    "uti_prophylaxis": {
+      "indication_name": "UTI prophylaxis (vesicoureteral reflux)",
+      "recommended_agents": [
+        "TMP-SMX",
+        "nitrofurantoin"
+      ],
+      "duration": "Per urology guidance",
+      "icd10_codes": [
+        "N13.70",
+        "N13.71",
+        "N13.72",
+        "N13.73"
+      ],
+      "special_considerations": "Controversial; shared decision making recommended"
+    },
+    "bite_wound_prophylaxis": {
+      "indication_name": "Bite wound prophylaxis",
+      "recommended_agents": [
+        "amoxicillin-clavulanate"
+      ],
+      "duration": "3-5 days",
+      "icd10_codes": [
+        "W53",
+        "W54",
+        "W55",
+        "W56",
+        "W57"
+      ],
+      "special_considerations": "For high-risk bites: cat, hand, face, immunocompromised"
+    },
+    "asplenia_prophylaxis": {
+      "indication_name": "Prophylaxis for asplenia",
+      "recommended_agents": [
+        "penicillin V",
+        "amoxicillin"
+      ],
+      "duration": "At least until age 5; may continue lifelong",
+      "icd10_codes": [
+        "D73.0",
+        "Q89.01",
+        "Z90.81"
+      ],
+      "special_considerations": "Critical in first 2 years post-splenectomy"
+    },
+    "sickle_cell_prophylaxis": {
+      "indication_name": "Penicillin prophylaxis for sickle cell",
+      "recommended_agents": [
+        "penicillin V"
+      ],
+      "duration": "Until at least age 5",
+      "icd10_codes": [
+        "D57.0",
+        "D57.1",
+        "D57.2"
+      ],
+      "special_considerations": "Continue beyond age 5 if history of invasive pneumococcal disease"
+    },
+    "endocarditis_prophylaxis": {
+      "indication_name": "Endocarditis prophylaxis",
+      "recommended_agents": [
+        "amoxicillin",
+        "ampicillin",
+        "cefazolin",
+        "clindamycin"
+      ],
+      "duration": "Single dose pre-procedure",
+      "icd10_codes": [
+        "Q20",
+        "Q21",
+        "Q22",
+        "Q23",
+        "I34",
+        "I35",
+        "I36",
+        "I37",
+        "Z95.2",
+        "Z95.3",
+        "Z95.4"
+      ],
+      "special_considerations": "Only for high-risk cardiac conditions + high-risk procedures"
+    }
+  },
+  "antifungal_indications": {
+    "B37.0": "Candidal stomatitis",
+    "B37.1": "Pulmonary candidiasis",
+    "B37.2": "Candidiasis of skin and nail",
+    "B37.3": "Candidiasis of vulva and vagina",
+    "B37.4": "Candidiasis of other urogenital sites",
+    "B37.5": "Candidal meningitis",
+    "B37.6": "Candidal endocarditis",
+    "B37.7": "Candidal sepsis",
+    "B37.8": "Candidiasis of other sites",
+    "B37.81": "Candidal esophagitis",
+    "B37.82": "Candidal enteritis",
+    "B37.83": "Candidal cheilitis",
+    "B37.84": "Candidal otitis externa",
+    "B37.89": "Other sites of candidiasis",
+    "B37.9": "Candidiasis, unspecified",
+    "B44.0": "Invasive pulmonary aspergillosis",
+    "B44.1": "Other pulmonary aspergillosis",
+    "B44.2": "Tonsillar aspergillosis",
+    "B44.7": "Disseminated aspergillosis",
+    "B44.8": "Other forms of aspergillosis",
+    "B44.81": "Allergic bronchopulmonary aspergillosis",
+    "B44.89": "Other forms of aspergillosis",
+    "B44.9": "Aspergillosis, unspecified",
+    "B45.0": "Pulmonary cryptococcosis",
+    "B45.1": "Cerebral cryptococcosis",
+    "B45.2": "Cutaneous cryptococcosis",
+    "B45.3": "Osseous cryptococcosis",
+    "B45.7": "Disseminated cryptococcosis",
+    "B46.0": "Pulmonary mucormycosis",
+    "B46.1": "Rhinocerebral mucormycosis",
+    "B46.2": "Gastrointestinal mucormycosis",
+    "B46.3": "Cutaneous mucormycosis",
+    "B46.4": "Disseminated mucormycosis",
+    "B46.5": "Mucormycosis, unspecified",
+    "B39.0": "Acute pulmonary histoplasmosis capsulati",
+    "B39.1": "Chronic pulmonary histoplasmosis capsulati",
+    "B39.2": "Pulmonary histoplasmosis capsulati, unspecified",
+    "B39.3": "Disseminated histoplasmosis capsulati",
+    "B38.0": "Acute pulmonary coccidioidomycosis",
+    "B38.1": "Chronic pulmonary coccidioidomycosis",
+    "B38.2": "Pulmonary coccidioidomycosis, unspecified",
+    "B38.3": "Cutaneous coccidioidomycosis",
+    "B38.4": "Coccidioidomycosis meningitis",
+    "B38.7": "Disseminated coccidioidomycosis",
+    "B40.0": "Acute pulmonary blastomycosis",
+    "B40.1": "Chronic pulmonary blastomycosis",
+    "B40.2": "Pulmonary blastomycosis, unspecified",
+    "B40.3": "Cutaneous blastomycosis",
+    "B40.7": "Disseminated blastomycosis",
+    "B59": "Pneumocystosis"
+  }
+}
