@@ -514,3 +514,136 @@ SELECT
 FROM cauti_candidate_details
 WHERE classification = 'cauti'
 GROUP BY strftime('%Y-%m', created_at);
+
+
+-- ============================================================
+-- CDI (Clostridioides difficile Infection) Tracking Tables
+-- ============================================================
+
+-- CDI Episodes - tracked CDI events for recurrence detection
+-- This table stores all confirmed CDI episodes for tracking recurrence
+CREATE TABLE IF NOT EXISTS cdi_episodes (
+    id TEXT PRIMARY KEY,
+    patient_id TEXT NOT NULL,
+    patient_mrn TEXT NOT NULL,
+    test_date TIMESTAMP NOT NULL,
+    test_type TEXT NOT NULL,  -- toxin_ab, pcr, naat, etc.
+    loinc_code TEXT,
+    specimen_day INTEGER NOT NULL,  -- Days since admission (day 1 = admission)
+    onset_type TEXT NOT NULL,  -- ho (healthcare-facility), co (community), co_hcfa
+    is_recurrent BOOLEAN DEFAULT 0,
+    prior_episode_id TEXT REFERENCES cdi_episodes(id),
+    admission_date TIMESTAMP,
+    discharge_date TIMESTAMP,
+    fhir_observation_id TEXT,
+    encounter_id TEXT,
+    location_code TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(patient_id, test_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cdi_episodes_patient ON cdi_episodes(patient_mrn);
+CREATE INDEX IF NOT EXISTS idx_cdi_episodes_test_date ON cdi_episodes(test_date);
+CREATE INDEX IF NOT EXISTS idx_cdi_episodes_onset_type ON cdi_episodes(onset_type);
+CREATE INDEX IF NOT EXISTS idx_cdi_episodes_encounter ON cdi_episodes(encounter_id);
+
+-- CDI Candidate Details - CDI-specific data linked to hai_candidates
+CREATE TABLE IF NOT EXISTS cdi_candidate_details (
+    id TEXT PRIMARY KEY,
+    candidate_id TEXT NOT NULL,
+    episode_id TEXT REFERENCES cdi_episodes(id),
+    test_type TEXT NOT NULL,
+    test_date TIMESTAMP NOT NULL,
+    loinc_code TEXT,
+    specimen_day INTEGER NOT NULL,  -- Days since admission
+    onset_type TEXT NOT NULL,  -- ho, co, co_hcfa
+    is_recurrent BOOLEAN DEFAULT 0,
+    days_since_last_cdi INTEGER,
+    prior_episode_date TIMESTAMP,
+    -- CO-HCFA tracking
+    recent_discharge_date TIMESTAMP,
+    days_since_prior_discharge INTEGER,
+    -- Clinical documentation
+    diarrhea_documented BOOLEAN DEFAULT 0,
+    treatment_initiated BOOLEAN DEFAULT 0,
+    treatment_type TEXT,  -- vancomycin, fidaxomicin, metronidazole
+    -- Classification
+    classification TEXT,  -- ho_cdi, co_cdi, co_hcfa_cdi, recurrent_ho, recurrent_co, duplicate, not_cdi
+    recurrence_status TEXT,  -- incident, recurrent, duplicate
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (candidate_id) REFERENCES hai_candidates(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cdi_details_candidate ON cdi_candidate_details(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_cdi_details_episode ON cdi_candidate_details(episode_id);
+CREATE INDEX IF NOT EXISTS idx_cdi_details_classification ON cdi_candidate_details(classification);
+CREATE INDEX IF NOT EXISTS idx_cdi_details_onset_type ON cdi_candidate_details(onset_type);
+CREATE INDEX IF NOT EXISTS idx_cdi_details_recurrence ON cdi_candidate_details(recurrence_status);
+
+-- CDI Rates View - monthly HO-CDI rates per 10,000 patient days
+-- NHSN reporting focuses on HO-CDI (Healthcare-Facility Onset)
+CREATE VIEW IF NOT EXISTS cdi_rates_monthly AS
+SELECT
+    strftime('%Y-%m', c.culture_date) as month,
+    COUNT(DISTINCT CASE WHEN d.onset_type = 'ho' AND c.status IN ('confirmed', 'pending_review', 'classified') THEN c.id END) as ho_cdi_count,
+    COUNT(DISTINCT CASE WHEN d.onset_type = 'co' AND c.status IN ('confirmed', 'pending_review', 'classified') THEN c.id END) as co_cdi_count,
+    COUNT(DISTINCT CASE WHEN d.onset_type = 'co_hcfa' AND c.status IN ('confirmed', 'pending_review', 'classified') THEN c.id END) as co_hcfa_count,
+    COUNT(DISTINCT CASE WHEN d.is_recurrent = 1 AND c.status IN ('confirmed', 'pending_review', 'classified') THEN c.id END) as recurrent_count,
+    COUNT(DISTINCT CASE WHEN c.status IN ('confirmed', 'pending_review', 'classified') THEN c.id END) as total_cdi_count
+FROM hai_candidates c
+JOIN cdi_candidate_details d ON c.id = d.candidate_id
+WHERE c.hai_type = 'cdi'
+  AND d.classification NOT IN ('duplicate', 'not_cdi', 'not_eligible')
+GROUP BY strftime('%Y-%m', c.culture_date);
+
+-- CDI by Onset Type View
+CREATE VIEW IF NOT EXISTS cdi_by_onset_type AS
+SELECT
+    onset_type,
+    recurrence_status,
+    COUNT(*) as count,
+    strftime('%Y-%m', created_at) as month
+FROM cdi_candidate_details
+WHERE classification NOT IN ('duplicate', 'not_cdi', 'not_eligible')
+GROUP BY onset_type, recurrence_status, strftime('%Y-%m', created_at);
+
+-- CDI by Location View - CDI counts by unit/location
+CREATE VIEW IF NOT EXISTS cdi_by_location AS
+SELECT
+    c.patient_id,
+    strftime('%Y-%m', c.culture_date) as month,
+    d.onset_type,
+    COUNT(DISTINCT c.id) as cdi_count,
+    COUNT(DISTINCT CASE WHEN d.onset_type = 'ho' THEN c.id END) as ho_count,
+    COUNT(DISTINCT CASE WHEN d.onset_type = 'co' THEN c.id END) as co_count,
+    COUNT(DISTINCT CASE WHEN d.onset_type = 'co_hcfa' THEN c.id END) as co_hcfa_count
+FROM hai_candidates c
+JOIN cdi_candidate_details d ON c.id = d.candidate_id
+WHERE c.hai_type = 'cdi'
+  AND d.classification NOT IN ('duplicate', 'not_cdi', 'not_eligible')
+GROUP BY c.patient_id, strftime('%Y-%m', c.culture_date), d.onset_type;
+
+-- CDI Recurrence Tracking View - for analyzing recurrence patterns
+CREATE VIEW IF NOT EXISTS cdi_recurrence_tracking AS
+SELECT
+    e1.patient_mrn,
+    e1.test_date as current_episode_date,
+    e1.onset_type as current_onset_type,
+    e2.test_date as prior_episode_date,
+    e2.onset_type as prior_onset_type,
+    CAST(julianday(e1.test_date) - julianday(e2.test_date) AS INTEGER) as days_between,
+    CASE
+        WHEN CAST(julianday(e1.test_date) - julianday(e2.test_date) AS INTEGER) <= 14 THEN 'duplicate'
+        WHEN CAST(julianday(e1.test_date) - julianday(e2.test_date) AS INTEGER) <= 56 THEN 'recurrent'
+        ELSE 'incident'
+    END as recurrence_status
+FROM cdi_episodes e1
+LEFT JOIN cdi_episodes e2 ON e1.patient_id = e2.patient_id
+    AND e2.test_date < e1.test_date
+    AND e2.test_date = (
+        SELECT MAX(e3.test_date)
+        FROM cdi_episodes e3
+        WHERE e3.patient_id = e1.patient_id
+          AND e3.test_date < e1.test_date
+    )
+ORDER BY e1.patient_mrn, e1.test_date;

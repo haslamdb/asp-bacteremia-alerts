@@ -18,10 +18,11 @@
             <li><strong>CAUTI</strong> - Catheter-Associated Urinary Tract Infections</li>
             <li><strong>SSI</strong> - Surgical Site Infections (Superficial, Deep, Organ/Space)</li>
             <li><strong>VAE</strong> - Ventilator-Associated Events (VAC, IVAC, Possible/Probable VAP)</li>
+            <li><strong>CDI</strong> - Clostridioides difficile Infections (HO-CDI, CO-CDI, CO-HCFA)</li>
         </ul>
         <p>The system uses a four-stage workflow:</p>
         <ol>
-            <li><strong>Rule-based screening</strong> - Identifies candidates (BSI + line for CLABSI; catheter + positive urine for CAUTI; procedure + infection signals for SSI; ventilator worsening for VAE)</li>
+            <li><strong>Rule-based screening</strong> - Identifies candidates (BSI + line for CLABSI; catheter + positive urine for CAUTI; procedure + infection signals for SSI; ventilator worsening for VAE; positive C. diff test for CDI)</li>
             <li><strong>LLM fact extraction</strong> - Extracts clinical facts from notes (symptoms, alternate sources, wound assessments)</li>
             <li><strong>Rules engine</strong> - Applies deterministic NHSN criteria to extracted facts</li>
             <li><strong>IP Review</strong> - <strong>ALL candidates</strong> go to IP for final decision</li>
@@ -76,6 +77,22 @@ python scripts/demo_ssi.py --scenario superficial
 python scripts/demo_ssi.py --scenario deep
 python scripts/demo_ssi.py --scenario organ-space
 python scripts/demo_ssi.py --scenario not-ssi</code></pre>
+
+        <h3>Create CDI Candidates</h3>
+        <p>Generate demo patients with CDI (C. difficile Infection) scenarios:</p>
+        <pre><code># Create one CDI + one Not CDI (random type)
+cd /home/david/projects/aegis
+python scripts/demo_cdi.py
+
+# Create all scenario types
+python scripts/demo_cdi.py --all
+
+# Create a specific scenario
+python scripts/demo_cdi.py --scenario ho-cdi
+python scripts/demo_cdi.py --scenario co-cdi
+python scripts/demo_cdi.py --scenario co-hcfa
+python scripts/demo_cdi.py --scenario recurrent
+python scripts/demo_cdi.py --scenario not-cdi</code></pre>
 
         <h3>Run the Full Pipeline</h3>
         <p>After creating demo data, run the HAI monitor to detect and classify candidates:</p>
@@ -295,6 +312,67 @@ python -m src.runner --full</code></pre>
             </tbody>
         </table>
         <p><em>Note: VAE detection requires access to ventilator parameter data (FiO2/PEEP) from the EHR.</em></p>
+    </div>
+
+    <div class="help-card">
+        <h2>CDI Demo Scenarios</h2>
+        <p>CDI (Clostridioides difficile Infection) detection follows NHSN LabID Event criteria with time-based onset classification:</p>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Command</th>
+                    <th>Specimen Day</th>
+                    <th>Key Evidence</th>
+                    <th>Classification</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>HO-CDI</strong></td>
+                    <td><code>--scenario ho-cdi</code></td>
+                    <td>Day 5</td>
+                    <td>Positive toxin A/B, unformed stool, >3 days after admission</td>
+                    <td><span class="badge badge-critical">HO-CDI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>CO-CDI</strong></td>
+                    <td><code>--scenario co-cdi</code></td>
+                    <td>Day 2</td>
+                    <td>Positive toxin A/B, unformed stool, ≤3 days after admission</td>
+                    <td><span class="badge badge-warning">CO-CDI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>CO-HCFA</strong></td>
+                    <td><code>--scenario co-hcfa</code></td>
+                    <td>Day 2</td>
+                    <td>CO-CDI + discharged from facility within prior 4 weeks</td>
+                    <td><span class="badge badge-warning">CO-HCFA</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Recurrent CDI</strong></td>
+                    <td><code>--scenario recurrent</code></td>
+                    <td>Day 5</td>
+                    <td>Positive test 30 days after prior CDI episode</td>
+                    <td><span class="badge badge-critical">Recurrent HO-CDI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Duplicate (Not Reported)</strong></td>
+                    <td><code>--scenario duplicate</code></td>
+                    <td>Day 3</td>
+                    <td>Positive test 10 days after prior CDI (within 14-day window)</td>
+                    <td><span class="badge badge-info">Duplicate</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Not CDI (GDH Only)</strong></td>
+                    <td><code>--scenario gdh-only</code></td>
+                    <td>Day 4</td>
+                    <td>GDH antigen positive, toxin negative (does not qualify)</td>
+                    <td><span class="badge badge-success">Not CDI</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <p><em>Note: CDI classification is time-based. Day 1 = admission date. HO-CDI = specimen day >3. CO-CDI = specimen day ≤3.</em></p>
     </div>
 
     <div class="help-card">
@@ -574,6 +652,122 @@ python -m src.runner --full</code></pre>
     </div>
 
     <div class="help-card">
+        <h2>NHSN CDI Criteria Quick Reference</h2>
+
+        <h3>CDI LabID Event Definition</h3>
+        <p>A positive laboratory test result for:</p>
+        <ul>
+            <li>C. difficile toxin A and/or B, OR</li>
+            <li>Toxin-producing C. difficile by culture or PCR/NAAT</li>
+        </ul>
+        <p>On an <strong>unformed stool specimen</strong> (including ostomy collections).</p>
+        <p><strong>Important:</strong> GDH (glutamate dehydrogenase) antigen-only results do NOT qualify as a LabID event.</p>
+
+        <h3>Onset Classification</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Classification</th>
+                    <th>Specimen Day</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>HO-CDI</strong></td>
+                    <td>Day 4+ (&gt;3 days)</td>
+                    <td>Healthcare-Facility-Onset: Specimen collected &gt;3 days after admission</td>
+                </tr>
+                <tr>
+                    <td><strong>CO-CDI</strong></td>
+                    <td>Days 1-3 (≤3 days)</td>
+                    <td>Community-Onset: Specimen collected ≤3 days after admission</td>
+                </tr>
+                <tr>
+                    <td><strong>CO-HCFA</strong></td>
+                    <td>Days 1-3</td>
+                    <td>Community-Onset Healthcare Facility-Associated: CO-CDI with discharge from any facility within prior 4 weeks</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><em>Day 1 = facility admission date</em></p>
+
+        <h3>Recurrence Classification</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Days Since Last CDI Event</th>
+                    <th>Classification</th>
+                    <th>Reporting</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>≤14 days</td>
+                    <td>Duplicate</td>
+                    <td>Not reported (same episode)</td>
+                </tr>
+                <tr>
+                    <td>15-56 days</td>
+                    <td>Recurrent</td>
+                    <td>Reported as recurrent CDI</td>
+                </tr>
+                <tr>
+                    <td>&gt;56 days</td>
+                    <td>New Incident</td>
+                    <td>Reported as new CDI event</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Test Type Eligibility</h3>
+        <p>For multi-step testing algorithms, the <strong>last test performed</strong> determines eligibility:</p>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Test Type</th>
+                    <th>Qualifies for LabID Event</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Toxin A/B EIA</td>
+                    <td><span class="badge badge-success">Yes</span> (if positive)</td>
+                </tr>
+                <tr>
+                    <td>PCR/NAAT</td>
+                    <td><span class="badge badge-success">Yes</span> (if positive)</td>
+                </tr>
+                <tr>
+                    <td>Toxigenic culture</td>
+                    <td><span class="badge badge-success">Yes</span> (if positive)</td>
+                </tr>
+                <tr>
+                    <td>GDH antigen only</td>
+                    <td><span class="badge badge-critical">No</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Specimen Requirements</h3>
+        <ul>
+            <li><strong>Unformed stool only</strong>: Specimen must conform to container shape (Bristol stool types 5-7)</li>
+            <li><strong>Formed stool excluded</strong>: Solid stool specimens do not qualify</li>
+            <li><strong>Ostomy specimens</strong>: Acceptable if stool is unformed</li>
+            <li><strong>Rectal swabs</strong>: Generally not acceptable for CDI surveillance</li>
+        </ul>
+
+        <h3>Common LOINC Codes for C. diff Testing</h3>
+        <ul>
+            <li><strong>34713-8</strong>: C. difficile toxin A</li>
+            <li><strong>34714-6</strong>: C. difficile toxin B</li>
+            <li><strong>34712-0</strong>: C. difficile toxin A+B</li>
+            <li><strong>82197-9</strong>: C. difficile toxin B gene (PCR)</li>
+            <li><strong>80685-5</strong>: C. difficile toxin genes (NAAT)</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
         <h2>LLM-Assisted Classification</h2>
         <p>The system uses a two-stage approach: <strong>LLM extraction</strong> followed by <strong>rules engine</strong>.</p>
 
@@ -650,6 +844,7 @@ ollama serve</code></pre>
 | demo_clabsi.py    |     |  Server :8081     |
 | demo_ssi.py       |     |                   |
 | demo_vae.py       |     |                   |
+| demo_cdi.py       |     |                   |
 +-------------------+     +---------+---------+
                                     |
                                     v
@@ -659,15 +854,15 @@ ollama serve</code></pre>
                          |   Screening)      |
                          +---------+---------+
                                    |
-       +---------------+---------------+---------------+---------------+
-       |               |               |               |               |
-+-------------+ +-------------+ +-------------+ +-------------+
-|CLABSI       | |CAUTI        | | SSI         | | VAE         |
-|Detector     | |Detector     | | Detector    | | Detector    |
-|(BSI + Line) | |(Cath + UCx) | | (Procedure) | | (Vent Params)|
-+-------------+ +-------------+ +-------------+ +-------------+
-       |               |               |               |
-       +---------------+---------------+---------------+
+       +----------+----------+----------+----------+----------+
+       |          |          |          |          |          |
++----------+ +----------+ +----------+ +----------+ +----------+
+|CLABSI    | |CAUTI     | |SSI       | |VAE       | |CDI       |
+|Detector  | |Detector  | |Detector  | |Detector  | |Detector  |
+|(BSI+Line)| |(Cath+UCx)| |(Procedure| |(Vent     | |(C.diff   |
++----------+ +----------+ +----------+ +----------+ +----------+
+       |          |          |          |          |
+       +----------+----------+----------+----------+
                                    |
               +--------------------+--------------------+
               v                                        v

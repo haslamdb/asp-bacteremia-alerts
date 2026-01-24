@@ -5,6 +5,7 @@ from .clabsi import CLABSICandidateDetector
 from .ssi import SSICandidateDetector
 from .vae import VAECandidateDetector
 from .cauti import CAUTICandidateDetector
+from .cdi import CDICandidateDetector
 
 __all__ = [
     "BaseCandidateDetector",
@@ -12,4 +13,5 @@ __all__ = [
     "SSICandidateDetector",
     "VAECandidateDetector",
     "CAUTICandidateDetector",
+    "CDICandidateDetector",
 ]

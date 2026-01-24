@@ -63,6 +63,19 @@ from .cauti_schemas import (
     CatheterStatusExtraction,
 )
 from .cauti_engine import CAUTIRulesEngine
+from .cdi_schemas import (
+    CDIClassification,
+    CDIOnsetType,
+    CDIRecurrenceStatus,
+    CDIExtraction,
+    CDIStructuredData,
+    CDIClassificationResult,
+    DiarrheaExtraction,
+    CDIHistoryExtraction,
+    CDITreatmentExtraction,
+    CDIPriorEpisode,
+)
+from .cdi_engine import CDIRulesEngine
 
 __all__ = [
     # CLABSI
@@ -112,4 +125,16 @@ __all__ = [
     "UrineCultureExtraction",
     "CatheterStatusExtraction",
     "CAUTIRulesEngine",
+    # CDI
+    "CDIClassification",
+    "CDIOnsetType",
+    "CDIRecurrenceStatus",
+    "CDIExtraction",
+    "CDIStructuredData",
+    "CDIClassificationResult",
+    "DiarrheaExtraction",
+    "CDIHistoryExtraction",
+    "CDITreatmentExtraction",
+    "CDIPriorEpisode",
+    "CDIRulesEngine",
 ]

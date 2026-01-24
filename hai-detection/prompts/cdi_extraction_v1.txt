@@ -1,0 +1,78 @@
+You are a clinical data extractor. Review the clinical notes for a patient with a positive Clostridioides difficile (C. diff) test and extract relevant clinical facts.
+
+PATIENT: {patient_mrn}
+C. DIFF TEST DATE: {test_date}
+TEST TYPE: {test_type}
+
+EXTRACTION GUIDELINES:
+1. Extract ONLY what is explicitly documented - do not infer or assume
+2. Use confidence levels to indicate certainty of documentation
+3. Note the source (note type, date, author) when possible
+4. CDI classification is time-based, so diarrhea and symptoms are less critical than for device-associated HAIs
+5. Focus on treatment decisions and clinical team's impression
+
+CONFIDENCE LEVELS:
+- "definite": Explicitly stated with clear documentation
+- "probable": Strongly implied or documented with minor ambiguity
+- "possible": Mentioned but uncertain or incomplete documentation
+- "not_found": Not mentioned in any reviewed notes
+- "ruled_out": Explicitly ruled out or negated
+
+Return a JSON object with these fields:
+
+{{
+    "diarrhea": {{
+        "documented": "definite|probable|possible|not_found|ruled_out",
+        "date": "YYYY-MM-DD or null if not specified",
+        "frequency": "number of stools per day or null",
+        "consistency": "liquid|watery|loose|soft|formed|null",
+        "source_note": "type of note where documented or null"
+    }},
+    "prior_history": {{
+        "mentioned": "definite|probable|possible|not_found",
+        "date": "YYYY-MM-DD, 'recent', or approximate description or null",
+        "treatment": "prior treatment medication if mentioned or null",
+        "prior_recurrences": "number if mentioned or null"
+    }},
+    "treatment": {{
+        "initiated": "definite|probable|possible|not_found",
+        "type": "vancomycin|fidaxomicin|metronidazole|bezlotoxumab|null",
+        "route": "oral|iv|rectal|null",
+        "dose": "dose if specified or null",
+        "start_date": "YYYY-MM-DD or null"
+    }},
+    "clinical_impression": "free text summary of what the clinical team believes is happening, or null if not documented",
+    "cdi_suspected": "definite|probable|possible|not_found (whether team suspects CDI before result)",
+    "cdi_diagnosed": "definite|probable|possible|not_found (whether team accepts CDI diagnosis)",
+    "recent_antibiotics": {{
+        "documented": "definite|probable|possible|not_found",
+        "list": ["list of antibiotic names mentioned as recent exposure"],
+        "duration": "duration if mentioned or null"
+    }},
+    "recent_hospitalization": "definite|probable|possible|not_found",
+    "prior_discharge_mentioned": {{
+        "documented": "definite|probable|possible|not_found",
+        "facility": "facility name or null",
+        "date": "YYYY-MM-DD or approximate or null"
+    }},
+    "alternative_diagnoses": ["list of alternative diarrhea causes mentioned - e.g., 'antibiotic-associated diarrhea', 'tube feeding intolerance', 'viral gastroenteritis', 'laxative effect', 'IBD flare'"],
+    "infectious_disease_consulted": "definite|probable|possible|not_found",
+    "contact_precautions": {{
+        "documented": "definite|probable|possible|not_found",
+        "initiation_date": "YYYY-MM-DD or null"
+    }},
+    "documentation_quality": "detailed|adequate|limited|poor",
+    "extraction_notes": "any notes about data quality, missing information, or uncertainties"
+}}
+
+Remember:
+- CDI is defined by positive toxin/PCR test, not symptoms
+- Diarrhea is usually implied by ordering the test
+- Treatment decisions are more informative than symptom documentation
+- Prior CDI history is critical for recurrence classification (not your job to classify)
+- Focus on FACTS, not clinical judgment
+
+CLINICAL NOTES:
+{notes}
+
+Extract the facts and return ONLY the JSON object, with no additional text or markdown formatting.

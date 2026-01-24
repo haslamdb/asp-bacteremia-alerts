@@ -21,8 +21,8 @@ from .models import (
     CandidateStatus,
     ClassificationDecision,
 )
-from .candidates import CLABSICandidateDetector, SSICandidateDetector, VAECandidateDetector, CAUTICandidateDetector
-from .classifiers import CLABSIClassifierV2, SSIClassifierV2, VAEClassifier, CAUTIClassifier
+from .candidates import CLABSICandidateDetector, SSICandidateDetector, VAECandidateDetector, CAUTICandidateDetector, CDICandidateDetector
+from .classifiers import CLABSIClassifierV2, SSIClassifierV2, VAEClassifier, CAUTIClassifier, CDIClassifier
 from .notes.retriever import NoteRetriever
 
 logger = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ class HAIMonitor:
             HAIType.SSI: SSICandidateDetector(),
             HAIType.VAE: VAECandidateDetector(),
             HAIType.CAUTI: CAUTICandidateDetector(),
+            HAIType.CDI: CDICandidateDetector(),
         }
 
         # Initialize classifiers and note retriever (lazy-loaded)
@@ -63,7 +64,7 @@ class HAIMonitor:
         # Track processed cultures to avoid duplicates within session
         self._processed_cultures: set[str] = set()
 
-    def get_classifier(self, hai_type: HAIType) -> CLABSIClassifierV2 | SSIClassifierV2 | VAEClassifier:
+    def get_classifier(self, hai_type: HAIType) -> CLABSIClassifierV2 | SSIClassifierV2 | VAEClassifier | CDIClassifier:
         """Get classifier for the specified HAI type (lazy-loaded).
 
         Args:
@@ -81,6 +82,8 @@ class HAIMonitor:
                 self._classifiers[hai_type] = VAEClassifier(db=self.db)
             elif hai_type == HAIType.CAUTI:
                 self._classifiers[hai_type] = CAUTIClassifier()
+            elif hai_type == HAIType.CDI:
+                self._classifiers[hai_type] = CDIClassifier()
             else:
                 # Default to CLABSI classifier for other types for now
                 logger.warning(f"No specific classifier for {hai_type}, using CLABSI")
@@ -213,6 +216,9 @@ class HAIMonitor:
         elif candidate.hai_type == HAIType.CAUTI:
             alert_type = AlertType.NHSN_CAUTI
             title = f"CAUTI Candidate: {candidate.patient.name or candidate.patient.mrn}"
+        elif candidate.hai_type == HAIType.CDI:
+            alert_type = AlertType.NHSN_CDI
+            title = f"CDI Candidate: {candidate.patient.name or candidate.patient.mrn}"
         else:
             alert_type = AlertType.NHSN_CLABSI
             title = f"CLABSI Candidate: {candidate.patient.name or candidate.patient.mrn}"
@@ -252,6 +258,17 @@ class HAIMonitor:
             else:
                 content["catheter_days"] = candidate.device_days_at_culture
                 content["catheter_type"] = candidate.device_info.device_type if candidate.device_info else None
+        elif candidate.hai_type == HAIType.CDI:
+            cdi_data = getattr(candidate, "_cdi_data", None)
+            if cdi_data:
+                content["test_type"] = cdi_data.test_result.test_type
+                content["test_date"] = cdi_data.test_result.test_date.isoformat()
+                content["specimen_day"] = cdi_data.specimen_day
+                content["onset_type"] = cdi_data.onset_type
+                content["is_recurrent"] = cdi_data.is_recurrent
+                content["is_duplicate"] = cdi_data.is_duplicate
+                content["days_since_last_cdi"] = cdi_data.days_since_last_cdi
+                content["classification"] = cdi_data.classification
         else:
             content["device_days"] = candidate.device_days_at_culture
             content["device_type"] = candidate.device_info.device_type if candidate.device_info else None
@@ -312,6 +329,31 @@ class HAIMonitor:
                 if candidate.device_days_at_culture:
                     parts.append(f"with catheter in place {candidate.device_days_at_culture} days")
                 return " ".join(parts)
+        elif candidate.hai_type == HAIType.CDI:
+            cdi_data = getattr(candidate, "_cdi_data", None)
+            if cdi_data:
+                # Onset type display
+                onset_display = {
+                    "ho": "HO-CDI",
+                    "co": "CO-CDI",
+                    "co_hcfa": "CO-HCFA-CDI",
+                }
+                onset = onset_display.get(cdi_data.onset_type, cdi_data.onset_type.upper())
+
+                parts = [f"Positive C. diff {cdi_data.test_result.test_type}"]
+                parts.append(f"specimen day {cdi_data.specimen_day}")
+                parts.append(f"({onset})")
+
+                if cdi_data.is_recurrent:
+                    parts.append(f"RECURRENT ({cdi_data.days_since_last_cdi} days since last)")
+                elif cdi_data.is_duplicate:
+                    parts.append("DUPLICATE")
+                else:
+                    parts.append("INCIDENT")
+
+                return ", ".join(parts)
+            else:
+                return "Positive C. difficile test detected"
         else:
             # CLABSI summary
             parts = [
@@ -481,6 +523,72 @@ Catheter Information:
 Symptom documentation requires clinical review.
 
 This candidate requires IP review.
+
+Review in Dashboard: {Config.DASHBOARD_BASE_URL}/hai-detection/candidates/{candidate.id}
+"""
+            elif candidate.hai_type == HAIType.CDI:
+                # CDI-specific email
+                cdi_data = getattr(candidate, "_cdi_data", None)
+                subject = f"New CDI Candidate: {candidate.patient.mrn} - {cdi_data.onset_type.upper() if cdi_data else 'C. diff Positive'}"
+                if cdi_data:
+                    # Onset type display
+                    onset_display = {
+                        "ho": "Healthcare-Facility Onset (HO-CDI)",
+                        "co": "Community Onset (CO-CDI)",
+                        "co_hcfa": "Community Onset, Healthcare Facility-Associated (CO-HCFA)",
+                    }
+                    onset = onset_display.get(cdi_data.onset_type, cdi_data.onset_type.upper())
+
+                    recurrence_status = "INCIDENT"
+                    if cdi_data.is_recurrent:
+                        recurrence_status = f"RECURRENT ({cdi_data.days_since_last_cdi} days since last event)"
+                    elif cdi_data.is_duplicate:
+                        recurrence_status = "DUPLICATE (within 14-day window, not reportable)"
+
+                    body = f"""
+New CDI Candidate Detected (Clostridioides difficile Infection)
+
+Patient Information:
+  - Name: {candidate.patient.name or 'Unknown'}
+  - MRN: {candidate.patient.mrn}
+  - Location: {candidate.patient.location or 'Unknown'}
+
+C. difficile Test:
+  - Test Type: {cdi_data.test_result.test_type}
+  - Result: {cdi_data.test_result.result.upper()}
+  - Test Date: {cdi_data.test_result.test_date.strftime('%Y-%m-%d %H:%M')}
+
+Classification:
+  - Specimen Day: {cdi_data.specimen_day} (Day 1 = admission)
+  - Onset Type: {onset}
+  - Recurrence Status: {recurrence_status}
+
+Admission Information:
+  - Admission Date: {cdi_data.admission_date.strftime('%Y-%m-%d') if cdi_data.admission_date else 'Unknown'}
+
+NHSN CDI LabID Criteria:
+  - Positive toxin/PCR test: Yes
+  - Onset classification: {onset}
+  - Specimen day > 3: {'Yes (HO-CDI)' if cdi_data.specimen_day > 3 else 'No (CO-CDI)'}
+
+This candidate requires IP review.
+
+Review in Dashboard: {Config.DASHBOARD_BASE_URL}/hai-detection/candidates/{candidate.id}
+"""
+                else:
+                    body = f"""
+New CDI Candidate Detected (Clostridioides difficile Infection)
+
+Patient Information:
+  - Name: {candidate.patient.name or 'Unknown'}
+  - MRN: {candidate.patient.mrn}
+  - Location: {candidate.patient.location or 'Unknown'}
+
+C. difficile Test:
+  - Result: Positive
+  - Test Date: {candidate.culture.collection_date.strftime('%Y-%m-%d %H:%M')}
+
+This candidate requires IP review to determine onset classification.
 
 Review in Dashboard: {Config.DASHBOARD_BASE_URL}/hai-detection/candidates/{candidate.id}
 """

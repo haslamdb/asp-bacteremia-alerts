@@ -17,6 +17,7 @@ class HAIType(Enum):
     CAUTI = "cauti"    # Catheter-Associated UTI
     SSI = "ssi"        # Surgical Site Infection
     VAE = "vae"        # Ventilator-Associated Event
+    CDI = "cdi"        # Clostridioides difficile Infection
 
 
 class CandidateStatus(Enum):
@@ -719,4 +720,160 @@ class CAUTICandidate:
             "cva_tenderness": self.cva_tenderness,
             "classification": self.classification,
             "fever_eligible_per_age_rule": self.fever_eligible_per_age_rule,
+        }
+
+
+# ============================================================
+# Clostridioides difficile Infection (CDI) Models
+# ============================================================
+
+@dataclass
+class CDITestResult:
+    """C. difficile test result from laboratory.
+
+    NHSN CDI LabID Event criteria:
+    - Positive C. difficile toxin A and/or B test result, OR
+    - Detection of toxin-producing C. difficile organism by culture/PCR
+    - Specimen must be unformed stool (including ostomy)
+    - Antigen-only results (GDH) do NOT qualify
+    """
+    fhir_id: str
+    patient_id: str
+    test_date: datetime
+    test_type: str  # toxin_ab, toxin_a, toxin_b, pcr, naat, culture_toxigenic
+    result: str  # positive, negative
+    loinc_code: str | None = None
+    specimen_type: str | None = None  # stool, ostomy
+    is_formed_stool: bool = False  # If True, does not qualify for CDI
+    encounter_id: str | None = None
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON storage."""
+        return {
+            "fhir_id": self.fhir_id,
+            "patient_id": self.patient_id,
+            "test_date": self.test_date.isoformat(),
+            "test_type": self.test_type,
+            "result": self.result,
+            "loinc_code": self.loinc_code,
+            "specimen_type": self.specimen_type,
+            "is_formed_stool": self.is_formed_stool,
+            "encounter_id": self.encounter_id,
+        }
+
+
+@dataclass
+class CDIEpisode:
+    """A CDI episode for tracking recurrence.
+
+    NHSN Recurrence Rules:
+    - ≤14 days since last event: Duplicate (not reported)
+    - 15-56 days since last event: Recurrent
+    - >56 days since last event: New Incident
+    """
+    id: str
+    patient_id: str
+    test_date: datetime
+    test_type: str
+    onset_type: str  # ho (healthcare-facility onset), co (community onset), co_hcfa (CO-HCFA)
+    is_recurrent: bool = False
+    prior_episode_id: str | None = None
+    admission_date: datetime | None = None
+    discharge_date: datetime | None = None
+    fhir_observation_id: str | None = None
+    specimen_day: int | None = None  # Days since admission (day 1 = admission)
+    created_at: datetime = field(default_factory=datetime.now)
+
+    def days_since(self, reference_date: datetime) -> int:
+        """Calculate days since this episode."""
+        # Normalize both dates to naive for comparison
+        ref = reference_date.replace(tzinfo=None) if reference_date.tzinfo else reference_date
+        test = self.test_date.replace(tzinfo=None) if self.test_date.tzinfo else self.test_date
+        delta = ref - test
+        return delta.days
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON storage."""
+        return {
+            "id": self.id,
+            "patient_id": self.patient_id,
+            "test_date": self.test_date.isoformat(),
+            "test_type": self.test_type,
+            "onset_type": self.onset_type,
+            "is_recurrent": self.is_recurrent,
+            "prior_episode_id": self.prior_episode_id,
+            "admission_date": self.admission_date.isoformat() if self.admission_date else None,
+            "discharge_date": self.discharge_date.isoformat() if self.discharge_date else None,
+            "fhir_observation_id": self.fhir_observation_id,
+            "specimen_day": self.specimen_day,
+            "created_at": self.created_at.isoformat(),
+        }
+
+    def to_db_row(self) -> dict:
+        """Convert to database row format."""
+        return self.to_dict()
+
+
+@dataclass
+class CDICandidate:
+    """Extended candidate info specific to CDI.
+
+    Links to an HAICandidate but contains CDI-specific fields
+    including timing-based classification and recurrence tracking.
+
+    NHSN CDI Classification (Time-Based):
+    - Healthcare-Facility-Onset (HO-CDI): Specimen collected >3 days after admission
+    - Community-Onset (CO-CDI): Specimen collected ≤3 days after admission
+    - Community-Onset Healthcare Facility-Associated (CO-HCFA): CO-CDI with discharge
+      from any inpatient facility within prior 4 weeks
+    """
+    candidate_id: str
+    test_result: CDITestResult
+    admission_date: datetime
+    specimen_day: int  # Days since admission (day 1 = admission day)
+    onset_type: str  # ho, co, co_hcfa
+
+    # Recurrence tracking
+    prior_episodes: list[CDIEpisode] = field(default_factory=list)
+    days_since_last_cdi: int | None = None
+    is_recurrent: bool = False
+    is_duplicate: bool = False  # Within 14-day window, should not be reported
+
+    # Additional context
+    recent_discharge_date: datetime | None = None  # For CO-HCFA detection
+    recent_discharge_facility: str | None = None
+
+    # Clinical context (from extraction)
+    diarrhea_documented: bool = False
+    treatment_initiated: bool = False
+    treatment_type: str | None = None  # vancomycin, fidaxomicin, metronidazole
+
+    # Classification result
+    classification: str | None = None  # ho_cdi, co_cdi, co_hcfa_cdi, recurrent_ho, recurrent_co, duplicate, not_cdi
+
+    def get_onset_display(self) -> str:
+        """Get display name for onset type."""
+        display_map = {
+            "ho": "Healthcare-Facility Onset (HO-CDI)",
+            "co": "Community Onset (CO-CDI)",
+            "co_hcfa": "Community Onset, Healthcare Facility-Associated (CO-HCFA-CDI)",
+        }
+        return display_map.get(self.onset_type, self.onset_type)
+
+    def to_db_row(self) -> dict:
+        """Convert to database row format."""
+        return {
+            "candidate_id": self.candidate_id,
+            "test_type": self.test_result.test_type,
+            "test_date": self.test_result.test_date.isoformat(),
+            "specimen_day": self.specimen_day,
+            "onset_type": self.onset_type,
+            "is_recurrent": self.is_recurrent,
+            "days_since_last_cdi": self.days_since_last_cdi,
+            "prior_episode_date": self.prior_episodes[0].test_date.isoformat() if self.prior_episodes else None,
+            "diarrhea_documented": self.diarrhea_documented,
+            "treatment_initiated": self.treatment_initiated,
+            "treatment_type": self.treatment_type,
+            "classification": self.classification,
+            "recent_discharge_date": self.recent_discharge_date.isoformat() if self.recent_discharge_date else None,
         }

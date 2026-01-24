@@ -15,7 +15,7 @@ The AEGIS dashboard is organized into four main sections accessible from the lan
 | Section | URL | Description |
 |---------|-----|-------------|
 | **ASP Alerts** | `/asp-alerts/` | Antimicrobial stewardship alerts (bacteremia, usage monitoring) |
-| **HAI Detection** | `/hai-detection/` | CLABSI candidate screening and IP review workflow |
+| **HAI Detection** | `/hai-detection/` | HAI candidate screening (CLABSI, CAUTI, SSI, VAE, CDI) and IP review workflow |
 | **NHSN Reporting** | `/nhsn-reporting/` | AU, AR, and HAI data aggregation with NHSN submission |
 | **Dashboards** | `/dashboards/` | Analytics dashboards (coming soon) |
 
@@ -28,7 +28,7 @@ The AEGIS dashboard is organized into four main sections accessible from the lan
 - **Reports** - Alert volume, resolution times, resolution breakdown
 
 ### HAI Detection (`/hai-detection/`)
-- **Dashboard** - HAI candidates (CLABSI, CAUTI, SSI, VAE) awaiting IP review
+- **Dashboard** - HAI candidates (CLABSI, CAUTI, SSI, VAE, CDI) awaiting IP review
 - **History** - Resolved candidates (confirmed and rejected)
 - **Reports** - HAI analytics and LLM override stats
 - **Supported HAI Types**:
@@ -36,6 +36,7 @@ The AEGIS dashboard is organized into four main sections accessible from the lan
   - CAUTI - Catheter-Associated Urinary Tract Infections
   - SSI - Surgical Site Infections (Superficial, Deep, Organ/Space)
   - VAE - Ventilator-Associated Events (VAC, IVAC, Possible/Probable VAP)
+  - CDI - Clostridioides difficile Infections (HO-CDI, CO-CDI, CO-HCFA)
 
 ### NHSN Reporting (`/nhsn-reporting/`)
 - **Dashboard** - Overview with AU, AR, and HAI summaries

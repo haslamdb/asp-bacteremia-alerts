@@ -12,5 +12,6 @@ from .clabsi_extractor import CLABSIExtractor
 from .ssi_extractor import SSIExtractor
 from .vae_extractor import VAEExtractor
 from .cauti_extractor import CAUTIExtractor
+from .cdi_extractor import CDIExtractor
 
-__all__ = ["CLABSIExtractor", "SSIExtractor", "VAEExtractor", "CAUTIExtractor"]
+__all__ = ["CLABSIExtractor", "SSIExtractor", "VAEExtractor", "CAUTIExtractor", "CDIExtractor"]

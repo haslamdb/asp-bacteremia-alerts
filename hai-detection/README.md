@@ -10,6 +10,7 @@ The HAI Detection module identifies potential HAIs from clinical data and assist
 - **CAUTI** - Catheter-Associated Urinary Tract Infections
 - **SSI** - Surgical Site Infections (Superficial, Deep, Organ/Space)
 - **VAE** - Ventilator-Associated Events (VAC, IVAC, Possible/Probable VAP)
+- **CDI** - Clostridioides difficile Infections (HO-CDI, CO-CDI, CO-HCFA)
 
 ## Architecture
 
@@ -19,7 +20,7 @@ The system uses a four-stage workflow:
 1. Rule-based Screening → 2. LLM Fact Extraction → 3. Rules Engine → 4. IP Review
 ```
 
-1. **Rule-based screening** - Identifies candidates (BSI + line for CLABSI; catheter + positive urine for CAUTI; procedure + infection signals for SSI; ventilator worsening for VAE)
+1. **Rule-based screening** - Identifies candidates (BSI + line for CLABSI; catheter + positive urine for CAUTI; procedure + infection signals for SSI; ventilator worsening for VAE; positive C. diff test for CDI)
 2. **LLM fact extraction** - Extracts clinical facts from notes (symptoms, alternate sources, wound assessments)
 3. **Rules engine** - Applies deterministic NHSN criteria to extracted facts
 4. **IP Review** - ALL candidates go to IP for final decision
@@ -75,19 +76,22 @@ hai-detection/
 │   │   ├── clabsi.py
 │   │   ├── cauti.py
 │   │   ├── ssi.py
-│   │   └── vae.py
+│   │   ├── vae.py
+│   │   └── cdi.py
 │   ├── classifiers/      # LLM-assisted classification
 │   │   ├── base.py
 │   │   ├── clabsi_classifier.py
 │   │   ├── clabsi_classifier_v2.py
 │   │   ├── cauti_classifier.py
 │   │   ├── ssi_classifier.py
-│   │   └── vae_classifier.py
+│   │   ├── vae_classifier.py
+│   │   └── cdi_classifier.py
 │   ├── extraction/       # LLM fact extraction
 │   │   ├── clabsi_extractor.py
 │   │   ├── cauti_extractor.py
 │   │   ├── ssi_extractor.py
-│   │   └── vae_extractor.py
+│   │   ├── vae_extractor.py
+│   │   └── cdi_extractor.py
 │   ├── rules/            # NHSN criteria rules engines
 │   │   ├── schemas.py
 │   │   ├── nhsn_criteria.py
@@ -97,7 +101,9 @@ hai-detection/
 │   │   ├── ssi_schemas.py
 │   │   ├── ssi_engine.py
 │   │   ├── vae_schemas.py
-│   │   └── vae_engine.py
+│   │   ├── vae_engine.py
+│   │   ├── cdi_schemas.py
+│   │   └── cdi_engine.py
 │   ├── notes/            # Clinical note retrieval
 │   │   ├── retriever.py
 │   │   └── chunker.py
@@ -116,13 +122,15 @@ hai-detection/
 │   ├── clabsi_extraction_v1.txt
 │   ├── cauti_extraction_v1.txt
 │   ├── ssi_extraction_v1.txt
-│   └── vae_extraction_v1.txt
+│   ├── vae_extraction_v1.txt
+│   └── cdi_extraction_v1.txt
 ├── tests/
 │   ├── test_candidates.py
 │   ├── test_clabsi_rules.py
 │   ├── test_cauti_rules.py
 │   ├── test_ssi_rules.py
-│   └── test_vae_rules.py
+│   ├── test_vae_rules.py
+│   └── test_cdi_rules.py
 ├── schema.sql            # Database schema
 ├── requirements.txt
 └── README.md
@@ -173,6 +181,8 @@ The module uses a SQLite database shared with the NHSN Reporting module. HAI det
 - `vae_ventilation_episodes` - Tracked ventilator episodes
 - `vae_daily_parameters` - FiO2/PEEP time series data
 - `vae_candidate_details` - VAE-specific candidate data (VAC/IVAC/VAP details)
+- `cdi_episodes` - CDI episode tracking for recurrence detection
+- `cdi_candidate_details` - CDI-specific candidate data (onset type, recurrence status)
 
 ## Integration with Dashboard
 
@@ -262,6 +272,73 @@ IVAC requires VAC criteria PLUS:
   - BAL: ≥10⁴ CFU/mL
   - ETA: ≥10⁶ CFU/mL
   - PSB: ≥10³ CFU/mL
+
+## CDI (Clostridioides difficile Infection)
+
+The CDI module implements NHSN CDI LabID Event surveillance criteria for detecting C. difficile infections. Unlike device-associated HAIs (CLABSI, CAUTI), CDI is lab-test-based with time-dependent classification.
+
+### CDI LabID Event Definition
+
+A positive laboratory test result for:
+- C. difficile toxin A and/or B, OR
+- Toxin-producing C. difficile by culture or PCR/NAAT
+
+On an **unformed stool specimen** (including ostomy collections).
+
+**Important**: GDH (glutamate dehydrogenase) antigen-only results do NOT qualify as a LabID event.
+
+### CDI Classification by Onset
+
+| Classification | Criteria | Specimen Day |
+|----------------|----------|--------------|
+| **HO-CDI** | Healthcare-Facility-Onset | Day 4+ (>3 days after admission) |
+| **CO-CDI** | Community-Onset | Days 1-3 (≤3 days after admission) |
+| **CO-HCFA** | Community-Onset Healthcare Facility-Associated | CO-CDI + discharge from any facility within prior 4 weeks |
+
+*Day 1 = facility admission date*
+
+### Recurrence Detection
+
+CDI requires tracking of prior episodes to distinguish incident, recurrent, and duplicate events:
+
+| Days Since Last Event | Classification | Reporting |
+|-----------------------|----------------|-----------|
+| ≤14 days | Duplicate | Not reported |
+| 15-56 days | Recurrent | Reported as recurrent |
+| >56 days | New Incident | Reported as new event |
+
+### Test Type Hierarchy
+
+For multi-step testing algorithms, the **last test performed** determines eligibility:
+
+| Test Type | Qualifies for LabID Event |
+|-----------|---------------------------|
+| Toxin A/B EIA | Yes (if positive) |
+| PCR/NAAT | Yes (if positive) |
+| Toxigenic culture | Yes (if positive) |
+| GDH antigen only | No |
+
+### CDI Detection Algorithm
+
+1. **Test Eligibility**: Positive C. diff toxin or PCR/NAAT test
+2. **Specimen Type**: Must be unformed stool (formed stool excluded)
+3. **Timing Calculation**: Calculate specimen day from admission date
+4. **Recurrence Check**: Query prior CDI episodes within 56 days
+5. **Duplicate Exclusion**: Skip if ≤14 days since last event
+6. **Onset Classification**: HO-CDI if day >3, else CO-CDI
+7. **CO-HCFA Check**: If CO-CDI, check for recent prior discharge
+
+### CDI LOINC Codes
+
+The following LOINC codes are used for C. diff test detection:
+
+| LOINC | Description |
+|-------|-------------|
+| 34713-8 | C. difficile toxin A |
+| 34714-6 | C. difficile toxin B |
+| 34712-0 | C. difficile toxin A+B |
+| 82197-9 | C. difficile toxin B gene (PCR) |
+| 80685-5 | C. difficile toxin genes (NAAT) |
 
 ## Related Modules
 

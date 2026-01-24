@@ -1155,3 +1155,304 @@ def is_cauti_eligible(catheter_days: int) -> bool:
         True if patient meets minimum catheter days requirement (>2 days)
     """
     return catheter_days > CAUTI_MIN_CATHETER_DAYS
+
+
+# =============================================================================
+# CDI (Clostridioides difficile Infection) Criteria
+# =============================================================================
+
+# Timing thresholds for onset classification
+# Healthcare-facility onset: specimen collected >3 days after admission
+CDI_HO_MIN_DAYS = 4  # Day 4+ = healthcare-facility onset (>3 days)
+CDI_CO_MAX_DAYS = 3  # Days 1-3 = community onset (≤3 days)
+
+# Recurrence window thresholds
+CDI_DUPLICATE_WINDOW_DAYS = 14  # ≤14 days = duplicate, not reported
+CDI_RECURRENCE_MIN_DAYS = 15   # 15-56 days = recurrent
+CDI_RECURRENCE_MAX_DAYS = 56   # >56 days = new incident
+
+# CO-HCFA (Community-Onset Healthcare Facility-Associated) window
+CDI_CO_HCFA_DISCHARGE_WINDOW_DAYS = 28  # 4 weeks for CO-HCFA
+
+# Valid test types for CDI LabID Event (not antigen-only)
+CDI_POSITIVE_TEST_TYPES = {
+    "toxin_a",
+    "toxin_b",
+    "toxin_ab",
+    "toxin_a_b",
+    "pcr",
+    "naat",
+    "culture_toxigenic",
+    "toxin_gene",
+}
+
+# Test types that do NOT qualify alone (antigen/GDH only)
+CDI_ANTIGEN_ONLY_TESTS = {
+    "gdh",
+    "antigen",
+    "eia_gdh",
+    "glutamate_dehydrogenase",
+}
+
+# C. difficile LOINC codes for toxin/PCR tests
+CDI_LOINC_CODES = {
+    # Toxin tests
+    "34713-8": "C. difficile toxin A",
+    "34714-6": "C. difficile toxin B",
+    "34712-0": "C. difficile toxin A+B",
+    "562-9": "C. difficile toxin A+B",
+    "6359-4": "C. difficile toxin",
+
+    # PCR/NAAT tests
+    "82197-9": "C. difficile toxin B gene (PCR)",
+    "80685-5": "C. difficile toxin genes (NAAT)",
+    "63588-5": "C. difficile toxin B gene (NAA)",
+    "54067-4": "C. difficile toxin A gene (NAA)",
+
+    # Culture
+    "625-4": "C. difficile culture",
+}
+
+# LOINC codes that are antigen-only (do not qualify)
+CDI_ANTIGEN_LOINC_CODES = {
+    "76580-0": "C. difficile Ag (GDH)",
+    "31369-5": "C. difficile Ag",
+}
+
+# CDI treatment medications
+CDI_TREATMENT_MEDICATIONS = {
+    # Oral vancomycin (primary treatment)
+    "vancomycin",
+    "vancomycin oral",
+    "vancomycin po",
+
+    # Fidaxomicin (preferred for recurrence)
+    "fidaxomicin",
+    "dificid",
+
+    # Metronidazole (less preferred)
+    "metronidazole",
+    "flagyl",
+
+    # Bezlotoxumab (monoclonal antibody for recurrence prevention)
+    "bezlotoxumab",
+    "zinplava",
+}
+
+
+def is_valid_cdi_test(test_type: str, result: str = "positive") -> bool:
+    """Check if test qualifies for CDI LabID event.
+
+    CDI requires positive toxin A/B test or toxin-producing organism
+    detection (PCR, NAAT, toxigenic culture). Antigen-only tests (GDH)
+    do NOT qualify.
+
+    Args:
+        test_type: Type of C. diff test performed
+        result: Test result (only 'positive' qualifies)
+
+    Returns:
+        True if test type and result qualify for CDI LabID event
+    """
+    if not test_type:
+        return False
+
+    if result.lower() != "positive":
+        return False
+
+    test_lower = test_type.lower().strip()
+
+    # Check if it's a valid test type
+    if test_lower in CDI_POSITIVE_TEST_TYPES:
+        return True
+
+    # Check partial matches
+    for valid_type in CDI_POSITIVE_TEST_TYPES:
+        if valid_type in test_lower or test_lower in valid_type:
+            return True
+
+    # Check if it's antigen-only (disqualifies)
+    for antigen_type in CDI_ANTIGEN_ONLY_TESTS:
+        if antigen_type in test_lower:
+            return False
+
+    # Check for toxin or pcr keywords
+    if "toxin" in test_lower and "antigen" not in test_lower:
+        return True
+    if "pcr" in test_lower or "naat" in test_lower:
+        return True
+
+    return False
+
+
+def is_cdi_loinc_qualifying(loinc_code: str) -> bool:
+    """Check if a LOINC code is a qualifying CDI test.
+
+    Args:
+        loinc_code: LOINC code for the test
+
+    Returns:
+        True if LOINC code is for a qualifying CDI test
+    """
+    if not loinc_code:
+        return False
+
+    # Check against qualifying codes
+    if loinc_code in CDI_LOINC_CODES:
+        return True
+
+    # Check against antigen codes (not qualifying)
+    if loinc_code in CDI_ANTIGEN_LOINC_CODES:
+        return False
+
+    return False
+
+
+def get_cdi_onset_type(specimen_day: int) -> str:
+    """Return onset type based on timing.
+
+    NHSN Criteria:
+    - Day 1-3 = Community Onset (CO)
+    - Day 4+ = Healthcare-Facility Onset (HO)
+
+    Args:
+        specimen_day: Days since admission (day 1 = admission day)
+
+    Returns:
+        "healthcare_facility" or "community"
+    """
+    if specimen_day >= CDI_HO_MIN_DAYS:
+        return "healthcare_facility"
+    return "community"
+
+
+def is_cdi_duplicate(days_since_last: int | None) -> bool:
+    """Check if within 14-day duplicate window.
+
+    ≤14 days since last CDI LabID event = duplicate, not reported.
+
+    Args:
+        days_since_last: Days since last CDI event (None if no prior)
+
+    Returns:
+        True if this is a duplicate (within 14 days of prior)
+    """
+    if days_since_last is None:
+        return False
+    return days_since_last <= CDI_DUPLICATE_WINDOW_DAYS
+
+
+def is_cdi_recurrent(days_since_last: int | None) -> bool:
+    """Check if 15-56 days (recurrence window).
+
+    15-56 days since last CDI LabID event = recurrent.
+
+    Args:
+        days_since_last: Days since last CDI event (None if no prior)
+
+    Returns:
+        True if this is a recurrent event
+    """
+    if days_since_last is None:
+        return False
+    return CDI_RECURRENCE_MIN_DAYS <= days_since_last <= CDI_RECURRENCE_MAX_DAYS
+
+
+def is_cdi_incident(days_since_last: int | None) -> bool:
+    """Check if this is an incident (new) CDI event.
+
+    First event OR >56 days since last = new incident.
+
+    Args:
+        days_since_last: Days since last CDI event (None if no prior)
+
+    Returns:
+        True if this is an incident (new) event
+    """
+    if days_since_last is None:
+        return True  # No prior = incident
+    return days_since_last > CDI_RECURRENCE_MAX_DAYS
+
+
+def is_cdi_co_hcfa(onset_type: str, days_since_discharge: int | None) -> bool:
+    """Check if CO-CDI qualifies as CO-HCFA.
+
+    Community-Onset Healthcare Facility-Associated:
+    - Must be Community Onset (≤3 days)
+    - Patient discharged from any inpatient facility within prior 4 weeks
+
+    Args:
+        onset_type: "community" or "healthcare_facility"
+        days_since_discharge: Days since last inpatient discharge
+
+    Returns:
+        True if this is CO-HCFA
+    """
+    if onset_type != "community":
+        return False
+
+    if days_since_discharge is None:
+        return False
+
+    return days_since_discharge <= CDI_CO_HCFA_DISCHARGE_WINDOW_DAYS
+
+
+def calculate_specimen_day(admission_date: datetime, test_date: datetime) -> int:
+    """Calculate specimen day (days since admission).
+
+    Day 1 = admission date.
+
+    Args:
+        admission_date: Date of admission
+        test_date: Date specimen was collected
+
+    Returns:
+        Specimen day (1-based)
+    """
+    # Normalize to date for calendar day calculation
+    admit_d = admission_date.date() if hasattr(admission_date, 'date') else admission_date
+    test_d = test_date.date() if hasattr(test_date, 'date') else test_date
+    delta = test_d - admit_d
+    return delta.days + 1  # Day 1 is admission day
+
+
+def get_cdi_recurrence_status(days_since_last: int | None) -> str:
+    """Get the recurrence status string.
+
+    Args:
+        days_since_last: Days since last CDI event
+
+    Returns:
+        "incident", "recurrent", or "duplicate"
+    """
+    if is_cdi_duplicate(days_since_last):
+        return "duplicate"
+    if is_cdi_recurrent(days_since_last):
+        return "recurrent"
+    return "incident"
+
+
+def is_cdi_treatment(medication_name: str) -> bool:
+    """Check if a medication is a CDI treatment.
+
+    Args:
+        medication_name: Name of the medication
+
+    Returns:
+        True if medication is a CDI treatment
+    """
+    if not medication_name:
+        return False
+
+    med_lower = medication_name.lower().strip()
+
+    # Direct match
+    if med_lower in CDI_TREATMENT_MEDICATIONS:
+        return True
+
+    # Partial match
+    for treatment in CDI_TREATMENT_MEDICATIONS:
+        if treatment in med_lower:
+            return True
+
+    return False

@@ -15,6 +15,7 @@ class AlertType(Enum):
     NHSN_SSI = "nhsn_ssi"              # NHSN SSI candidate
     NHSN_VAE = "nhsn_vae"              # NHSN VAE candidate
     NHSN_CAUTI = "nhsn_cauti"          # NHSN CAUTI candidate
+    NHSN_CDI = "nhsn_cdi"              # NHSN CDI candidate
     NHSN_REVIEW = "nhsn_review"        # NHSN review queue item
     CUSTOM = "custom"
 

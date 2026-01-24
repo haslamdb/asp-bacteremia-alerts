@@ -1676,3 +1676,563 @@ class FHIRUrineCultureSource(FHIRCultureSource):
             return 3  # More than 2 organisms
 
         return max(count, 1) if count > 0 else 0
+
+
+# ============================================================
+# CDI-specific FHIR Data Sources
+# ============================================================
+
+class FHIRCDITestSource:
+    """FHIR Observation-based C. difficile test result retrieval for CDI surveillance.
+
+    Queries FHIR for C. difficile toxin tests, PCR/NAAT tests, and culture results.
+
+    NHSN CDI LabID Event Criteria:
+    - Positive C. difficile toxin A and/or B test result, OR
+    - Detection of toxin-producing C. difficile organism by culture/PCR
+    - Specimen must be unformed stool (including ostomy)
+    - Antigen-only results (GDH) do NOT qualify
+
+    LOINC Codes Used:
+    - 34713-8: C. difficile toxin A
+    - 34714-6: C. difficile toxin B
+    - 34712-0: C. difficile toxin A+B
+    - 82197-9: C. difficile toxin B gene (PCR)
+    - 80685-5: C. difficile toxin genes (NAAT)
+    """
+
+    # LOINC codes for qualifying CDI tests (toxin or molecular)
+    CDI_TOXIN_LOINC_CODES = {
+        "34713-8": "toxin_a",      # C. difficile toxin A
+        "34714-6": "toxin_b",      # C. difficile toxin B
+        "34712-0": "toxin_ab",     # C. difficile toxin A+B
+        "562-9": "toxin_ab",       # C. difficile toxin A+B (alt code)
+        "6359-4": "toxin_ab",      # C. difficile toxin
+    }
+
+    CDI_MOLECULAR_LOINC_CODES = {
+        "82197-9": "pcr",          # C. difficile toxin B gene (PCR)
+        "80685-5": "naat",         # C. difficile toxin genes (NAAT)
+        "63588-5": "naat",         # C. difficile toxin B gene (NAA)
+        "54067-4": "naat",         # C. difficile toxin A gene (NAA)
+        "625-4": "culture_toxigenic",  # C. difficile culture
+    }
+
+    # LOINC codes for antigen tests (do NOT qualify alone)
+    CDI_ANTIGEN_LOINC_CODES = {
+        "76580-0": "gdh",          # C. difficile Ag (GDH)
+        "31369-5": "antigen",      # C. difficile Ag
+    }
+
+    def __init__(self, base_url: str | None = None):
+        from ..config import Config
+        self.base_url = base_url or Config.get_fhir_base_url()
+        self.session = requests.Session()
+
+    def get_positive_cdi_tests(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[tuple["Patient", "CDITestResult"]]:
+        """Get positive C. diff toxin/PCR tests within a date range.
+
+        Queries FHIR Observation resources for positive C. diff tests
+        that qualify for CDI LabID events (toxin or molecular tests).
+
+        Args:
+            start_date: Start of date range to search
+            end_date: End of date range to search
+
+        Returns:
+            List of (Patient, CDITestResult) tuples for positive qualifying tests
+        """
+        from ..models import CDITestResult
+
+        results = []
+
+        # Combine toxin and molecular LOINC codes
+        all_qualifying_codes = set(self.CDI_TOXIN_LOINC_CODES.keys()) | set(self.CDI_MOLECULAR_LOINC_CODES.keys())
+
+        params = {
+            "code": ",".join(all_qualifying_codes),
+            "date": [
+                f"ge{start_date.strftime('%Y-%m-%d')}",
+                f"le{end_date.strftime('%Y-%m-%d')}",
+            ],
+            "_include": "Observation:subject",
+            "_count": "100",
+        }
+
+        try:
+            response = self.session.get(
+                f"{self.base_url}/Observation",
+                params=params,
+                timeout=30,
+            )
+            response.raise_for_status()
+            bundle = response.json()
+
+            # Build patient lookup from included resources
+            patients = {}
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") == "Patient":
+                    patient = self._parse_patient(resource)
+                    if patient:
+                        patients[patient.fhir_id] = patient
+
+            # Parse Observation resources for positive CDI tests
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") == "Observation":
+                    cdi_test = self._parse_cdi_observation(resource)
+
+                    if cdi_test and cdi_test.result == "positive":
+                        patient_ref = resource.get("subject", {}).get("reference", "")
+                        patient_id = patient_ref.split("/")[-1]
+                        patient = patients.get(patient_id)
+
+                        if patient:
+                            results.append((patient, cdi_test))
+                        else:
+                            patient = self._fetch_patient(patient_id)
+                            if patient:
+                                results.append((patient, cdi_test))
+
+            logger.info(f"Found {len(results)} positive CDI tests from FHIR")
+
+        except requests.RequestException as e:
+            logger.error(f"FHIR CDI test query failed: {e}")
+
+        return results
+
+    def get_patient_cdi_history(
+        self,
+        patient_id: str,
+        before_date: datetime,
+        lookback_days: int = 90,
+    ) -> list["CDITestResult"]:
+        """Get prior CDI test results for recurrence detection.
+
+        Queries patient's prior CDI tests to determine if current
+        test is incident, recurrent, or duplicate.
+
+        Args:
+            patient_id: FHIR patient ID
+            before_date: Current test date (look back from here)
+            lookback_days: Days to look back (default 90 for recurrence window)
+
+        Returns:
+            List of prior CDI test results ordered by date descending
+        """
+        from ..models import CDITestResult
+
+        results = []
+
+        start_date = before_date - timedelta(days=lookback_days)
+
+        # Query all qualifying CDI tests
+        all_codes = set(self.CDI_TOXIN_LOINC_CODES.keys()) | set(self.CDI_MOLECULAR_LOINC_CODES.keys())
+
+        params = {
+            "patient": patient_id,
+            "code": ",".join(all_codes),
+            "date": [
+                f"ge{start_date.strftime('%Y-%m-%d')}",
+                f"lt{before_date.strftime('%Y-%m-%d')}",
+            ],
+            "_sort": "-date",
+            "_count": "50",
+        }
+
+        try:
+            response = self.session.get(
+                f"{self.base_url}/Observation",
+                params=params,
+                timeout=30,
+            )
+            response.raise_for_status()
+            bundle = response.json()
+
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") == "Observation":
+                    cdi_test = self._parse_cdi_observation(resource)
+                    if cdi_test and cdi_test.result == "positive":
+                        results.append(cdi_test)
+
+        except requests.RequestException as e:
+            logger.error(f"FHIR CDI history query failed: {e}")
+
+        return results
+
+    def get_patient_admission_date(
+        self,
+        patient_id: str,
+        as_of_date: datetime,
+    ) -> datetime | None:
+        """Get patient's current encounter admission date.
+
+        Used to calculate specimen day for HO vs CO classification.
+
+        Args:
+            patient_id: FHIR patient ID
+            as_of_date: Date of the CDI test
+
+        Returns:
+            Admission date of the current encounter, or None if not found
+        """
+        try:
+            # Query active/in-progress encounter
+            params = {
+                "patient": patient_id,
+                "status": "in-progress,finished",
+                "date": f"le{as_of_date.strftime('%Y-%m-%d')}",
+                "_sort": "-date",
+                "_count": "1",
+            }
+
+            response = self.session.get(
+                f"{self.base_url}/Encounter",
+                params=params,
+                timeout=10,
+            )
+            response.raise_for_status()
+            bundle = response.json()
+
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") == "Encounter":
+                    period = resource.get("period", {})
+                    start_str = period.get("start")
+                    if start_str:
+                        return datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+
+        except requests.RequestException as e:
+            logger.error(f"FHIR encounter query failed: {e}")
+
+        return None
+
+    def get_patient_prior_discharge(
+        self,
+        patient_id: str,
+        before_date: datetime,
+        lookback_days: int = 28,
+    ) -> tuple[datetime | None, str | None]:
+        """Get most recent prior inpatient discharge for CO-HCFA detection.
+
+        CO-HCFA requires discharge from any inpatient facility within 4 weeks.
+
+        Args:
+            patient_id: FHIR patient ID
+            before_date: Current admission date
+            lookback_days: Days to look back (default 28 = 4 weeks)
+
+        Returns:
+            Tuple of (discharge_date, facility_name) or (None, None)
+        """
+        try:
+            start_date = before_date - timedelta(days=lookback_days)
+
+            params = {
+                "patient": patient_id,
+                "status": "finished",
+                "class": "IMP,ACUTE,NONAC",  # Inpatient classes
+                "date": [
+                    f"ge{start_date.strftime('%Y-%m-%d')}",
+                    f"lt{before_date.strftime('%Y-%m-%d')}",
+                ],
+                "_sort": "-date",
+                "_count": "1",
+            }
+
+            response = self.session.get(
+                f"{self.base_url}/Encounter",
+                params=params,
+                timeout=10,
+            )
+            response.raise_for_status()
+            bundle = response.json()
+
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") == "Encounter":
+                    period = resource.get("period", {})
+                    end_str = period.get("end")
+                    if end_str:
+                        discharge_date = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+
+                        # Get facility name if available
+                        facility = None
+                        service_provider = resource.get("serviceProvider", {})
+                        if service_provider.get("display"):
+                            facility = service_provider.get("display")
+
+                        return (discharge_date, facility)
+
+        except requests.RequestException as e:
+            logger.error(f"FHIR prior discharge query failed: {e}")
+
+        return (None, None)
+
+    def get_patient_encounter_info(
+        self,
+        patient_id: str,
+        as_of_date: datetime,
+    ) -> dict:
+        """Get full encounter information for CDI surveillance.
+
+        Returns:
+            Dict with admission_date, discharge_date (if discharged),
+            encounter_id, location, etc.
+        """
+        info = {
+            "encounter_id": None,
+            "admission_date": None,
+            "discharge_date": None,
+            "location_code": None,
+            "class": None,
+        }
+
+        try:
+            params = {
+                "patient": patient_id,
+                "status": "in-progress,finished",
+                "date": f"le{as_of_date.strftime('%Y-%m-%d')}",
+                "_sort": "-date",
+                "_count": "1",
+            }
+
+            response = self.session.get(
+                f"{self.base_url}/Encounter",
+                params=params,
+                timeout=10,
+            )
+            response.raise_for_status()
+            bundle = response.json()
+
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") == "Encounter":
+                    info["encounter_id"] = resource.get("id")
+
+                    period = resource.get("period", {})
+                    if period.get("start"):
+                        info["admission_date"] = datetime.fromisoformat(
+                            period["start"].replace("Z", "+00:00")
+                        )
+                    if period.get("end"):
+                        info["discharge_date"] = datetime.fromisoformat(
+                            period["end"].replace("Z", "+00:00")
+                        )
+
+                    # Get class (inpatient, outpatient, etc.)
+                    enc_class = resource.get("class", {})
+                    if isinstance(enc_class, dict):
+                        info["class"] = enc_class.get("code")
+
+                    # Get location
+                    locations = resource.get("location", [])
+                    if locations:
+                        loc = locations[-1]  # Most recent location
+                        loc_ref = loc.get("location", {}).get("reference", "")
+                        if loc_ref:
+                            info["location_code"] = loc_ref.split("/")[-1]
+
+        except requests.RequestException as e:
+            logger.error(f"FHIR encounter info query failed: {e}")
+
+        return info
+
+    def _parse_cdi_observation(self, resource: dict) -> "CDITestResult | None":
+        """Parse a FHIR Observation resource to CDITestResult."""
+        from ..models import CDITestResult
+
+        try:
+            fhir_id = resource.get("id")
+
+            # Get patient ID
+            subject_ref = resource.get("subject", {}).get("reference", "")
+            patient_id = subject_ref.split("/")[-1] if subject_ref else ""
+
+            # Get test date
+            effective = resource.get("effectiveDateTime")
+            if not effective:
+                return None
+            test_date = datetime.fromisoformat(effective.replace("Z", "+00:00"))
+
+            # Get LOINC code and determine test type
+            loinc_code = None
+            test_type = "unknown"
+
+            for coding in resource.get("code", {}).get("coding", []):
+                code = coding.get("code")
+                if code in self.CDI_TOXIN_LOINC_CODES:
+                    loinc_code = code
+                    test_type = self.CDI_TOXIN_LOINC_CODES[code]
+                    break
+                elif code in self.CDI_MOLECULAR_LOINC_CODES:
+                    loinc_code = code
+                    test_type = self.CDI_MOLECULAR_LOINC_CODES[code]
+                    break
+                elif code in self.CDI_ANTIGEN_LOINC_CODES:
+                    loinc_code = code
+                    test_type = self.CDI_ANTIGEN_LOINC_CODES[code]
+                    break
+
+            # Determine result (positive/negative)
+            result = "unknown"
+
+            # Check valueCodeableConcept
+            value_cc = resource.get("valueCodeableConcept", {})
+            for coding in value_cc.get("coding", []):
+                display = (coding.get("display") or "").lower()
+                code = coding.get("code", "")
+
+                if "positive" in display or "detected" in display or code == "10828004":
+                    result = "positive"
+                    break
+                elif "negative" in display or "not detected" in display or code == "260385009":
+                    result = "negative"
+                    break
+
+            # Check interpretation
+            for interp in resource.get("interpretation", []):
+                for coding in interp.get("coding", []):
+                    code = coding.get("code", "")
+                    if code in ("POS", "A", "H", "HH"):
+                        result = "positive"
+                    elif code in ("NEG", "N"):
+                        result = "negative"
+
+            # Get specimen type
+            specimen_type = None
+            is_formed_stool = False
+
+            specimen_ref = resource.get("specimen", {}).get("reference", "")
+            if specimen_ref:
+                specimen_info = self._fetch_specimen_info(specimen_ref)
+                if specimen_info:
+                    specimen_type = specimen_info.get("type")
+                    is_formed_stool = specimen_info.get("is_formed", False)
+
+            # Get encounter ID
+            encounter_ref = resource.get("encounter", {}).get("reference", "")
+            encounter_id = encounter_ref.split("/")[-1] if encounter_ref else None
+
+            return CDITestResult(
+                fhir_id=fhir_id,
+                patient_id=patient_id,
+                test_date=test_date,
+                test_type=test_type,
+                result=result,
+                loinc_code=loinc_code,
+                specimen_type=specimen_type,
+                is_formed_stool=is_formed_stool,
+                encounter_id=encounter_id,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to parse CDI Observation: {e}")
+            return None
+
+    def _fetch_specimen_info(self, specimen_ref: str) -> dict | None:
+        """Fetch specimen information to check stool consistency."""
+        try:
+            # Handle relative or absolute reference
+            if specimen_ref.startswith("Specimen/"):
+                specimen_id = specimen_ref.split("/")[-1]
+                url = f"{self.base_url}/Specimen/{specimen_id}"
+            elif specimen_ref.startswith(self.base_url):
+                url = specimen_ref
+            else:
+                url = f"{self.base_url}/{specimen_ref}"
+
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+            resource = response.json()
+
+            specimen_type = None
+            is_formed = False
+
+            # Get type from type.coding
+            for coding in resource.get("type", {}).get("coding", []):
+                display = (coding.get("display") or "").lower()
+                if "stool" in display or "feces" in display:
+                    specimen_type = "stool"
+                    # Check for formed stool
+                    if "formed" in display:
+                        is_formed = True
+                elif "ostomy" in display:
+                    specimen_type = "ostomy"
+
+            # Check condition for stool consistency
+            for condition in resource.get("condition", []):
+                for coding in condition.get("coding", []):
+                    display = (coding.get("display") or "").lower()
+                    if "formed" in display or "solid" in display:
+                        is_formed = True
+                    elif "liquid" in display or "watery" in display or "loose" in display:
+                        is_formed = False
+
+            return {
+                "type": specimen_type,
+                "is_formed": is_formed,
+            }
+
+        except Exception as e:
+            logger.debug(f"Could not fetch specimen info: {e}")
+            return None
+
+    def _parse_patient(self, resource: dict) -> "Patient | None":
+        """Parse FHIR Patient resource."""
+        from ..models import Patient
+
+        try:
+            fhir_id = resource.get("id")
+
+            # Get MRN from identifiers
+            mrn = ""
+            for identifier in resource.get("identifier", []):
+                type_coding = identifier.get("type", {}).get("coding", [])
+                for coding in type_coding:
+                    if coding.get("code") == "MR":
+                        mrn = identifier.get("value", "")
+                        break
+                if mrn:
+                    break
+
+            # Get name
+            name = ""
+            for name_obj in resource.get("name", []):
+                if name_obj.get("use") == "official" or not name:
+                    given = " ".join(name_obj.get("given", []))
+                    family = name_obj.get("family", "")
+                    name = f"{given} {family}".strip()
+
+            # Get birth date
+            birth_date = resource.get("birthDate")
+
+            return Patient(
+                fhir_id=fhir_id,
+                mrn=mrn,
+                name=name,
+                birth_date=birth_date,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to parse Patient: {e}")
+            return None
+
+    def _fetch_patient(self, patient_id: str) -> "Patient | None":
+        """Fetch a patient by ID."""
+        try:
+            response = self.session.get(
+                f"{self.base_url}/Patient/{patient_id}",
+                timeout=10,
+            )
+            response.raise_for_status()
+            return self._parse_patient(response.json())
+        except requests.RequestException as e:
+            logger.error(f"Failed to fetch patient {patient_id}: {e}")
+            return None
