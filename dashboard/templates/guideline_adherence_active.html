@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Active Episodes - Guideline Adherence - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Active Episodes</h1>
+    <a href="{{ url_for('guideline_adherence.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="filters">
+    <form method="get" class="filter-form">
+        <label>
+            Bundle:
+            <select name="bundle" onchange="this.form.submit()">
+                <option value="">All Bundles</option>
+                {% for bundle_id, bundle in bundles.items() %}
+                <option value="{{ bundle_id }}" {% if current_bundle == bundle_id %}selected{% endif %}>{{ bundle.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% if current_bundle %}
+        <a href="{{ url_for('guideline_adherence.active_episodes') }}" class="btn btn-link btn-small">Clear Filter</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if episodes %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Patient</th>
+            <th>Bundle</th>
+            <th>Trigger Time</th>
+            <th>Adherence</th>
+            <th>Elements</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ep in episodes %}
+        <tr>
+            <td>
+                <span class="patient-name">{{ ep.patient_name or 'Unknown' }}</span>
+                {% if ep.patient_mrn %}<br><span class="patient-mrn">MRN: {{ ep.patient_mrn }}</span>{% endif %}
+                {% if ep.location %}<br><span class="patient-location">{{ ep.location }}</span>{% endif %}
+            </td>
+            <td>{{ ep.bundle_name or ep.bundle_id }}</td>
+            <td>{{ ep.trigger_time[:16] if ep.trigger_time else '-' }}</td>
+            <td>
+                <span class="compliance-badge {% if ep.adherence_pct >= 90 %}success{% elif ep.adherence_pct >= 70 %}warning{% else %}danger{% endif %}">
+                    {{ ep.adherence_pct }}%
+                </span>
+            </td>
+            <td>
+                {% if ep.results %}
+                    {% set met = ep.results|selectattr('status', 'equalto', 'met')|list|length %}
+                    {% set not_met = ep.results|selectattr('status', 'equalto', 'not_met')|list|length %}
+                    {% set pending = ep.results|selectattr('status', 'equalto', 'pending')|list|length %}
+                    <span class="element-summary">
+                        <span class="met" title="Met">{{ met }}</span> /
+                        <span class="not-met" title="Not Met">{{ not_met }}</span> /
+                        <span class="pending" title="Pending">{{ pending }}</span>
+                    </span>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('guideline_adherence.episode_detail', episode_id=ep.id) }}" class="btn btn-small">View Details</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No active episodes found.</p>
+    {% if current_bundle %}
+    <p style="margin-top: 0.5rem; font-size: 0.875rem;">Try selecting a different bundle or clearing the filter.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+.filters {
+    margin-bottom: 1.5rem;
+}
+
+.filter-form {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.filter-form label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-form select {
+    padding: 0.5rem;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-md);
+}
+
+.data-table {
+    width: 100%;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border-collapse: collapse;
+    overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.data-table th {
+    background: var(--color-gray-50);
+    font-weight: 600;
+    color: var(--color-gray-600);
+    font-size: 0.875rem;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.patient-name {
+    font-weight: 500;
+}
+
+.patient-mrn,
+.patient-location {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+}
+
+.compliance-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.compliance-badge.success {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.compliance-badge.warning {
+    background: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.compliance-badge.danger {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+}
+
+.element-summary {
+    font-family: monospace;
+}
+
+.element-summary .met {
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.element-summary .not-met {
+    color: var(--color-danger);
+    font-weight: 600;
+}
+
+.element-summary .pending {
+    color: var(--color-warning);
+    font-weight: 600;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    color: var(--color-gray-500);
+}
+</style>
+{% endblock %}

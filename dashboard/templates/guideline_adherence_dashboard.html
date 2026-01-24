@@ -5,180 +5,162 @@
 {% block content %}
 <div class="page-header">
     <h1>Guideline Adherence</h1>
-    <a href="{{ url_for('guideline_adherence.help_page') }}" class="btn btn-secondary">Help</a>
+    <div class="header-actions">
+        <a href="{{ url_for('guideline_adherence.active_episodes') }}" class="btn btn-primary">View Active Episodes</a>
+        <a href="{{ url_for('guideline_adherence.compliance_metrics') }}" class="btn btn-secondary">Metrics</a>
+        <a href="{{ url_for('guideline_adherence.help_page') }}" class="btn btn-secondary">Help</a>
+    </div>
 </div>
 
+<!-- Stats Cards -->
 <div class="dashboard-summary">
     <div class="summary-card">
         <div class="summary-icon" style="color: var(--color-success);">&#x1F4C8;</div>
         <div class="summary-content">
-            <div class="summary-value">--</div>
+            {% if metrics and metrics.element_rates %}
+                {% set total_rate = namespace(sum=0, count=0) %}
+                {% for er in metrics.element_rates %}
+                    {% set total_rate.sum = total_rate.sum + er.compliance_rate %}
+                    {% set total_rate.count = total_rate.count + 1 %}
+                {% endfor %}
+                <div class="summary-value">{{ (total_rate.sum / total_rate.count)|round(1) if total_rate.count > 0 else '--' }}%</div>
+            {% else %}
+                <div class="summary-value">--</div>
+            {% endif %}
             <div class="summary-label">Overall Compliance</div>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon" style="color: var(--color-primary);">&#x1F4CB;</div>
         <div class="summary-content">
-            <div class="summary-value">--</div>
+            <div class="summary-value">{{ bundles|length }}</div>
             <div class="summary-label">Guidelines Tracked</div>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon" style="color: var(--color-warning);">&#x1F50D;</div>
         <div class="summary-content">
-            <div class="summary-value">--</div>
-            <div class="summary-label">Episodes Reviewed</div>
+            <div class="summary-value">{{ metrics.episode_counts.total if metrics and metrics.episode_counts else '--' }}</div>
+            <div class="summary-label">Episodes (30 days)</div>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon" style="color: var(--color-danger);">&#x26A0;</div>
         <div class="summary-content">
-            <div class="summary-value">--</div>
-            <div class="summary-label">Non-Compliant</div>
+            <div class="summary-value">{{ active_episodes|length }}</div>
+            <div class="summary-label">Active Monitoring</div>
         </div>
     </div>
 </div>
 
-<div class="module-info">
-    <h2>About This Module</h2>
-    <p>The Guideline Adherence module tracks adherence to evidence-based clinical guidelines and care bundles
-       at the population level. Unlike real-time appropriateness alerts, this module generates aggregate metrics
-       for quality improvement and Joint Commission (JC) reporting.</p>
-
-    <h3>Key Difference from Antibiotic Indications</h3>
-    <table class="help-table">
-        <thead>
-            <tr>
-                <th>Aspect</th>
-                <th>Antibiotic Indications</th>
-                <th>Guideline Adherence</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><strong>Question</strong></td>
-                <td>"Is this order justified?"</td>
-                <td>"Did we follow the full pathway?"</td>
-            </tr>
-            <tr>
-                <td><strong>Timing</strong></td>
-                <td>Real-time (per order)</td>
-                <td>Retrospective (daily/weekly/monthly)</td>
-            </tr>
-            <tr>
-                <td><strong>Scope</strong></td>
-                <td>Antibiotic orders only</td>
-                <td>Full care bundle (cultures, labs, imaging, consults, antibiotics)</td>
-            </tr>
-            <tr>
-                <td><strong>Output</strong></td>
-                <td>Alert/flag for ASP intervention</td>
-                <td>Compliance % for dashboard/report</td>
-            </tr>
-            <tr>
-                <td><strong>Audience</strong></td>
-                <td>Pharmacist, ordering provider</td>
-                <td>ASP leadership, QI, JC surveyors</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h3>Available Guidelines</h3>
+<!-- Bundle Stats -->
+{% if bundle_stats %}
+<div class="section">
+    <h2>Bundle Compliance</h2>
     <div class="guideline-cards">
-        <div class="guideline-card">
-            <h4>Pediatric CAP</h4>
-            <p>Community-Acquired Pneumonia bundle with 6 elements</p>
-            <span class="element-count">6 elements</span>
-        </div>
-        <div class="guideline-card">
-            <h4>Febrile Neutropenia</h4>
-            <p>Time to antibiotics, appropriate agent, cultures</p>
-            <span class="element-count">6 elements</span>
-        </div>
-        <div class="guideline-card">
-            <h4>Pediatric Sepsis</h4>
-            <p>Lactate, culture timing, fluid resuscitation</p>
-            <span class="element-count">6 elements</span>
-        </div>
-        <div class="guideline-card">
-            <h4>Surgical Prophylaxis</h4>
-            <p>Timing, agent selection, duration ≤24h</p>
-            <span class="element-count">5 elements</span>
-        </div>
-        <div class="guideline-card">
-            <h4>Pediatric UTI</h4>
-            <p>Culture method, empiric choice, imaging</p>
-            <span class="element-count">8 elements</span>
-        </div>
-        <div class="guideline-card">
-            <h4>SSTI/Cellulitis</h4>
-            <p>MRSA coverage decision, I&D if purulent</p>
-            <span class="element-count">6 elements</span>
-        </div>
+        {% for bs in bundle_stats %}
+        <a href="{{ url_for('guideline_adherence.bundle_detail', bundle_id=bs.bundle_id) }}" class="guideline-card">
+            <h4>{{ bs.bundle_name }}</h4>
+            <div class="bundle-stat">
+                <span class="compliance-badge {% if bs.avg_compliance >= 90 %}success{% elif bs.avg_compliance >= 70 %}warning{% else %}danger{% endif %}">
+                    {{ bs.avg_compliance }}%
+                </span>
+            </div>
+            <p>{{ bs.total_episodes }} episodes, {{ bs.active_episodes }} active</p>
+            <span class="element-count">{{ bs.element_count }} elements</span>
+        </a>
+        {% endfor %}
     </div>
+</div>
+{% endif %}
 
-    <h3>Bundle Elements Example: Pediatric CAP</h3>
-    <table class="help-table">
+<!-- Active Episodes -->
+{% if active_episodes %}
+<div class="section">
+    <h2>Recent Active Episodes</h2>
+    <table class="data-table">
         <thead>
             <tr>
-                <th>Element</th>
-                <th>Type</th>
-                <th>Required</th>
-                <th>Timing</th>
+                <th>Patient</th>
+                <th>Bundle</th>
+                <th>Trigger Time</th>
+                <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
+            {% for ep in active_episodes %}
             <tr>
-                <td>Blood culture obtained</td>
-                <td>Culture</td>
-                <td>Recommended</td>
-                <td>Before antibiotics</td>
+                <td>
+                    <span class="patient-name">{{ ep.patient_name or 'Unknown' }}</span>
+                    {% if ep.patient_mrn %}<br><span class="patient-mrn">MRN: {{ ep.patient_mrn }}</span>{% endif %}
+                </td>
+                <td>{{ ep.bundle_name or ep.bundle_id }}</td>
+                <td>{{ ep.trigger_time[:16] if ep.trigger_time else '-' }}</td>
+                <td><span class="badge badge-status-{{ ep.status }}">{{ ep.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('guideline_adherence.episode_detail', episode_id=ep.id) }}" class="btn btn-small">View</a>
+                </td>
             </tr>
-            <tr>
-                <td>Chest X-ray performed</td>
-                <td>Imaging</td>
-                <td>Required</td>
-                <td>Within 24h</td>
-            </tr>
-            <tr>
-                <td>Appropriate empiric antibiotic</td>
-                <td>Antibiotic</td>
-                <td>Required</td>
-                <td>Within 4h</td>
-            </tr>
-            <tr>
-                <td>Narrow-spectrum preferred</td>
-                <td>Antibiotic</td>
-                <td>Recommended</td>
-                <td>-</td>
-            </tr>
-            <tr>
-                <td>Duration ≤5 days (uncomplicated)</td>
-                <td>Antibiotic</td>
-                <td>Required</td>
-                <td>At discharge</td>
-            </tr>
-            <tr>
-                <td>Follow-up arranged</td>
-                <td>Process</td>
-                <td>Recommended</td>
-                <td>At discharge</td>
-            </tr>
+            {% endfor %}
         </tbody>
     </table>
+    <div style="margin-top: 1rem;">
+        <a href="{{ url_for('guideline_adherence.active_episodes') }}" class="btn btn-secondary">View All Active Episodes</a>
+    </div>
 </div>
+{% else %}
+<div class="section">
+    <h2>Active Episodes</h2>
+    <div class="empty-state">
+        <p>No active episodes currently being monitored.</p>
+        <p style="font-size: 0.875rem; color: var(--color-gray-500);">
+            Episodes appear here when patients are identified with conditions matching monitored bundles.
+        </p>
+    </div>
+</div>
+{% endif %}
 
-<div class="coming-soon-notice">
-    <h3>Coming Soon</h3>
-    <p>Aggregate compliance dashboards with trend visualization, unit comparisons, and drill-down to non-compliant encounters.</p>
+<!-- Available Guidelines -->
+<div class="section">
+    <h2>Available Guidelines</h2>
+    <div class="guideline-cards">
+        {% for bundle_id, bundle in bundles.items() %}
+        <a href="{{ url_for('guideline_adherence.bundle_detail', bundle_id=bundle_id) }}" class="guideline-card">
+            <h4>{{ bundle.name }}</h4>
+            <p>{{ bundle.description[:80] }}{% if bundle.description|length > 80 %}...{% endif %}</p>
+            <span class="element-count">{{ bundle.elements|length }} elements</span>
+        </a>
+        {% endfor %}
+    </div>
 </div>
 
 <style>
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.section {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.section h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    color: var(--color-gray-800);
+}
+
 .dashboard-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .summary-card {
@@ -206,37 +188,26 @@
     color: var(--color-gray-600);
 }
 
-.module-info {
-    background: var(--color-white);
-    border-radius: var(--radius-lg);
-    padding: 2rem;
-    box-shadow: var(--shadow-md);
-    margin-bottom: 2rem;
-}
-
-.module-info h2 {
-    margin-bottom: 1rem;
-    color: var(--color-gray-800);
-}
-
-.module-info h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-    color: var(--color-gray-700);
-}
-
 .guideline-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1rem;
-    margin: 1rem 0;
 }
 
 .guideline-card {
+    display: block;
     padding: 1rem;
     border-radius: var(--radius-md);
     background: var(--color-gray-50);
     border-left: 4px solid #7C3AED;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.guideline-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .guideline-card h4 {
@@ -251,6 +222,33 @@
     color: var(--color-gray-600);
 }
 
+.bundle-stat {
+    margin-bottom: 0.5rem;
+}
+
+.compliance-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.compliance-badge.success {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.compliance-badge.warning {
+    background: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.compliance-badge.danger {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+}
+
 .element-count {
     font-size: 0.75rem;
     font-weight: 600;
@@ -260,22 +258,47 @@
     color: white;
 }
 
-.coming-soon-notice {
-    background: var(--color-info-light);
-    border: 1px dashed var(--color-primary);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    text-align: center;
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.coming-soon-notice h3 {
-    margin: 0 0 0.5rem 0;
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--color-gray-600);
+    font-size: 0.875rem;
+}
+
+.patient-name {
+    font-weight: 500;
+}
+
+.patient-mrn {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+}
+
+.badge-status-active {
+    background: var(--color-primary-light);
     color: var(--color-primary);
 }
 
-.coming-soon-notice p {
-    margin: 0;
-    color: var(--color-gray-600);
+.badge-status-complete {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-gray-500);
 }
 </style>
 {% endblock %}

@@ -38,6 +38,7 @@
             <select name="type" onchange="this.form.submit()">
                 <option value="">All Types</option>
                 <option value="bacteremia" {% if current_type == 'bacteremia' %}selected{% endif %}>Bacteremia</option>
+                <option value="guideline_deviation" {% if current_type == 'guideline_deviation' %}selected{% endif %}>Guideline Deviation</option>
                 <option value="abx_no_indication" {% if current_type == 'abx_no_indication' %}selected{% endif %}>No Indication</option>
                 <option value="broad_spectrum_usage" {% if current_type == 'broad_spectrum_usage' %}selected{% endif %}>Broad Spectrum Usage</option>
             </select>
@@ -85,6 +86,8 @@
             <td>
                 {% if alert.alert_type.value == 'bacteremia' %}
                     <span title="Bacteremia Coverage Alert">Bacteremia</span>
+                {% elif alert.alert_type.value == 'guideline_deviation' %}
+                    <span title="Guideline bundle element not met" class="alert-type-guideline">Guideline</span>
                 {% elif alert.alert_type.value == 'abx_no_indication' %}
                     <span title="Antibiotic without documented indication" class="alert-type-no-indication">No Indication</span>
                 {% elif alert.alert_type.value == 'broad_spectrum_usage' %}

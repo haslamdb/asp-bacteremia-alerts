@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}{{ bundle.name }} - Guideline Adherence - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ bundle.name }}</h1>
+    <a href="{{ url_for('guideline_adherence.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="bundle-info">
+    <p>{{ bundle.description }}</p>
+    <div class="bundle-meta">
+        <span><strong>Version:</strong> {{ bundle.version }}</span>
+        <span><strong>Last Updated:</strong> {{ bundle.last_updated }}</span>
+        <span><strong>Elements:</strong> {{ bundle.elements|length }}</span>
+    </div>
+</div>
+
+<!-- Element Compliance -->
+{% if metrics and metrics.element_rates %}
+<div class="section">
+    <h2>Element Compliance (Last 30 Days)</h2>
+    <div class="elements-compliance">
+        {% for element in bundle.elements %}
+            {% set er = metrics.element_rates|selectattr('element_id', 'equalto', element.element_id)|first %}
+            <div class="element-row">
+                <div class="element-info">
+                    <div class="element-name">{{ element.name }}</div>
+                    <div class="element-desc">{{ element.description }}</div>
+                    <div class="element-meta">
+                        {% if element.required %}
+                        <span class="required-badge">Required</span>
+                        {% else %}
+                        <span class="recommended-badge">Recommended</span>
+                        {% endif %}
+                        {% if element.time_window_hours %}
+                        <span>Window: {{ element.time_window_hours }}h</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="element-compliance">
+                    {% if er %}
+                    <div class="compliance-bar">
+                        <div class="bar-fill {% if er.compliance_rate >= 90 %}success{% elif er.compliance_rate >= 70 %}warning{% else %}danger{% endif %}" style="width: {{ er.compliance_rate }}%"></div>
+                    </div>
+                    <span class="compliance-value">{{ er.compliance_rate }}%</span>
+                    <span class="compliance-count">({{ er.total_assessed }} assessed)</span>
+                    {% else %}
+                    <span class="no-data">No data</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Episodes -->
+{% if recent_episodes %}
+<div class="section">
+    <h2>Recent Episodes</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Patient</th>
+                <th>Trigger Time</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ep in recent_episodes %}
+            <tr>
+                <td>
+                    <span class="patient-name">{{ ep.patient_name or 'Unknown' }}</span>
+                    {% if ep.patient_mrn %}<br><span class="patient-mrn">MRN: {{ ep.patient_mrn }}</span>{% endif %}
+                </td>
+                <td>{{ ep.trigger_time[:16] if ep.trigger_time else '-' }}</td>
+                <td><span class="badge badge-status-{{ ep.status }}">{{ ep.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('guideline_adherence.episode_detail', episode_id=ep.id) }}" class="btn btn-small">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- ICD-10 Triggers -->
+{% if bundle.condition_icd10_codes %}
+<div class="section">
+    <h2>Trigger Conditions (ICD-10)</h2>
+    <div class="code-list">
+        {% for code in bundle.condition_icd10_codes[:20] %}
+        <span class="code-badge">{{ code }}</span>
+        {% endfor %}
+        {% if bundle.condition_icd10_codes|length > 20 %}
+        <span class="code-more">+{{ bundle.condition_icd10_codes|length - 20 }} more</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- References -->
+{% if bundle.references %}
+<div class="section">
+    <h2>References</h2>
+    <ul class="references-list">
+        {% for ref in bundle.references %}
+        <li>{{ ref }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<style>
+.bundle-info {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.bundle-info p {
+    margin: 0 0 1rem 0;
+    color: var(--color-gray-700);
+}
+
+.bundle-meta {
+    display: flex;
+    gap: 2rem;
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.section {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.section h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.elements-compliance {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.element-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem;
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+}
+
+.element-info {
+    flex: 1;
+}
+
+.element-name {
+    font-weight: 600;
+    color: var(--color-gray-800);
+}
+
+.element-desc {
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+    margin-top: 0.25rem;
+}
+
+.element-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.required-badge {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 500;
+}
+
+.recommended-badge {
+    background: var(--color-info-light);
+    color: var(--color-primary);
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 500;
+}
+
+.element-compliance {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 200px;
+}
+
+.compliance-bar {
+    flex: 1;
+    height: 1rem;
+    background: var(--color-gray-200);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+}
+
+.bar-fill.success { background: var(--color-success); }
+.bar-fill.warning { background: var(--color-warning); }
+.bar-fill.danger { background: var(--color-danger); }
+
+.compliance-value {
+    font-weight: 600;
+    min-width: 3rem;
+    text-align: right;
+}
+
+.compliance-count {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+}
+
+.no-data {
+    color: var(--color-gray-400);
+    font-style: italic;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--color-gray-600);
+    font-size: 0.875rem;
+}
+
+.patient-name { font-weight: 500; }
+.patient-mrn { font-size: 0.75rem; color: var(--color-gray-500); }
+
+.badge-status-active { background: var(--color-primary-light); color: var(--color-primary); }
+.badge-status-complete { background: var(--color-success-light); color: var(--color-success); }
+
+.code-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.code-badge {
+    background: var(--color-gray-100);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.code-more {
+    color: var(--color-gray-500);
+    font-size: 0.875rem;
+}
+
+.references-list {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.references-list li {
+    margin-bottom: 0.5rem;
+    color: var(--color-gray-700);
+}
+</style>
+{% endblock %}

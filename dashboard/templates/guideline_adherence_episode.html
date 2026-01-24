@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Episode Detail - Guideline Adherence - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Episode Detail</h1>
+    <a href="{{ url_for('guideline_adherence.active_episodes') }}" class="btn btn-secondary">Back to Active Episodes</a>
+</div>
+
+<div class="episode-header">
+    <div class="patient-info-card">
+        <h2>{{ episode.patient_name or 'Unknown Patient' }}</h2>
+        {% if episode.patient_mrn %}
+        <p class="patient-mrn">MRN: {{ episode.patient_mrn }}</p>
+        {% endif %}
+        {% if episode.location %}
+        <p class="patient-location">Location: {{ episode.location }}</p>
+        {% endif %}
+    </div>
+
+    <div class="episode-meta">
+        <div class="meta-item">
+            <span class="meta-label">Bundle</span>
+            <span class="meta-value">{{ episode.bundle_name or episode.bundle_id }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Trigger Time</span>
+            <span class="meta-value">{{ episode.trigger_time[:19] if episode.trigger_time else '-' }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Status</span>
+            <span class="badge badge-status-{{ episode.status }}">{{ episode.status }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Adherence Summary -->
+<div class="adherence-summary">
+    {% set met = results|selectattr('status', 'equalto', 'met')|list|length %}
+    {% set not_met = results|selectattr('status', 'equalto', 'not_met')|list|length %}
+    {% set pending = results|selectattr('status', 'equalto', 'pending')|list|length %}
+    {% set na = results|selectattr('status', 'equalto', 'na')|list|length %}
+    {% set total = met + not_met %}
+    {% set pct = ((met / total) * 100)|round(1) if total > 0 else 100 %}
+
+    <div class="summary-stat">
+        <div class="stat-value {% if pct >= 90 %}success{% elif pct >= 70 %}warning{% else %}danger{% endif %}">{{ pct }}%</div>
+        <div class="stat-label">Compliance</div>
+    </div>
+    <div class="summary-stat">
+        <div class="stat-value success">{{ met }}</div>
+        <div class="stat-label">Met</div>
+    </div>
+    <div class="summary-stat">
+        <div class="stat-value danger">{{ not_met }}</div>
+        <div class="stat-label">Not Met</div>
+    </div>
+    <div class="summary-stat">
+        <div class="stat-value warning">{{ pending }}</div>
+        <div class="stat-label">Pending</div>
+    </div>
+</div>
+
+<!-- Element Results -->
+<div class="section">
+    <h3>Bundle Elements</h3>
+    <div class="elements-list">
+        {% for result in results %}
+        <div class="element-item status-{{ result.status }}">
+            <div class="element-status">
+                {% if result.status == 'met' %}
+                    <span class="status-icon met">&#x2713;</span>
+                {% elif result.status == 'not_met' %}
+                    <span class="status-icon not-met">&#x2717;</span>
+                {% elif result.status == 'pending' %}
+                    <span class="status-icon pending">&#x25CB;</span>
+                {% else %}
+                    <span class="status-icon na">-</span>
+                {% endif %}
+            </div>
+            <div class="element-details">
+                <div class="element-name">{{ result.element_name or result.element_id }}</div>
+                <div class="element-meta">
+                    {% if result.time_window_hours %}
+                    <span>Window: {{ result.time_window_hours }}h</span>
+                    {% endif %}
+                    {% if result.deadline %}
+                    <span>Deadline: {{ result.deadline[:16] }}</span>
+                    {% endif %}
+                    {% if result.completed_at %}
+                    <span>Completed: {{ result.completed_at[:16] }}</span>
+                    {% endif %}
+                </div>
+                {% if result.notes %}
+                <div class="element-notes">{{ result.notes }}</div>
+                {% endif %}
+                {% if result.value %}
+                <div class="element-value">Value: {{ result.value }}</div>
+                {% endif %}
+            </div>
+            <div class="element-badge">
+                <span class="badge badge-{{ result.status }}">{{ result.status|upper }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Bundle Reference -->
+{% if bundle %}
+<div class="section">
+    <h3>Bundle Reference: {{ bundle.name }}</h3>
+    <p>{{ bundle.description }}</p>
+    {% if bundle.references %}
+    <div class="references">
+        <strong>References:</strong>
+        <ul>
+            {% for ref in bundle.references %}
+            <li>{{ ref }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+.episode-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.patient-info-card h2 {
+    margin: 0 0 0.5rem 0;
+    color: var(--color-gray-800);
+}
+
+.patient-info-card .patient-mrn,
+.patient-info-card .patient-location {
+    margin: 0.25rem 0;
+    color: var(--color-gray-600);
+    font-size: 0.875rem;
+}
+
+.episode-meta {
+    display: flex;
+    gap: 2rem;
+}
+
+.meta-item {
+    text-align: right;
+}
+
+.meta-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.meta-value {
+    font-weight: 600;
+    color: var(--color-gray-800);
+}
+
+.adherence-summary {
+    display: flex;
+    gap: 2rem;
+    padding: 1.5rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.summary-stat {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.stat-value.success { color: var(--color-success); }
+.stat-value.warning { color: var(--color-warning); }
+.stat-value.danger { color: var(--color-danger); }
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.section {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.elements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.element-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--color-gray-300);
+}
+
+.element-item.status-met { border-left-color: var(--color-success); background: var(--color-success-light); }
+.element-item.status-not_met { border-left-color: var(--color-danger); background: var(--color-danger-light); }
+.element-item.status-pending { border-left-color: var(--color-warning); background: var(--color-warning-light); }
+.element-item.status-na { border-left-color: var(--color-gray-400); background: var(--color-gray-100); }
+
+.element-status {
+    flex-shrink: 0;
+}
+
+.status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+.status-icon.met { background: var(--color-success); color: white; }
+.status-icon.not-met { background: var(--color-danger); color: white; }
+.status-icon.pending { background: var(--color-warning); color: white; }
+.status-icon.na { background: var(--color-gray-400); color: white; }
+
+.element-details {
+    flex: 1;
+}
+
+.element-name {
+    font-weight: 600;
+    color: var(--color-gray-800);
+}
+
+.element-meta {
+    font-size: 0.75rem;
+    color: var(--color-gray-600);
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.25rem;
+}
+
+.element-notes {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--color-gray-700);
+}
+
+.element-value {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    font-family: monospace;
+    color: var(--color-gray-700);
+}
+
+.element-badge {
+    flex-shrink: 0;
+}
+
+.badge-met { background: var(--color-success); color: white; }
+.badge-not_met { background: var(--color-danger); color: white; }
+.badge-pending { background: var(--color-warning); color: white; }
+.badge-na { background: var(--color-gray-400); color: white; }
+
+.badge-status-active { background: var(--color-primary-light); color: var(--color-primary); }
+.badge-status-complete { background: var(--color-success-light); color: var(--color-success); }
+.badge-status-closed { background: var(--color-gray-200); color: var(--color-gray-600); }
+
+.references ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+}
+</style>
+{% endblock %}

@@ -672,6 +672,150 @@ FEBRILE_NEUTROPENIA_BUNDLE = GuidelineBundle(
 )
 
 
+# -----------------------------------------------------------------------------
+# FEBRILE INFANT BUNDLE (AAP 2021 Guideline)
+# -----------------------------------------------------------------------------
+
+FEBRILE_INFANT_BUNDLE = GuidelineBundle(
+    bundle_id='febrile_infant_2024',
+    name='Febrile Infant Bundle (0-60 days)',
+    description='Evidence-based bundle for evaluation of well-appearing febrile infants 8-60 days old (AAP 2021)',
+    condition_icd10_codes=[
+        'R50.9',   # Fever, unspecified
+        'R50.81',  # Fever presenting with conditions classified elsewhere
+        'R50.82',  # Postprocedural fever
+        'R50.83',  # Postvaccination fever
+        'R50.84',  # Febrile nonhemolytic transfusion reaction
+        'P81.9',   # Disturbance of temperature regulation of newborn
+    ],
+    trigger_criteria={
+        'all_of': ['fever', 'age_days <= 60', 'well_appearing']
+    },
+    elements=[
+        # Workup elements - all age groups
+        BundleElement(
+            element_id='fi_ua',
+            name='Urinalysis obtained',
+            description='Urinalysis performed via catheter or suprapubic aspiration',
+            required=True,
+            time_window_hours=2.0,
+            data_source='lab_orders',
+            query_logic="order_code IN ('UA', 'URINALYSIS') AND collected"
+        ),
+        BundleElement(
+            element_id='fi_blood_culture',
+            name='Blood culture obtained',
+            description='Blood culture obtained prior to antibiotics',
+            required=True,
+            time_window_hours=2.0,
+            data_source='lab_orders',
+            query_logic="order_code = 'BLOOD_CULTURE' AND collected_time <= abx_time"
+        ),
+        BundleElement(
+            element_id='fi_inflammatory_markers',
+            name='Inflammatory markers obtained',
+            description='ANC and CRP obtained; procalcitonin recommended for 29-60 days',
+            required=True,
+            time_window_hours=2.0,
+            data_source='lab_results',
+            query_logic="(ANC IS NOT NULL OR CRP IS NOT NULL)"
+        ),
+        BundleElement(
+            element_id='fi_procalcitonin',
+            name='Procalcitonin obtained (29-60 days)',
+            description='Procalcitonin recommended for infants 29-60 days; most useful if fever onset >6 hours',
+            required=False,  # Recommended, not required
+            time_window_hours=2.0,
+            data_source='lab_results',
+            query_logic="PCT IS NOT NULL"
+        ),
+        # LP elements - age-stratified
+        BundleElement(
+            element_id='fi_lp_8_21d',
+            name='LP performed (8-21 days)',
+            description='Lumbar puncture required for all febrile infants 8-21 days',
+            required=True,  # Required for 8-21 days
+            time_window_hours=2.0,
+            data_source='procedure_orders',
+            query_logic="procedure_code = 'LUMBAR_PUNCTURE' AND age_days BETWEEN 8 AND 21"
+        ),
+        BundleElement(
+            element_id='fi_lp_22_28d_im_abnormal',
+            name='LP performed (22-28 days, IMs abnormal)',
+            description='LP required if inflammatory markers abnormal in 22-28 day old',
+            required=True,  # Required if IMs abnormal
+            time_window_hours=2.0,
+            data_source='procedure_orders',
+            query_logic="procedure_code = 'LUMBAR_PUNCTURE' AND age_days BETWEEN 22 AND 28 AND inflammatory_markers_abnormal"
+        ),
+        # Treatment elements
+        BundleElement(
+            element_id='fi_abx_8_21d',
+            name='Parenteral antibiotics (8-21 days)',
+            description='Start parenteral antimicrobials for all febrile infants 8-21 days',
+            required=True,
+            time_window_hours=1.0,
+            data_source='mar',
+            query_logic="antibiotic_route = 'IV' AND age_days BETWEEN 8 AND 21"
+        ),
+        BundleElement(
+            element_id='fi_abx_22_28d_im_abnormal',
+            name='Parenteral antibiotics (22-28 days, IMs abnormal)',
+            description='Start empiric parenteral antimicrobials if inflammatory markers abnormal',
+            required=True,
+            time_window_hours=1.0,
+            data_source='mar',
+            query_logic="antibiotic_route = 'IV' AND age_days BETWEEN 22 AND 28 AND inflammatory_markers_abnormal"
+        ),
+        # HSV consideration
+        BundleElement(
+            element_id='fi_hsv_risk_assessment',
+            name='HSV risk assessment',
+            description='Consider HSV risk factors and need for acyclovir (8-28 days)',
+            required=True,  # Required for 8-28 days
+            time_window_hours=4.0,
+            data_source='notes',
+            query_logic="documentation CONTAINS 'HSV' OR acyclovir_ordered"
+        ),
+        # Disposition elements
+        BundleElement(
+            element_id='fi_admit_8_21d',
+            name='Hospital admission (8-21 days)',
+            description='Admit to hospital for all febrile infants 8-21 days',
+            required=True,
+            time_window_hours=None,
+            data_source='encounter',
+            query_logic="encounter_type = 'INPATIENT' AND age_days BETWEEN 8 AND 21"
+        ),
+        BundleElement(
+            element_id='fi_admit_22_28d_im_abnormal',
+            name='Hospital admission (22-28 days, IMs abnormal)',
+            description='Admit to hospital if inflammatory markers abnormal',
+            required=True,
+            time_window_hours=None,
+            data_source='encounter',
+            query_logic="encounter_type = 'INPATIENT' AND age_days BETWEEN 22 AND 28 AND inflammatory_markers_abnormal"
+        ),
+        BundleElement(
+            element_id='fi_safe_discharge_checklist',
+            name='Safe discharge checklist',
+            description='If discharging: documented follow-up within 24h, working phone number, reliable transportation',
+            required=False,  # Only if discharging
+            time_window_hours=None,
+            data_source='notes',
+            query_logic="(disposition = 'HOME' AND followup_documented AND contact_documented)"
+        ),
+    ],
+    references=[
+        'AAP Clinical Practice Guideline: Evaluation and Management of Well-Appearing Febrile Infants 8 to 60 Days Old. Pediatrics. August 2021',
+        'Cincinnati Childrens Febrile Infant Pathway',
+        'PECARN Febrile Infant Studies'
+    ],
+    version='2024.1',
+    last_updated='2024-01-01'
+)
+
+
 # =============================================================================
 # ALL BUNDLES REGISTRY
 # =============================================================================
@@ -683,6 +827,7 @@ GUIDELINE_BUNDLES: Dict[str, GuidelineBundle] = {
     'ssti_peds_2024': SSTI_BUNDLE,
     'surgical_prophy_2024': SURGICAL_PROPHYLAXIS_BUNDLE,
     'fn_peds_2024': FEBRILE_NEUTROPENIA_BUNDLE,
+    'febrile_infant_2024': FEBRILE_INFANT_BUNDLE,
 }
 
 
