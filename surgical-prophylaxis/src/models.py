@@ -127,6 +127,7 @@ class ProphylaxisEvaluation:
     timing: ElementResult
     dosing: ElementResult
     redosing: ElementResult
+    postop_continuation: ElementResult
     discontinuation: ElementResult
 
     # Summary
@@ -152,6 +153,7 @@ class ProphylaxisEvaluation:
             self.timing,
             self.dosing,
             self.redosing,
+            self.postop_continuation,
             self.discontinuation
         ]
 
@@ -168,6 +170,11 @@ class ProcedureRequirement:
     requires_anaerobic_coverage: bool = False
     mrsa_high_risk_add: Optional[str] = None
     notes: Optional[str] = None
+    # Post-operative continuation requirements
+    requires_postop_continuation: bool = False  # MUST have post-op doses
+    postop_continuation_allowed: bool = False   # OK to have post-op doses (optional)
+    postop_duration_hours: Optional[int] = None  # How long to continue post-op
+    postop_interval_hours: Optional[float] = None  # Dosing interval for post-op
 
 
 @dataclass

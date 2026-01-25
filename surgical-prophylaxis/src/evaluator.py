@@ -62,12 +62,13 @@ class ProphylaxisEvaluator:
         timing = self._evaluate_timing(case)
         dosing = self._evaluate_dosing(case)
         redosing = self._evaluate_redosing(case)
+        postop_continuation = self._evaluate_postop_continuation(case)
         discontinuation = self._evaluate_discontinuation(case)
 
         # Calculate summary
-        elements = [indication, agent, timing, dosing, redosing, discontinuation]
+        elements = [indication, agent, timing, dosing, redosing, postop_continuation, discontinuation]
         applicable = [e for e in elements if e.status not in
-                     (ComplianceStatus.NOT_APPLICABLE, ComplianceStatus.UNABLE_TO_ASSESS)]
+                     (ComplianceStatus.NOT_APPLICABLE, ComplianceStatus.UNABLE_TO_ASSESS, ComplianceStatus.PENDING)]
         met = [e for e in applicable if e.status == ComplianceStatus.MET]
 
         elements_met = len(met)
@@ -94,6 +95,7 @@ class ProphylaxisEvaluator:
             timing=timing,
             dosing=dosing,
             redosing=redosing,
+            postop_continuation=postop_continuation,
             discontinuation=discontinuation,
             bundle_compliant=bundle_compliant,
             compliance_score=compliance_score,
@@ -117,11 +119,6 @@ class ProphylaxisEvaluator:
         self, case: SurgicalCase, reason: str
     ) -> ProphylaxisEvaluation:
         """Create an evaluation result for excluded cases."""
-        na_result = ElementResult(
-            element_name="",
-            status=ComplianceStatus.NOT_APPLICABLE,
-            details=f"Excluded: {reason}",
-        )
         return ProphylaxisEvaluation(
             case_id=case.case_id,
             patient_mrn=case.patient_mrn,
@@ -129,9 +126,10 @@ class ProphylaxisEvaluator:
             evaluation_time=datetime.now(),
             indication=ElementResult("Indication", ComplianceStatus.NOT_APPLICABLE, reason),
             agent_selection=ElementResult("Agent Selection", ComplianceStatus.NOT_APPLICABLE, reason),
-            timing=ElementResult("Timing", ComplianceStatus.NOT_APPLICABLE, reason),
+            timing=ElementResult("Pre-op Timing", ComplianceStatus.NOT_APPLICABLE, reason),
             dosing=ElementResult("Dosing", ComplianceStatus.NOT_APPLICABLE, reason),
             redosing=ElementResult("Redosing", ComplianceStatus.NOT_APPLICABLE, reason),
+            postop_continuation=ElementResult("Post-op Continuation", ComplianceStatus.NOT_APPLICABLE, reason),
             discontinuation=ElementResult("Discontinuation", ComplianceStatus.NOT_APPLICABLE, reason),
             bundle_compliant=True,  # Excluded cases are not failures
             compliance_score=100.0,
@@ -270,8 +268,9 @@ class ProphylaxisEvaluator:
 
     def _evaluate_timing(self, case: SurgicalCase) -> ElementResult:
         """
-        Evaluate if prophylaxis was given within the appropriate window.
+        Evaluate if PRE-OPERATIVE prophylaxis was given within the appropriate window.
 
+        Only checks doses given BEFORE incision.
         Standard: 60 minutes before incision
         Extended: 120 minutes for vancomycin/fluoroquinolones
         """
@@ -286,28 +285,42 @@ class ProphylaxisEvaluator:
 
             if requirements and not requirements.prophylaxis_indicated:
                 return ElementResult(
-                    element_name="Timing",
+                    element_name="Pre-op Timing",
                     status=ComplianceStatus.NOT_APPLICABLE,
                     details="Prophylaxis not indicated",
                 )
             return ElementResult(
-                element_name="Timing",
+                element_name="Pre-op Timing",
                 status=ComplianceStatus.NOT_MET,
                 details="No prophylaxis administered",
             )
 
         if not case.actual_incision_time:
             return ElementResult(
-                element_name="Timing",
+                element_name="Pre-op Timing",
                 status=ComplianceStatus.PENDING,
                 details="Surgery not yet started - incision time not recorded",
             )
 
-        # Check timing for each administered antibiotic
+        # Filter to only pre-incision doses
+        pre_incision_admins = [
+            admin for admin in case.prophylaxis_administrations
+            if admin.admin_time < case.actual_incision_time
+        ]
+
+        if not pre_incision_admins:
+            return ElementResult(
+                element_name="Pre-op Timing",
+                status=ComplianceStatus.NOT_MET,
+                details="No pre-operative prophylaxis given before incision",
+                recommendation="Administer prophylaxis within 60 min before incision",
+            )
+
+        # Check timing for each pre-incision antibiotic
         timing_results = []
         all_met = True
 
-        for admin in case.prophylaxis_administrations:
+        for admin in pre_incision_admins:
             # Calculate minutes before incision
             delta = case.actual_incision_time - admin.admin_time
             minutes_before = delta.total_seconds() / 60
@@ -319,31 +332,26 @@ class ProphylaxisEvaluator:
             else:
                 max_window = 60
 
-            # Check compliance
+            # Check compliance (must be within window, not too early)
             if 0 < minutes_before <= max_window:
                 timing_results.append(
                     f"{admin.medication_name}: {minutes_before:.0f} min before incision (compliant)"
                 )
-            elif minutes_before <= 0:
-                timing_results.append(
-                    f"{admin.medication_name}: given {abs(minutes_before):.0f} min AFTER incision"
-                )
-                all_met = False
             else:
                 timing_results.append(
-                    f"{admin.medication_name}: {minutes_before:.0f} min before incision (>window)"
+                    f"{admin.medication_name}: {minutes_before:.0f} min before incision (outside {max_window} min window)"
                 )
                 all_met = False
 
         if all_met:
             return ElementResult(
-                element_name="Timing",
+                element_name="Pre-op Timing",
                 status=ComplianceStatus.MET,
                 details="; ".join(timing_results),
             )
         else:
             return ElementResult(
-                element_name="Timing",
+                element_name="Pre-op Timing",
                 status=ComplianceStatus.NOT_MET,
                 details="; ".join(timing_results),
                 recommendation="Antibiotics should be given within 60 min (120 min for vancomycin) before incision",
@@ -528,6 +536,151 @@ class ProphylaxisEvaluator:
                 details="; ".join(redose_results),
                 recommendation="Redose antibiotics per interval for prolonged surgery",
             )
+
+    def _evaluate_postop_continuation(self, case: SurgicalCase) -> ElementResult:
+        """
+        Evaluate post-operative prophylaxis continuation.
+
+        For procedures requiring post-op continuation (e.g., perforated appendectomy,
+        cardiac surgery), verify that appropriate doses are given after surgery.
+        For procedures NOT requiring continuation, verify prophylaxis is stopped.
+        """
+        # Get procedure requirements
+        requirements = None
+        for cpt in case.cpt_codes:
+            req = self.config.get_procedure_requirements(cpt)
+            if req:
+                requirements = req
+                break
+
+        if requirements is None:
+            return ElementResult(
+                element_name="Post-op Continuation",
+                status=ComplianceStatus.UNABLE_TO_ASSESS,
+                details=f"CPT codes not in guidelines: {case.cpt_codes}",
+            )
+
+        if not requirements.prophylaxis_indicated:
+            return ElementResult(
+                element_name="Post-op Continuation",
+                status=ComplianceStatus.NOT_APPLICABLE,
+                details="Prophylaxis not indicated for this procedure",
+            )
+
+        if not case.surgery_end_time:
+            return ElementResult(
+                element_name="Post-op Continuation",
+                status=ComplianceStatus.PENDING,
+                details="Surgery not yet complete",
+            )
+
+        # Get post-op doses (doses given after surgery end)
+        postop_admins = [
+            admin for admin in case.prophylaxis_administrations
+            if admin.admin_time > case.surgery_end_time
+        ]
+
+        # Case 1: Post-op continuation NOT required and NOT allowed
+        if not requirements.requires_postop_continuation and not requirements.postop_continuation_allowed:
+            if not postop_admins:
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.MET,
+                    details="Prophylaxis appropriately stopped after surgery (no post-op continuation required)",
+                )
+            else:
+                # Check if doses are within acceptable window (allow intra-op redose that extends slightly post-op)
+                latest_acceptable = case.surgery_end_time + timedelta(hours=2)
+                late_doses = [a for a in postop_admins if a.admin_time > latest_acceptable]
+                if late_doses:
+                    return ElementResult(
+                        element_name="Post-op Continuation",
+                        status=ComplianceStatus.NOT_MET,
+                        details=f"{len(late_doses)} dose(s) given >2h after surgery end (post-op continuation not required)",
+                        recommendation="Discontinue prophylaxis - post-op continuation not indicated for this procedure",
+                    )
+                else:
+                    return ElementResult(
+                        element_name="Post-op Continuation",
+                        status=ComplianceStatus.MET,
+                        details=f"{len(postop_admins)} dose(s) shortly after surgery (acceptable)",
+                    )
+
+        # Case 2: Post-op continuation ALLOWED but not required (e.g., cardiac up to 48h)
+        if not requirements.requires_postop_continuation and requirements.postop_continuation_allowed:
+            duration_limit = requirements.postop_duration_hours or requirements.duration_limit_hours
+            if not postop_admins:
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.MET,
+                    details=f"No post-op doses (continuation optional, up to {duration_limit}h allowed)",
+                )
+            else:
+                # Post-op doses given - that's fine, just note it
+                last_postop_dose = max(a.admin_time for a in postop_admins)
+                hours_covered = (last_postop_dose - case.surgery_end_time).total_seconds() / 3600
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.MET,
+                    details=f"{len(postop_admins)} post-op dose(s) given over {hours_covered:.1f}h (optional continuation, limit {duration_limit}h)",
+                )
+
+        # Case 3: Post-op continuation IS required (e.g., perforated appendectomy)
+        postop_duration = requirements.postop_duration_hours or 24
+        postop_interval = requirements.postop_interval_hours
+
+        if not postop_admins:
+            return ElementResult(
+                element_name="Post-op Continuation",
+                status=ComplianceStatus.NOT_MET,
+                details=f"No post-op doses given (continuation required for {postop_duration}h)",
+                recommendation=f"Continue prophylaxis for {postop_duration}h after surgery",
+            )
+
+        # Check if doses cover the required duration
+        # Calculate hours from surgery end to last post-op dose
+        last_postop_dose = max(a.admin_time for a in postop_admins)
+        hours_covered = (last_postop_dose - case.surgery_end_time).total_seconds() / 3600
+
+        # Check if we have enough doses at the right interval
+        if postop_interval:
+            expected_doses = int(postop_duration / postop_interval)
+            actual_doses = len(postop_admins)
+
+            if actual_doses >= expected_doses and hours_covered >= (postop_duration * 0.8):
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.MET,
+                    details=f"{actual_doses} post-op doses given over {hours_covered:.1f}h (required: {postop_duration}h Q{postop_interval}H)",
+                )
+            elif hours_covered >= (postop_duration * 0.8):
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.MET,
+                    details=f"Post-op prophylaxis continued for {hours_covered:.1f}h (required: {postop_duration}h)",
+                )
+            else:
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.NOT_MET,
+                    details=f"Only {hours_covered:.1f}h of post-op coverage ({actual_doses} doses), required {postop_duration}h",
+                    recommendation=f"Continue prophylaxis Q{postop_interval}H for {postop_duration}h total",
+                )
+        else:
+            # No specific interval, just check duration coverage
+            if hours_covered >= (postop_duration * 0.8):
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.MET,
+                    details=f"Post-op prophylaxis continued for {hours_covered:.1f}h (required: {postop_duration}h)",
+                )
+            else:
+                return ElementResult(
+                    element_name="Post-op Continuation",
+                    status=ComplianceStatus.NOT_MET,
+                    details=f"Only {hours_covered:.1f}h of post-op coverage, required {postop_duration}h",
+                    recommendation=f"Continue prophylaxis for full {postop_duration}h after surgery",
+                )
 
     def _evaluate_discontinuation(self, case: SurgicalCase) -> ElementResult:
         """

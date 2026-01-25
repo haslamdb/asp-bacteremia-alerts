@@ -42,30 +42,52 @@ NO_REDOSE_ANTIBIOTICS = [
 ]
 
 # Default dosing information (fallback if not in JSON)
+# Updated per CCHMC Surg PPX Guidelines 9-6-2024
 DEFAULT_DOSING: dict[str, DosingInfo] = {
     "cefazolin": DosingInfo(
         medication_name="cefazolin",
-        pediatric_mg_per_kg=30.0,
+        pediatric_mg_per_kg=40.0,
         pediatric_max_mg=2000.0,
         adult_standard_mg=2000.0,
-        adult_high_weight_threshold_kg=120.0,
+        adult_high_weight_threshold_kg=100.0,
         adult_high_weight_mg=3000.0,
-        redose_interval_hours=4.0,
+        redose_interval_hours=3.0,
+    ),
+    "cefoxitin": DosingInfo(
+        medication_name="cefoxitin",
+        pediatric_mg_per_kg=40.0,
+        pediatric_max_mg=2000.0,
+        adult_standard_mg=2000.0,
+        redose_interval_hours=3.0,
+    ),
+    "ceftriaxone": DosingInfo(
+        medication_name="ceftriaxone",
+        pediatric_mg_per_kg=50.0,
+        pediatric_max_mg=2000.0,
+        adult_standard_mg=2000.0,
+        redose_interval_hours=12.0,
+    ),
+    "cefuroxime": DosingInfo(
+        medication_name="cefuroxime",
+        pediatric_mg_per_kg=50.0,
+        pediatric_max_mg=2000.0,
+        adult_standard_mg=2000.0,
+        redose_interval_hours=3.0,
     ),
     "vancomycin": DosingInfo(
         medication_name="vancomycin",
         pediatric_mg_per_kg=15.0,
         pediatric_max_mg=2000.0,
         adult_standard_mg=2000.0,
-        redose_interval_hours=None,
+        redose_interval_hours=8.0,
         infusion_time_minutes=60,
     ),
     "metronidazole": DosingInfo(
         medication_name="metronidazole",
         pediatric_mg_per_kg=15.0,
-        pediatric_max_mg=500.0,
-        adult_standard_mg=500.0,
-        redose_interval_hours=None,
+        pediatric_max_mg=1000.0,
+        adult_standard_mg=1000.0,
+        redose_interval_hours=12.0,
     ),
     "clindamycin": DosingInfo(
         medication_name="clindamycin",
@@ -76,24 +98,45 @@ DEFAULT_DOSING: dict[str, DosingInfo] = {
     ),
     "gentamicin": DosingInfo(
         medication_name="gentamicin",
-        pediatric_mg_per_kg=2.5,
-        pediatric_max_mg=120.0,
-        adult_standard_mg=120.0,
-        redose_interval_hours=None,
+        pediatric_mg_per_kg=4.5,
+        pediatric_max_mg=160.0,
+        adult_standard_mg=360.0,
+        redose_interval_hours=12.0,
+    ),
+    "ampicillin": DosingInfo(
+        medication_name="ampicillin",
+        pediatric_mg_per_kg=50.0,
+        pediatric_max_mg=2000.0,
+        adult_standard_mg=2000.0,
+        redose_interval_hours=2.0,
     ),
     "ampicillin-sulbactam": DosingInfo(
         medication_name="ampicillin-sulbactam",
-        pediatric_mg_per_kg=50.0,  # ampicillin component
-        pediatric_max_mg=2000.0,
+        pediatric_mg_per_kg=75.0,  # amp+sul components
+        pediatric_max_mg=3000.0,
         adult_standard_mg=3000.0,
         redose_interval_hours=2.0,
     ),
     "piperacillin-tazobactam": DosingInfo(
         medication_name="piperacillin-tazobactam",
-        pediatric_mg_per_kg=100.0,  # piperacillin component
-        pediatric_max_mg=4000.0,
-        adult_standard_mg=4500.0,
+        pediatric_mg_per_kg=100.0,  # pip+tazo components
+        pediatric_max_mg=3375.0,
+        adult_standard_mg=3375.0,
         redose_interval_hours=2.0,
+    ),
+    "aztreonam": DosingInfo(
+        medication_name="aztreonam",
+        pediatric_mg_per_kg=30.0,
+        pediatric_max_mg=2000.0,
+        adult_standard_mg=2000.0,
+        redose_interval_hours=4.0,
+    ),
+    "ciprofloxacin": DosingInfo(
+        medication_name="ciprofloxacin",
+        pediatric_mg_per_kg=10.0,
+        pediatric_max_mg=400.0,
+        adult_standard_mg=400.0,
+        redose_interval_hours=8.0,
     ),
 }
 
@@ -168,10 +211,13 @@ class GuidelinesConfig:
             default_indicated = category_data.get("prophylaxis_indicated", True)
             default_duration = category_data.get("duration_limit_hours", 24)
             requires_anaerobic = category_data.get("requires_anaerobic_coverage", False)
+            default_postop_allowed = category_data.get("postop_continuation_allowed", False)
 
             for proc in category_data.get("procedures", []):
-                # Get procedure-level override for prophylaxis indication
+                # Get procedure-level overrides
                 proc_indicated = proc.get("prophylaxis_indicated", default_indicated)
+                proc_anaerobic = proc.get("requires_anaerobic_coverage", requires_anaerobic)
+                proc_postop_allowed = proc.get("postop_continuation_allowed", default_postop_allowed)
 
                 req = ProcedureRequirement(
                     procedure_name=proc.get("name", "Unknown"),
@@ -180,9 +226,14 @@ class GuidelinesConfig:
                     first_line_agents=proc.get("first_line_agents", []),
                     alternative_agents=proc.get("alternative_agents", []),
                     duration_limit_hours=default_duration,
-                    requires_anaerobic_coverage=requires_anaerobic,
+                    requires_anaerobic_coverage=proc_anaerobic,
                     mrsa_high_risk_add=proc.get("mrsa_high_risk_add"),
                     notes=proc.get("notes"),
+                    # Post-op continuation fields
+                    requires_postop_continuation=proc.get("requires_postop_continuation", False),
+                    postop_continuation_allowed=proc_postop_allowed,
+                    postop_duration_hours=proc.get("postop_duration_hours"),
+                    postop_interval_hours=proc.get("postop_interval_hours"),
                 )
 
                 # Index by each CPT code
@@ -194,17 +245,22 @@ class GuidelinesConfig:
         # Start with defaults
         self._dosing_info = DEFAULT_DOSING.copy()
 
-        # Override with JSON data if available
-        dosing_data = self._guidelines.get("general_principles", {}).get("dosing", {})
+        # Override with JSON data if available (check both old and new locations)
+        dosing_data = self._guidelines.get("dosing", {})
+        if not dosing_data:
+            # Fall back to old location for backwards compatibility
+            dosing_data = self._guidelines.get("general_principles", {}).get("dosing", {})
 
         for med_name, info in dosing_data.items():
-            self._dosing_info[med_name] = DosingInfo(
-                medication_name=med_name,
-                pediatric_mg_per_kg=info.get("pediatric_mg_per_kg", info.get("mg_per_kg", 0)),
-                pediatric_max_mg=info.get("pediatric_max_mg", info.get("max_mg", 0)),
-                adult_standard_mg=info.get("adult_standard_mg", info.get("max_mg", 0)),
-                adult_high_weight_threshold_kg=info.get("adult_high_weight_threshold_kg", 120),
-                adult_high_weight_mg=info.get("adult_high_weight_mg"),
+            # Normalize medication name (replace underscores with hyphens)
+            normalized_name = med_name.replace("_", "-")
+            self._dosing_info[normalized_name] = DosingInfo(
+                medication_name=normalized_name,
+                pediatric_mg_per_kg=info.get("dose_mg_per_kg", info.get("pediatric_mg_per_kg", info.get("mg_per_kg", 0))),
+                pediatric_max_mg=info.get("max_per_dose_mg", info.get("pediatric_max_mg", info.get("max_mg", 0))) or 0,
+                adult_standard_mg=info.get("max_per_dose_mg", info.get("adult_standard_mg", info.get("max_mg", 0))) or 0,
+                adult_high_weight_threshold_kg=info.get("high_weight_threshold_kg", info.get("adult_high_weight_threshold_kg", 120)),
+                adult_high_weight_mg=info.get("high_weight_max_mg", info.get("adult_high_weight_mg")),
                 redose_interval_hours=info.get("redose_interval_hours"),
                 infusion_time_minutes=info.get("infusion_time_minutes"),
             )

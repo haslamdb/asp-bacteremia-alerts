@@ -8,29 +8,31 @@ This document outlines planned enhancements for the Surgical Prophylaxis module 
 
 ## Priority 1: Actual CCHMC Guidelines
 
-**Status:** Pending - Awaiting Guidelines
+**Status:** In Progress - Guidelines v2024.2 Loaded (September 2024)
 
 ### Current State
-The module currently uses a **sample/dummy guidelines file** (`data/cchmc_surgical_prophylaxis_guidelines.json`) created for development purposes. This file includes realistic procedure categories and CPT codes but should NOT be used for clinical decisions.
+The module now uses **actual CCHMC guidelines** from `Surg PPX Guidelines IN PROGRESS 9-6-2024.docx`, parsed into `data/cchmc_surgical_prophylaxis_guidelines.json` (version 2024.2).
 
-### Required Action
-1. Obtain official CCHMC Surgical Antimicrobial Prophylaxis Guidelines from:
-   - Antimicrobial Stewardship Program
-   - Department of Surgery
-   - Pharmacy and Therapeutics Committee
+### Implemented (January 2025)
+- [x] Procedure-specific antibiotic recommendations (310+ CPT codes)
+- [x] Dosing tables with GFR-based redosing intervals
+- [x] Beta-lactam allergy alternatives with cross-reactivity guidance
+- [x] Duration limits by procedure type (24h standard, 48h cardiac)
+- [x] Post-operative continuation requirements (perforated appendectomy: 24h)
+- [x] MRSA screening guidance (add vancomycin for MRSA+ patients)
+- [x] Endocarditis prophylaxis section
 
-2. Guidelines should include:
-   - Procedure-specific antibiotic recommendations
-   - CPT code mappings for each procedure
-   - Dosing tables (pediatric, adult, weight-based)
-   - Allergy alternatives
-   - Duration limits by procedure type
-   - MRSA screening protocols
-   - Special populations (neonates, transplant, immunocompromised)
+### Key Changes from Previous Version
+- Cefazolin dosing: 40 mg/kg (was 30 mg/kg), Q3H redosing (was Q4H)
+- Appendectomy: Ceftriaxone + Metronidazole (was Cefoxitin)
+- Cardiac: Cefazolin (was Cefuroxime)
+- Colorectal: Cefoxitin
+- New Post-op Continuation element for perforated appendectomy
 
-3. Update `data/cchmc_surgical_prophylaxis_guidelines.json` with official content
-
-4. Review and validate CPT code mappings with surgical scheduling
+### Still Pending
+- [ ] Final approval of guidelines document (currently "IN PROGRESS")
+- [ ] Review and validate CPT code mappings with surgical scheduling
+- [ ] Add special populations guidance (neonates, transplant, immunocompromised)
 
 ### Contacts
 - [ ] ASP Pharmacist: _______________

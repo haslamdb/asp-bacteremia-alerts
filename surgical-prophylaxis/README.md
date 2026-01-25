@@ -1,17 +1,18 @@
 # AEGIS Surgical Antimicrobial Prophylaxis Module
 
-Real-time monitoring of surgical antimicrobial prophylaxis compliance based on ASHP/IDSA/SHEA/SIS 2013 guidelines and local CCHMC protocols.
+Real-time monitoring of surgical antimicrobial prophylaxis compliance based on ASHP/IDSA/SHEA/SIS 2013 guidelines and local CCHMC protocols (v2024.2, September 2024).
 
 ## Overview
 
-The Surgical Prophylaxis module evaluates surgical cases for adherence to evidence-based prophylaxis guidelines, tracking six key bundle elements:
+The Surgical Prophylaxis module evaluates surgical cases for adherence to evidence-based prophylaxis guidelines, tracking seven key bundle elements:
 
 1. **Indication Appropriate** - Prophylaxis given (or withheld) appropriately for the procedure
 2. **Agent Selection** - Correct antibiotic(s) for the procedure type and patient allergies
-3. **Timing** - Administered within 60 min of incision (120 min for vancomycin)
+3. **Pre-op Timing** - Administered within 60 min of incision (120 min for vancomycin)
 4. **Weight-Based Dosing** - Appropriate dose for patient weight
-5. **Intraoperative Redosing** - Redose given for prolonged surgery (>4h for cefazolin)
-6. **Timely Discontinuation** - Stopped within 24h (48h for cardiac)
+5. **Intraoperative Redosing** - Redose given for prolonged surgery (Q3H for cefazolin)
+6. **Post-op Continuation** - Appropriate post-operative prophylaxis when required (or stopped when not)
+7. **Timely Discontinuation** - Stopped within 24h (48h for cardiac)
 
 ## Features
 
@@ -57,18 +58,19 @@ surgical-prophylaxis/
 └── README.md
 ```
 
-## Procedure Coverage (55+ CPT codes)
+## Procedure Coverage (310+ CPT codes)
 
-| Specialty | Example Procedures | Primary Agent |
-|-----------|-------------------|---------------|
-| **Cardiac** | VSD repair, valve replacement, CABG | Cefazolin |
-| **Thoracic** | Lobectomy, pneumonectomy | Cefazolin |
-| **Hepatobiliary** | Cholecystectomy, liver transplant | Cefazolin, Pip-tazo |
-| **Colorectal** | Colectomy, appendectomy | Cefazolin + Metronidazole |
-| **GU** | Pyeloplasty, nephrectomy | Cefazolin |
-| **Orthopedic** | Arthroplasty, spinal fusion, ORIF | Cefazolin |
-| **Neurosurgery** | Craniotomy, VP shunt | Cefazolin, Vancomycin |
-| **Vascular** | Endarterectomy, bypass | Cefazolin |
+| Specialty | Example Procedures | Primary Agent | Post-op |
+|-----------|-------------------|---------------|---------|
+| **Cardiac** | VSD repair, valve replacement, CABG | Cefazolin | Optional (up to 48h) |
+| **Thoracic** | Lobectomy, VATS | Cefazolin | No |
+| **General Surgery** | Appendectomy, colectomy, hernia | Cefoxitin or Ceftriaxone+Metro | Perforated appy: 24h |
+| **Hepatobiliary** | Cholecystectomy (high-risk/open) | Cefazolin | No |
+| **Urology** | Pyeloplasty, nephrectomy | Cefazolin | No |
+| **Orthopedic** | Spinal fusion, ORIF | Cefazolin | No |
+| **Neurosurgery** | Craniotomy, VP shunt | Cefazolin | No |
+| **ENT** | Cochlear implant, LTP, FESS | Ampicillin-sulbactam | No |
+| **Plastics** | Cleft lip/palate, craniosynostosis | Cefazolin or Amp-sulbactam | No |
 
 ## Bundle Elements
 
@@ -85,37 +87,61 @@ surgical-prophylaxis/
 
 | Procedure Type | First-Line | Alternative (β-lactam allergy) |
 |----------------|------------|--------------------------------|
-| Cardiac | Cefazolin | Vancomycin, Clindamycin |
-| Colorectal | Cefazolin + Metronidazole | Clindamycin + Gentamicin |
-| Orthopedic | Cefazolin | Vancomycin, Clindamycin |
-| Neurosurgery (VP shunt) | Cefazolin + Vancomycin | Vancomycin |
-| ENT (clean) | None | None |
+| Cardiac | Cefazolin | Clindamycin |
+| Colorectal/Small Bowel | Cefoxitin | Clindamycin + Gentamicin |
+| Appendectomy | Ceftriaxone + Metronidazole | Clindamycin + Gentamicin |
+| Orthopedic | Cefazolin | Clindamycin or Vancomycin |
+| Neurosurgery | Cefazolin | Clindamycin or Vancomycin |
+| ENT | Ampicillin-sulbactam | Clindamycin |
+| Hernia/Pectus | Cefazolin | Clindamycin |
 
-### 3. Timing
+**Note:** Cefazolin is safe to give to patients with ANY severity of penicillin allergy per current cross-reactivity evidence.
 
-| Antibiotic | Window |
-|------------|--------|
-| Cefazolin, Clindamycin | 60 min before incision |
-| Vancomycin, Fluoroquinolones | 120 min before incision |
+### 3. Pre-op Timing
+
+Only checks doses given **before incision**. Post-operative and intra-operative doses are evaluated separately.
+
+| Antibiotic | Window Before Incision |
+|------------|------------------------|
+| Cefazolin, Cefoxitin, Clindamycin | 60 min |
+| Vancomycin, Fluoroquinolones | 120 min |
 
 ### 4. Weight-Based Dosing
 
-| Agent | Pediatric | Adult | High-Weight (>120kg) |
-|-------|-----------|-------|----------------------|
-| Cefazolin | 30 mg/kg (max 2g) | 2g | 3g |
-| Vancomycin | 15 mg/kg (max 2g) | 15 mg/kg (max 2g) | 15 mg/kg |
-| Clindamycin | 10 mg/kg (max 900mg) | 900mg | 900mg |
+| Agent | Dose | Max | High-Weight (>100kg) |
+|-------|------|-----|----------------------|
+| Cefazolin | 40 mg/kg | 2g | 3g |
+| Cefoxitin | 40 mg/kg | 2g | 2g |
+| Ceftriaxone | 50 mg/kg | 2g | 2g |
+| Vancomycin | 15 mg/kg | Consult Pharmacy | - |
+| Clindamycin | 10 mg/kg | 900mg | 900mg |
+| Metronidazole | 15 mg/kg (30 mg/kg for appy) | 1000mg (1500mg) | - |
+| Gentamicin | 4.5 mg/kg | 160mg (<40kg) / 360mg (≥40kg) | - |
 
-### 5. Redosing Intervals
+### 5. Redosing Intervals (Intra-op)
+
+Intervals based on normal GFR (>60). Extend intervals for renal impairment.
 
 | Agent | Interval |
 |-------|----------|
-| Cefazolin | 4 hours |
-| Cefoxitin, Ampicillin-Sulbactam | 2 hours |
-| Clindamycin | 6 hours |
-| Vancomycin, Metronidazole | Not typically needed |
+| Cefazolin | Q3H |
+| Cefoxitin | Q3H |
+| Ceftriaxone | Q12H |
+| Ampicillin-sulbactam | Q2H |
+| Piperacillin-tazobactam | Q2H |
+| Clindamycin | Q6H |
+| Vancomycin | Q8H |
+| Metronidazole | Q12H |
 
-### 6. Duration Limits
+### 6. Post-op Continuation
+
+| Procedure Type | Post-op Required? | Duration |
+|----------------|-------------------|----------|
+| Perforated appendectomy | **Yes** | 24h Q24H |
+| Cardiac surgery | Optional | Up to 48h |
+| All other procedures | **No** | Stop after surgery |
+
+### 7. Duration Limits
 
 | Procedure Type | Maximum Duration |
 |----------------|------------------|
