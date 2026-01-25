@@ -35,7 +35,7 @@ class Config:
     # --- LLM Backend ---
     LLM_BACKEND: str = os.getenv("LLM_BACKEND", "ollama")  # ollama or claude
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:70b")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.3:70b")
     CLAUDE_API_KEY: str | None = os.getenv("CLAUDE_API_KEY")
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 

@@ -141,7 +141,7 @@ class TestClassification:
             ],
             contradicting_evidence=[],
             reasoning="Clear CLABSI case",
-            model_used="llama3.1:70b",
+            model_used="llama3.3:70b",
             prompt_version="clabsi_v1",
             tokens_used=1500,
             processing_time_ms=2500,

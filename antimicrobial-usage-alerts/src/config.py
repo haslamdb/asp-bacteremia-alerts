@@ -85,7 +85,7 @@ class Config:
     )
 
     # LLM settings for indication extraction
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3.1:70b")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3.3:70b")
     LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "http://localhost:11434")
 
     # Antibiotic RxNorm codes to monitor for indications
