@@ -32,11 +32,10 @@ class AlertStore:
                      or ~/.aegis/alerts.db
         """
         if db_path:
-            self.db_path = db_path
+            self.db_path = os.path.expanduser(db_path)
         else:
-            self.db_path = os.environ.get(
-                "ALERT_DB_PATH",
-                os.path.expanduser("~/.aegis/alerts.db")
+            self.db_path = os.path.expanduser(
+                os.environ.get("ALERT_DB_PATH", "~/.aegis/alerts.db")
             )
 
         # Ensure directory exists

@@ -1,0 +1,12 @@
+# Drug-Bug Mismatch Detection Module
+# Dependencies
+
+# HTTP client for FHIR
+requests>=2.28.0
+
+# Environment variable loading
+python-dotenv>=1.0.0
+
+# JWT for Epic FHIR authentication (optional - only for Epic)
+PyJWT>=2.8.0
+cryptography>=41.0.0

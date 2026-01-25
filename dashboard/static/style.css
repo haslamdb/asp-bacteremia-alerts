@@ -1748,3 +1748,85 @@ table a.btn:hover {
         padding: 0.5rem;
     }
 }
+
+/* ============================================
+   Drug-Bug Mismatch Styles
+   ============================================ */
+.susceptibility-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-top: 0.5rem;
+}
+
+.susceptibility-table th,
+.susceptibility-table td {
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+    font-size: 0.8125rem;
+}
+
+.susceptibility-table th {
+    background: var(--color-gray-50);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-600);
+}
+
+.susceptibility-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Row highlighting based on susceptibility result */
+.susceptibility-table tr.susc-s {
+    background: rgba(5, 150, 105, 0.05);
+}
+
+.susceptibility-table tr.susc-i {
+    background: rgba(217, 119, 6, 0.05);
+}
+
+.susceptibility-table tr.susc-r {
+    background: rgba(220, 38, 38, 0.05);
+}
+
+/* Antibiotic mismatch items in detail view */
+.abx-mismatch-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0;
+    flex-wrap: wrap;
+}
+
+.abx-mismatch-item:not(:last-child) {
+    border-bottom: 1px solid var(--color-gray-200);
+    margin-bottom: 0.25rem;
+}
+
+/* Mismatch type badges */
+.badge-resistant {
+    background: linear-gradient(135deg, var(--color-danger) 0%, #B91C1C 100%);
+    color: var(--color-white);
+}
+
+.badge-intermediate {
+    background: linear-gradient(135deg, var(--color-warning) 0%, #B45309 100%);
+    color: var(--color-white);
+}
+
+.badge-no_coverage {
+    background: linear-gradient(135deg, var(--color-gray-500) 0%, var(--color-gray-600) 100%);
+    color: var(--color-white);
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, var(--color-danger) 0%, #B91C1C 100%);
+    color: var(--color-white);
+}

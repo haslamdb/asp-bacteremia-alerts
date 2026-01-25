@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Drug-Bug Mismatch - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Drug-Bug Mismatch</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('drug_bug.history') }}" class="btn btn-secondary">History</a>
+        <a href="{{ url_for('drug_bug.help_page') }}" class="btn btn-secondary">Help</a>
+    </div>
+</div>
+
+<div class="dashboard-summary">
+    <div class="summary-card {% if stats.critical_count > 0 %}summary-card-alert{% endif %}">
+        <div class="summary-icon" style="color: var(--color-danger);">&#x26A0;</div>
+        <div class="summary-content">
+            <div class="summary-value">{{ stats.active_count }}</div>
+            <div class="summary-label">Active Mismatches</div>
+        </div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-icon" style="color: var(--color-danger);">&#x1F6A8;</div>
+        <div class="summary-content">
+            <div class="summary-value">{{ stats.critical_count }}</div>
+            <div class="summary-label">Critical (Resistant)</div>
+        </div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-icon" style="color: var(--color-warning);">&#x26A0;</div>
+        <div class="summary-content">
+            <div class="summary-value">{{ stats.warning_count }}</div>
+            <div class="summary-label">Warning</div>
+        </div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-icon" style="color: var(--color-success);">&#x2714;</div>
+        <div class="summary-content">
+            <div class="summary-value">{{ stats.resolved_today }}</div>
+            <div class="summary-label">Resolved Today</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <form method="get" class="filter-form">
+        <div class="filter-group">
+            <label for="severity">Severity</label>
+            <select name="severity" id="severity" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="critical" {% if current_severity == 'critical' %}selected{% endif %}>Critical</option>
+                <option value="warning" {% if current_severity == 'warning' %}selected{% endif %}>Warning</option>
+                <option value="info" {% if current_severity == 'info' %}selected{% endif %}>Info</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="mismatch_type">Mismatch Type</label>
+            <select name="mismatch_type" id="mismatch_type" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="resistant" {% if current_mismatch_type == 'resistant' %}selected{% endif %}>Resistant ({{ mismatch_counts.resistant }})</option>
+                <option value="intermediate" {% if current_mismatch_type == 'intermediate' %}selected{% endif %}>Intermediate ({{ mismatch_counts.intermediate }})</option>
+                <option value="no_coverage" {% if current_mismatch_type == 'no_coverage' %}selected{% endif %}>No Coverage ({{ mismatch_counts.no_coverage }})</option>
+            </select>
+        </div>
+        {% if current_severity or current_mismatch_type %}
+        <a href="{{ url_for('drug_bug.dashboard') }}" class="btn btn-secondary btn-sm">Clear Filters</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Active Alerts Table -->
+{% if alerts %}
+<div class="alerts-section">
+    <h2>Active Mismatches ({{ alerts|length }})</h2>
+    <table class="data-table alerts-table">
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>Patient</th>
+                <th>Organism</th>
+                <th>Culture Source</th>
+                <th>Antibiotic</th>
+                <th>Mismatch</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alert in alerts %}
+            <tr class="alert-row severity-{{ alert.severity }}">
+                <td>
+                    <span class="badge badge-{{ alert.severity }}">{{ alert.severity|upper }}</span>
+                </td>
+                <td>
+                    <div class="patient-info">
+                        <strong>{{ alert.patient_name or 'Unknown' }}</strong>
+                        <span class="mrn">{{ alert.patient_mrn or '' }}</span>
+                    </div>
+                </td>
+                <td>
+                    <strong>{{ alert.content.get('organism', 'Unknown') if alert.content else 'Unknown' }}</strong>
+                </td>
+                <td>
+                    {{ alert.content.get('specimen_type', '-') if alert.content else '-' }}
+                </td>
+                <td>
+                    {% if alert.content and alert.content.get('current_antibiotics') %}
+                        {% for abx in alert.content.get('current_antibiotics', []) %}
+                        <div class="abx-item">
+                            {{ abx.get('name', 'Unknown') }}
+                            {% if abx.get('susceptibility') %}
+                            <span class="badge badge-sm badge-{% if abx.get('susceptibility') == 'R' %}danger{% elif abx.get('susceptibility') == 'I' %}warning{% else %}success{% endif %}">
+                                {{ abx.get('susceptibility') }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set mismatch_type = alert.content.get('mismatch_type', 'unknown') if alert.content else 'unknown' %}
+                    <span class="badge badge-{% if mismatch_type == 'resistant' %}danger{% elif mismatch_type == 'intermediate' %}warning{% elif mismatch_type == 'no_coverage' %}info{% else %}secondary{% endif %}">
+                        {{ mismatch_type|replace('_', ' ')|title }}
+                    </span>
+                </td>
+                <td>
+                    <span class="time-relative" data-timestamp="{{ alert.created_at.isoformat() if alert.created_at else '' }}">
+                        {{ alert.created_at.strftime('%m/%d %H:%M') if alert.created_at else '-' }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('asp_alerts.alert_detail', alert_id=alert.id) }}" class="btn btn-sm btn-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">&#x2714;</div>
+    <h3>No Active Mismatches</h3>
+    <p>All patients have appropriate antibiotic coverage based on current culture results.</p>
+</div>
+{% endif %}
+
+<style>
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-bar {
+    background: var(--color-gray-50);
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.filter-form {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-gray-600);
+}
+
+.filter-group select {
+    padding: 0.5rem;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-sm);
+    min-width: 150px;
+}
+
+.alerts-section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.alert-row.severity-critical {
+    background: var(--color-danger-light, #fff5f5);
+}
+
+.alert-row.severity-warning {
+    background: var(--color-warning-light, #fffbeb);
+}
+
+.patient-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.patient-info .mrn {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+}
+
+.abx-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.abx-item:last-child {
+    margin-bottom: 0;
+}
+
+.badge-sm {
+    font-size: 0.625rem;
+    padding: 0.125rem 0.375rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+    margin-top: 1rem;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    color: var(--color-success);
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--color-gray-700);
+}
+
+.empty-state p {
+    margin: 0;
+    color: var(--color-gray-500);
+}
+
+.summary-card-alert {
+    border-color: var(--color-danger);
+    background: var(--color-danger-light, #fff5f5);
+}
+</style>
+{% endblock %}

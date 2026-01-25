@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Drug-Bug Mismatch Help - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Drug-Bug Mismatch Help</h1>
+    <a href="{{ url_for('drug_bug.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="help-content">
+    <section class="help-section">
+        <h2>Overview</h2>
+        <p>The Drug-Bug Mismatch module provides real-time surveillance of culture results and antimicrobial
+           therapy to identify patients whose organisms are not adequately covered by their current treatment.
+           This enables rapid ASP intervention to optimize therapy and improve patient outcomes.</p>
+    </section>
+
+    <section class="help-section">
+        <h2>How It Works</h2>
+        <ol>
+            <li><strong>Culture Monitoring:</strong> The system monitors all positive culture results from microbiology</li>
+            <li><strong>Therapy Review:</strong> Current antimicrobial orders are retrieved for patients with positive cultures</li>
+            <li><strong>Coverage Analysis:</strong> Susceptibility results are compared against the spectrum of current antibiotics</li>
+            <li><strong>Mismatch Detection:</strong> Alerts are generated when coverage gaps are identified</li>
+            <li><strong>Recommendations:</strong> Alternative therapy options are suggested based on susceptibilities and guidelines</li>
+        </ol>
+    </section>
+
+    <section class="help-section">
+        <h2>Mismatch Categories</h2>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Description</th>
+                    <th>Action Required</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Complete Resistance</strong></td>
+                    <td><span class="badge badge-critical">Critical</span></td>
+                    <td>Organism is resistant (R) to all current antimicrobials</td>
+                    <td>Urgent therapy change needed</td>
+                </tr>
+                <tr>
+                    <td><strong>Partial Coverage</strong></td>
+                    <td><span class="badge badge-warning">High</span></td>
+                    <td>Organism has intermediate (I) susceptibility or borderline MICs</td>
+                    <td>Consider dose optimization or alternative</td>
+                </tr>
+                <tr>
+                    <td><strong>No Active Therapy</strong></td>
+                    <td><span class="badge badge-warning">High</span></td>
+                    <td>Positive culture but patient not on any antimicrobials</td>
+                    <td>Evaluate need for treatment initiation</td>
+                </tr>
+                <tr>
+                    <td><strong>Spectrum Excess</strong></td>
+                    <td><span class="badge badge-info">Medium</span></td>
+                    <td>Current therapy broader than needed for identified organism</td>
+                    <td>De-escalation opportunity</td>
+                </tr>
+                <tr>
+                    <td><strong>Duplicate Coverage</strong></td>
+                    <td><span class="badge badge-info">Low</span></td>
+                    <td>Multiple agents covering same spectrum unnecessarily</td>
+                    <td>Consider streamlining regimen</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="help-section">
+        <h2>Coverage Rules</h2>
+        <p>The system uses evidence-based coverage rules to determine antimicrobial-organism matching:</p>
+
+        <h3>Gram-Positive Coverage</h3>
+        <ul>
+            <li><strong>MSSA:</strong> Cefazolin, nafcillin, oxacillin (preferred); alternatives based on susceptibilities</li>
+            <li><strong>MRSA:</strong> Vancomycin, daptomycin, linezolid, ceftaroline</li>
+            <li><strong>VRE:</strong> Daptomycin, linezolid, tigecycline (based on species and susceptibilities)</li>
+            <li><strong>Streptococci:</strong> Penicillin, ampicillin, ceftriaxone (check for resistance)</li>
+        </ul>
+
+        <h3>Gram-Negative Coverage</h3>
+        <ul>
+            <li><strong>Enterobacterales:</strong> Based on susceptibility testing; watch for ESBL, AmpC, CRE patterns</li>
+            <li><strong>Pseudomonas:</strong> Requires anti-pseudomonal agent; check susceptibilities for each isolate</li>
+            <li><strong>Acinetobacter:</strong> Often MDR; susceptibility-guided therapy essential</li>
+        </ul>
+
+        <h3>Special Pathogens</h3>
+        <ul>
+            <li><strong>Candida:</strong> Species identification important; fluconazole for susceptible species, echinocandin for resistant</li>
+            <li><strong>Anaerobes:</strong> Metronidazole, carbapenems, beta-lactam/beta-lactamase inhibitors</li>
+        </ul>
+    </section>
+
+    <section class="help-section">
+        <h2>Alert Workflow</h2>
+        <ol>
+            <li><strong>Detection:</strong> System identifies mismatch based on culture + therapy + susceptibilities</li>
+            <li><strong>Alert Generation:</strong> Alert sent to ASP queue with patient details and recommendations</li>
+            <li><strong>Review:</strong> ASP pharmacist reviews alert and patient context</li>
+            <li><strong>Intervention:</strong> Recommendation made to primary team if indicated</li>
+            <li><strong>Resolution:</strong> Alert resolved with outcome tracking</li>
+        </ol>
+    </section>
+
+    <section class="help-section">
+        <h2>Integration Points</h2>
+        <ul>
+            <li><strong>ASP Alerts:</strong> Mismatches generate alerts in the ASP Alerts queue</li>
+            <li><strong>HAI Detection:</strong> Mismatch data informs HAI candidate assessment</li>
+            <li><strong>NHSN Reporting:</strong> Resistance patterns contribute to AR reporting</li>
+        </ul>
+    </section>
+</div>
+
+<style>
+.help-content {
+    max-width: 900px;
+}
+
+.help-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.help-section:last-child {
+    border-bottom: none;
+}
+
+.help-section h2 {
+    color: var(--color-gray-800);
+    margin-bottom: 1rem;
+}
+
+.help-section h3 {
+    color: var(--color-gray-700);
+    margin: 1.5rem 0 0.75rem 0;
+    font-size: 1rem;
+}
+
+.help-section p {
+    color: var(--color-gray-600);
+    line-height: 1.6;
+}
+
+.help-section ol, .help-section ul {
+    color: var(--color-gray-600);
+    line-height: 1.8;
+}
+
+.help-table {
+    width: 100%;
+    margin: 1rem 0;
+}
+</style>
+{% endblock %}
