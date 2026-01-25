@@ -1734,6 +1734,20 @@ table a.btn:hover {
     line-height: 1.4 !important;
 }
 
+.workflow-diagram {
+    background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-accent) 100%);
+    color: var(--color-gray-700);
+    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-gray-200);
+    overflow-x: auto;
+    white-space: pre;
+    margin: 1rem 0;
+}
+
 @media (max-width: 768px) {
     .help-card {
         padding: 1rem 1.25rem;
