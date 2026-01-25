@@ -1734,18 +1734,90 @@ table a.btn:hover {
     line-height: 1.4 !important;
 }
 
-.workflow-diagram {
+/* Workflow Steps Diagram */
+.workflow-steps {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem 1rem;
     background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-accent) 100%);
-    color: var(--color-gray-700);
-    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
-    font-size: 0.8125rem;
-    line-height: 1.35;
-    padding: 1.25rem 1.5rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-gray-200);
+    margin-top: 1rem;
     overflow-x: auto;
-    white-space: pre;
-    margin: 1rem 0;
+}
+
+.workflow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 160px;
+    max-width: 190px;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: var(--color-white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.step-title {
+    font-weight: 600;
+    font-size: 1.125rem;
+    color: var(--color-gray-800);
+    margin-bottom: 0.375rem;
+}
+
+.step-desc {
+    font-size: 0.9375rem;
+    color: var(--color-gray-600);
+    line-height: 1.4;
+    margin-bottom: 0.625rem;
+}
+
+.step-output {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    background: var(--color-white);
+    padding: 0.375rem 0.625rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-gray-300);
+}
+
+.workflow-arrow {
+    font-size: 2.5rem;
+    color: var(--color-primary);
+    font-weight: 900;
+    padding-top: 0.25rem;
+    flex-shrink: 0;
+    text-shadow: 0 0 1px var(--color-primary);
+}
+
+@media (max-width: 768px) {
+    .workflow-steps {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .workflow-arrow {
+        transform: rotate(90deg);
+        padding: 0.25rem 0;
+    }
+
+    .workflow-step {
+        max-width: 200px;
+    }
 }
 
 @media (max-width: 768px) {

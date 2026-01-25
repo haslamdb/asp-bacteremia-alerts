@@ -83,7 +83,7 @@ class HAIMonitor:
             elif hai_type == HAIType.CAUTI:
                 self._classifiers[hai_type] = CAUTIClassifier()
             elif hai_type == HAIType.CDI:
-                self._classifiers[hai_type] = CDIClassifier()
+                self._classifiers[hai_type] = CDIClassifier(note_retriever=self.note_retriever)
             else:
                 # Default to CLABSI classifier for other types for now
                 logger.warning(f"No specific classifier for {hai_type}, using CLABSI")

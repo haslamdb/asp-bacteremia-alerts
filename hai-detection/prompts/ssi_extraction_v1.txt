@@ -236,4 +236,82 @@ Respond with a JSON object matching this schema:
    apply NHSN SSI criteria to your extraction. Do not include classification
    recommendations.
 
+## CRITICAL: Distinguishing SSI Types
+
+**This is essential for accurate extraction.**
+
+### Superficial Incisional SSI (most common)
+This involves ONLY the skin and subcutaneous tissue at the INCISION SITE.
+
+Look for these KEY PHRASES about the SURGICAL WOUND/INCISION:
+- "Wound erythema" / "erythema around incision" / "redness at incision site"
+- "Purulent drainage FROM THE WOUND" / "pus expressed from incision"
+- "Wound dehiscence" / "incision dehisced" / "wound edges separated"
+- "Wound opened at bedside" / "incision opened for drainage"
+- "Wound culture" / "culture from wound" / "culture from incision"
+- "Surgical site infection" / "SSI" / "incisional infection" / "wound infection"
+- "Superficial SSI" / "superficial wound infection"
+
+**IMPORTANT**: These findings are about the EXTERNAL surgical incision (the cut through
+the skin), NOT about what's happening inside the body cavity.
+
+### Organ/Space SSI (less common)
+This involves infection INSIDE the body - in organs or spaces manipulated during surgery.
+
+Look for:
+- "Intra-abdominal abscess" / "pelvic abscess" / "subphrenic abscess"
+- "Anastomotic leak" / "bowel leak" / "enteric leak"
+- "Peritonitis" (POSTOPERATIVE, not from the original surgery)
+- "Infected hematoma" / "infected seroma" (deep collection)
+- Imaging (CT/MRI) showing deep fluid collection or abscess
+- "Organ/space SSI" / "deep space infection"
+
+**IMPORTANT**: Drainage from a Jackson-Pratt (JP) drain or other surgical drain placed
+at the time of surgery is NOT automatically organ/space SSI. Drains are placed to remove
+expected post-operative fluid. Only mark organ/space findings if there is:
+- Purulent (pus) drainage from the drain, OR
+- A diagnosed abscess or infected collection
+
+### What is NOT SSI (don't confuse these):
+- **Findings AT THE TIME OF SURGERY**: If the operative note describes purulence,
+  peritonitis, or abscess found DURING the initial operation, this is the REASON for
+  surgery, not an SSI. SSI develops AFTER surgery (typically POD 2 or later).
+- **Expected post-op drain output**: Serosanguinous drainage from a JP drain is normal.
+- **Pre-existing infection**: Infection that was present before/during surgery is not SSI.
+
+## Examples
+
+**Example 1 - Superficial SSI (mark superficial_findings)**:
+> "POD 5: Patient developed fever. Wound exam shows erythema extending 4cm from incision
+> edges with purulent drainage expressed on palpation. Wound opened at bedside for
+> drainage. Wound culture sent. Started on antibiotics for surgical site infection."
+
+This is SUPERFICIAL SSI - the infection is at the incision site.
+- purulent_drainage_superficial: "definite"
+- erythema: "definite"
+- incision_deliberately_opened: "definite"
+- physician_diagnosis_superficial_ssi: "definite"
+
+**Example 2 - Organ/Space SSI (mark organ_space_findings)**:
+> "POD 7: CT abdomen shows 5cm fluid collection in pelvis with rim enhancement,
+> consistent with abscess. IR-guided drainage performed. Cultures grew E. coli."
+
+This is ORGAN/SPACE SSI - the infection is inside the abdomen.
+- abscess_on_imaging: "definite"
+- organisms_from_organ_space: "definite"
+
+**Example 3 - NOT SSI (mark as not_found for SSI findings)**:
+> "Operative Note: Upon entering abdomen, purulent fluid encountered. Appendix
+> perforated with surrounding abscess. Cavity irrigated, drain placed."
+
+This is NOT SSI - this is the original pathology (perforated appendicitis). The purulence
+was found AT surgery, not developing AFTER surgery. Do NOT mark this as SSI.
+
+**Example 4 - Normal post-op (mark as ruled_out)**:
+> "POD 3: Wound clean, dry, intact. No erythema. JP drain with 30cc serosanguinous output."
+
+No SSI findings - wound is healing normally, drain output is expected.
+- erythema: "ruled_out"
+- drainage (purulent): "ruled_out"
+
 Now extract the clinical information from the notes provided above.

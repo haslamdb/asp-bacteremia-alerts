@@ -33,9 +33,11 @@ class Config:
     CLARITY_CONNECTION_STRING: str | None = os.getenv("CLARITY_CONNECTION_STRING")
 
     # --- LLM Backend ---
-    LLM_BACKEND: str = os.getenv("LLM_BACKEND", "ollama")  # ollama or claude
+    LLM_BACKEND: str = os.getenv("LLM_BACKEND", "ollama")  # ollama, vllm, or claude
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.3:70b")
+    VLLM_BASE_URL: str = os.getenv("VLLM_BASE_URL", "http://localhost:8000")
+    VLLM_MODEL: str = os.getenv("VLLM_MODEL", "Qwen/Qwen2.5-72B-Instruct")
     CLAUDE_API_KEY: str | None = os.getenv("CLAUDE_API_KEY")
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
@@ -131,6 +133,11 @@ class Config:
     def is_ollama_configured(cls) -> bool:
         """Check if Ollama is configured."""
         return cls.LLM_BACKEND == "ollama" and bool(cls.OLLAMA_BASE_URL)
+
+    @classmethod
+    def is_vllm_configured(cls) -> bool:
+        """Check if vLLM is configured."""
+        return cls.LLM_BACKEND == "vllm" and bool(cls.VLLM_BASE_URL)
 
     @classmethod
     def is_claude_configured(cls) -> bool:

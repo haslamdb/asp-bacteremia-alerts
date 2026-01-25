@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from .base import BaseHAIClassifier
 from ..models import HAICandidate, HAIType, ClinicalNote, Classification, ClassificationDecision
 from ..extraction.cdi_extractor import CDIExtractor
+from ..notes.retriever import NoteRetriever
 from ..rules.cdi_engine import CDIRulesEngine
 from ..rules.cdi_schemas import CDIClassification, CDIStructuredData, CDIPriorEpisode
 
@@ -106,6 +107,7 @@ Respond with JSON: {{"diarrhea_documented": true/false, "specimen_day": N, "prio
     def __init__(
         self,
         note_source=None,
+        note_retriever: NoteRetriever | None = None,
         extractor: CDIExtractor | None = None,
         rules_engine: CDIRulesEngine | None = None,
         db=None,
@@ -113,12 +115,14 @@ Respond with JSON: {{"diarrhea_documented": true/false, "specimen_day": N, "prio
         """Initialize the CDI classifier.
 
         Args:
-            note_source: Source for retrieving clinical notes.
+            note_source: Source for retrieving clinical notes (deprecated, use note_retriever).
+            note_retriever: NoteRetriever instance for fetching and filtering notes.
             extractor: CDI clinical fact extractor.
             rules_engine: NHSN CDI rules engine.
             db: Database for storing classifications.
         """
         self.note_source = note_source
+        self.note_retriever = note_retriever
         self.extractor = extractor or CDIExtractor()
         self.rules_engine = rules_engine or CDIRulesEngine()
         self.db = db
@@ -242,14 +246,28 @@ Respond with JSON: {{"diarrhea_documented": true/false, "specimen_day": N, "prio
     ) -> list[ClinicalNote]:
         """Get relevant clinical notes for CDI assessment.
 
+        Uses NoteRetriever with keyword filtering when available,
+        falls back to direct note_source access for backwards compatibility.
+
         Args:
             candidate: The CDI candidate
 
         Returns:
             List of relevant clinical notes
         """
+        # Prefer NoteRetriever for keyword filtering
+        if self.note_retriever:
+            return self.note_retriever.get_notes_for_candidate(
+                candidate,
+                days_before=3,
+                days_after=3,
+                hai_type=HAIType.CDI,
+                use_keyword_filter=True,
+            )
+
+        # Fallback to direct note_source access (backwards compatibility)
         if not self.note_source:
-            logger.warning("No note source configured")
+            logger.warning("No note source or note retriever configured")
             return []
 
         cdi_data = getattr(candidate, "_cdi_data", None)

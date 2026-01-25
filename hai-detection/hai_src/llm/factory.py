@@ -5,6 +5,7 @@ import logging
 from ..config import Config
 from .base import BaseLLMClient
 from .ollama import OllamaClient
+from .vllm import VLLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,20 @@ def get_llm_client(backend: str | None = None) -> BaseLLMClient:
             logger.warning(
                 f"Ollama model {client.model} not available. "
                 "You may need to pull it first."
+            )
+
+        return client
+
+    elif backend == "vllm":
+        if not Config.is_vllm_configured():
+            raise ValueError("vLLM is not configured")
+
+        client = VLLMClient()
+
+        if not client.is_available():
+            logger.warning(
+                f"vLLM model {client.model} not available. "
+                "Make sure the vLLM server is running."
             )
 
         return client

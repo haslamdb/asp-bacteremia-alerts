@@ -21,27 +21,36 @@
         <p>The Surgical Prophylaxis module performs <strong>retrospective monitoring</strong> of surgical cases
            to evaluate compliance with antibiotic prophylaxis guidelines. It queries the FHIR server for completed
            surgical procedures, evaluates each case against 7 bundle elements, and generates alerts for non-compliant cases.</p>
-        <pre class="workflow-diagram">
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    SCREENING WORKFLOW                                    │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  1. QUERY FHIR      2. BUILD CASE      3. EVALUATE       4. ALERT       │
-│  ─────────────      ────────────       ────────────      ────────       │
-│                                                                          │
-│  Get surgical       Fetch patient      Check 7 bundle    Create alert   │
-│  procedures from    weight, meds,      elements against  for non-       │
-│  past 24-48 hours   allergies, times   CCHMC guidelines  compliant      │
-│                                                                          │
-│      │                   │                  │                 │         │
-│      ▼                   ▼                  ▼                 ▼         │
-│  ┌────────┐         ┌────────┐         ┌────────┐        ┌────────┐    │
-│  │Procedure│   ───▶  │Surgical│   ───▶  │Evaluation│ ───▶ │  ASP   │    │
-│  │ Resource│         │  Case  │         │ Result  │       │ Alert  │    │
-│  └────────┘         └────────┘         └────────┘        └────────┘    │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-        </pre>
+
+        <div class="workflow-steps">
+            <div class="workflow-step">
+                <div class="step-number">1</div>
+                <div class="step-title">Query FHIR</div>
+                <div class="step-desc">Get surgical procedures from past 24-48 hours</div>
+                <div class="step-output">Procedure Resource</div>
+            </div>
+            <div class="workflow-arrow">&rarr;</div>
+            <div class="workflow-step">
+                <div class="step-number">2</div>
+                <div class="step-title">Build Case</div>
+                <div class="step-desc">Fetch patient weight, meds, allergies, times</div>
+                <div class="step-output">Surgical Case</div>
+            </div>
+            <div class="workflow-arrow">&rarr;</div>
+            <div class="workflow-step">
+                <div class="step-number">3</div>
+                <div class="step-title">Evaluate</div>
+                <div class="step-desc">Check 7 bundle elements against CCHMC guidelines</div>
+                <div class="step-output">Evaluation Result</div>
+            </div>
+            <div class="workflow-arrow">&rarr;</div>
+            <div class="workflow-step">
+                <div class="step-number">4</div>
+                <div class="step-title">Alert</div>
+                <div class="step-desc">Create alert for non-compliant cases</div>
+                <div class="step-output">ASP Alert</div>
+            </div>
+        </div>
     </div>
 
     <div class="help-card">
