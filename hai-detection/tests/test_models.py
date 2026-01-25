@@ -4,7 +4,7 @@ import pytest
 import json
 from datetime import datetime, date
 
-from src.models import (
+from hai_src.models import (
     HAIType,
     CandidateStatus,
     ClassificationDecision,

@@ -13,8 +13,8 @@ NHSN VAE Hierarchy (most specific first):
 import pytest
 from datetime import datetime, date, timedelta
 
-from src.rules.vae_engine import VAERulesEngine, classify_vae
-from src.rules.vae_schemas import (
+from hai_src.rules.vae_engine import VAERulesEngine, classify_vae
+from hai_src.rules.vae_schemas import (
     VAEExtraction,
     VAEStructuredData,
     VAEClassification,
@@ -26,8 +26,8 @@ from src.rules.vae_schemas import (
     RespiratoryCultureExtraction,
     VentilatorStatusExtraction,
 )
-from src.rules.schemas import ConfidenceLevel
-from src.rules.nhsn_criteria import (
+from hai_src.rules.schemas import ConfidenceLevel
+from hai_src.rules.nhsn_criteria import (
     VAE_MIN_VENT_DAYS,
     VAE_FIO2_INCREASE_THRESHOLD,
     VAE_PEEP_INCREASE_THRESHOLD,

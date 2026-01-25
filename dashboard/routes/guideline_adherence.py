@@ -15,8 +15,8 @@ if str(GUIDELINE_PATH) not in sys.path:
 
 try:
     from guideline_adherence import GUIDELINE_BUNDLES
-    from src.adherence_db import AdherenceDatabase
-    from src.config import config as adherence_config
+    from guideline_src.adherence_db import AdherenceDatabase
+    from guideline_src.config import config as adherence_config
 except ImportError:
     GUIDELINE_BUNDLES = {}
     AdherenceDatabase = None

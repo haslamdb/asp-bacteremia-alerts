@@ -16,8 +16,8 @@ from pathlib import Path
 # Ensure parent paths are available
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.config import config
-from src.monitor import GuidelineAdherenceMonitor, run_guideline_monitor
+from guideline_src.config import config
+from guideline_src.monitor import GuidelineAdherenceMonitor, run_guideline_monitor
 
 logger = logging.getLogger(__name__)
 

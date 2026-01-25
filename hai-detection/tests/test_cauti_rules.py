@@ -11,16 +11,16 @@ Tests NHSN CAUTI criteria application including:
 import pytest
 from datetime import datetime, date, timedelta
 
-from src.rules.cauti_schemas import (
+from hai_src.rules.cauti_schemas import (
     CAUTIClassification,
     CAUTIExtraction,
     CAUTIStructuredData,
     CAUTIClassificationResult,
     UrinarySymptomExtraction,
 )
-from src.rules.cauti_engine import CAUTIRulesEngine
-from src.rules.schemas import ConfidenceLevel
-from src.rules.nhsn_criteria import (
+from hai_src.rules.cauti_engine import CAUTIRulesEngine
+from hai_src.rules.schemas import ConfidenceLevel
+from hai_src.rules.nhsn_criteria import (
     CAUTI_MIN_CATHETER_DAYS,
     CAUTI_MIN_CFU_ML,
     CAUTI_MAX_ORGANISMS,

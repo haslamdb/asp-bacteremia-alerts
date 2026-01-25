@@ -56,7 +56,7 @@ cp .env.template .env
 # Edit .env with your settings
 
 # Initialize database
-python -c "from src.db import NHSNDatabase; NHSNDatabase().init_db()"
+python -c "from nhsn_src.db import NHSNDatabase; NHSNDatabase().init_db()"
 ```
 
 ### Viewing Results

@@ -7,7 +7,7 @@ Each test represents a clinical scenario with known expected outcome.
 import pytest
 from datetime import datetime, timedelta
 
-from src.rules import (
+from hai_src.rules import (
     CLABSIRulesEngine,
     ClinicalExtraction,
     StructuredCaseData,
@@ -19,7 +19,7 @@ from src.rules import (
     LineAssessment,
     ContaminationAssessment,
 )
-from src.rules.nhsn_criteria import (
+from hai_src.rules.nhsn_criteria import (
     is_commensal_organism,
     is_mbi_eligible_organism,
     is_recognized_pathogen,

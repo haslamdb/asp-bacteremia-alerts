@@ -18,7 +18,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.config import Config
+from nhsn_src.config import Config
 
 
 def test_config():
@@ -47,7 +47,7 @@ def test_notes_retrieval(verbose: bool = False):
     print("Testing Notes Retrieval")
     print("=" * 60)
 
-    from src.data.clarity_source import ClarityNoteSource
+    from nhsn_src.data.clarity_source import ClarityNoteSource
 
     try:
         source = ClarityNoteSource()
@@ -97,7 +97,7 @@ def test_device_retrieval(verbose: bool = False):
     print("Testing Device Retrieval")
     print("=" * 60)
 
-    from src.data.clarity_source import ClarityDeviceSource
+    from nhsn_src.data.clarity_source import ClarityDeviceSource
 
     try:
         source = ClarityDeviceSource()
@@ -148,7 +148,7 @@ def test_culture_retrieval(verbose: bool = False):
     print("Testing Culture Retrieval")
     print("=" * 60)
 
-    from src.data.clarity_source import ClarityCultureSource
+    from nhsn_src.data.clarity_source import ClarityCultureSource
 
     try:
         source = ClarityCultureSource()
@@ -181,7 +181,7 @@ def test_denominator_calculation(verbose: bool = False):
     print("Testing Denominator Calculation")
     print("=" * 60)
 
-    from src.data.denominator import DenominatorCalculator
+    from nhsn_src.data.denominator import DenominatorCalculator
     from datetime import date
 
     try:
@@ -230,7 +230,7 @@ def test_hybrid_source_routing(verbose: bool = False):
     print("Testing Hybrid Source Routing")
     print("=" * 60)
 
-    from src.data.factory import get_note_source, get_culture_source, get_device_source
+    from nhsn_src.data.factory import get_note_source, get_culture_source, get_device_source
 
     try:
         # Test with explicit source type
@@ -245,7 +245,7 @@ def test_hybrid_source_routing(verbose: bool = False):
         print(f"  Device source type: {type(device_src).__name__}")
 
         # Verify they're Clarity sources
-        from src.data.clarity_source import ClarityNoteSource, ClarityCultureSource, ClarityDeviceSource
+        from nhsn_src.data.clarity_source import ClarityNoteSource, ClarityCultureSource, ClarityDeviceSource
         assert isinstance(note_src, ClarityNoteSource), "Note source should be ClarityNoteSource"
         assert isinstance(culture_src, ClarityCultureSource), "Culture source should be ClarityCultureSource"
         assert isinstance(device_src, ClarityDeviceSource), "Device source should be ClarityDeviceSource"

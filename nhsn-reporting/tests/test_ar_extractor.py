@@ -206,7 +206,7 @@ class TestARDataExtractor:
     @pytest.fixture
     def extractor(self, temp_db):
         """Create extractor with temp database."""
-        from src.data.ar_extractor import ARDataExtractor
+        from nhsn_src.data.ar_extractor import ARDataExtractor
 
         return ARDataExtractor(f"sqlite:///{temp_db}")
 
@@ -391,7 +391,7 @@ class TestARPhenotypeMatching:
     @pytest.fixture
     def extractor(self):
         """Create extractor for testing (no DB needed for these tests)."""
-        from src.data.ar_extractor import ARDataExtractor
+        from nhsn_src.data.ar_extractor import ARDataExtractor
 
         return ARDataExtractor("sqlite:///:memory:")
 
@@ -548,7 +548,7 @@ class TestARDataExtractorEdgeCases:
 
     def test_empty_database(self, minimal_db):
         """Test with completely empty tables."""
-        from src.data.ar_extractor import ARDataExtractor
+        from nhsn_src.data.ar_extractor import ARDataExtractor
 
         extractor = ARDataExtractor(f"sqlite:///{minimal_db}")
         df = extractor.get_culture_results(
@@ -559,7 +559,7 @@ class TestARDataExtractorEdgeCases:
 
     def test_quarterly_summary_empty(self, minimal_db):
         """Test quarterly summary with no data."""
-        from src.data.ar_extractor import ARDataExtractor
+        from nhsn_src.data.ar_extractor import ARDataExtractor
 
         extractor = ARDataExtractor(f"sqlite:///{minimal_db}")
         summary = extractor.get_quarterly_summary(
@@ -573,7 +573,7 @@ class TestARDataExtractorEdgeCases:
 
     def test_export_for_nhsn_empty(self, minimal_db):
         """Test NHSN export with no data."""
-        from src.data.ar_extractor import ARDataExtractor
+        from nhsn_src.data.ar_extractor import ARDataExtractor
 
         extractor = ARDataExtractor(f"sqlite:///{minimal_db}")
         result = extractor.export_for_nhsn(

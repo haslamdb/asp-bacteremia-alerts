@@ -169,7 +169,7 @@ class TestAUDataExtractor:
     @pytest.fixture
     def extractor(self, temp_db):
         """Create extractor with temp database."""
-        from src.data.au_extractor import AUDataExtractor
+        from nhsn_src.data.au_extractor import AUDataExtractor
 
         return AUDataExtractor(f"sqlite:///{temp_db}")
 
@@ -373,7 +373,7 @@ class TestAUDataExtractorEdgeCases:
 
     def test_empty_database(self, minimal_db):
         """Test with completely empty tables."""
-        from src.data.au_extractor import AUDataExtractor
+        from nhsn_src.data.au_extractor import AUDataExtractor
 
         extractor = AUDataExtractor(f"sqlite:///{minimal_db}")
         df = extractor.calculate_dot(
@@ -384,7 +384,7 @@ class TestAUDataExtractorEdgeCases:
 
     def test_monthly_summary_empty(self, minimal_db):
         """Test monthly summary with no data."""
-        from src.data.au_extractor import AUDataExtractor
+        from nhsn_src.data.au_extractor import AUDataExtractor
 
         extractor = AUDataExtractor(f"sqlite:///{minimal_db}")
         summary = extractor.get_monthly_summary(

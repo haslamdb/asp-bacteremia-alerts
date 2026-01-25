@@ -77,7 +77,7 @@ cd guideline-adherence
 pip install -r requirements.txt
 
 # Initialize database
-python -c "from src.adherence_db import AdherenceDatabase; AdherenceDatabase()"
+python -c "from guideline_src.adherence_db import AdherenceDatabase; AdherenceDatabase()"
 ```
 
 ## Usage

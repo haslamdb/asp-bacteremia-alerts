@@ -14,8 +14,8 @@ Reference: 2024 NHSN Patient Safety Component Manual, Chapter 12
 import pytest
 from datetime import datetime, timedelta
 
-from src.rules.cdi_engine import CDIRulesEngine
-from src.rules.cdi_schemas import (
+from hai_src.rules.cdi_engine import CDIRulesEngine
+from hai_src.rules.cdi_schemas import (
     CDIClassification,
     CDIExtraction,
     CDIStructuredData,
@@ -24,8 +24,8 @@ from src.rules.cdi_schemas import (
     CDIHistoryExtraction,
     CDITreatmentExtraction,
 )
-from src.rules.schemas import ConfidenceLevel
-from src.rules.nhsn_criteria import (
+from hai_src.rules.schemas import ConfidenceLevel
+from hai_src.rules.nhsn_criteria import (
     is_valid_cdi_test,
     calculate_specimen_day,
     get_cdi_onset_type,

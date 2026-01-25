@@ -10,14 +10,14 @@ from pathlib import Path
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models import (
+from au_alerts_src.models import (
     Patient,
     MedicationOrder,
     IndicationCandidate,
     IndicationAssessment,
     AlertSeverity,
 )
-from src.indication_db import IndicationDatabase
+from au_alerts_src.indication_db import IndicationDatabase
 
 
 class TestIndicationCandidate:

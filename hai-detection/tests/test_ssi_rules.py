@@ -7,8 +7,8 @@ Each test represents a clinical scenario with known expected outcome.
 import pytest
 from datetime import datetime, timedelta
 
-from src.rules.ssi_engine import SSIRulesEngine, classify_ssi
-from src.rules.ssi_schemas import (
+from hai_src.rules.ssi_engine import SSIRulesEngine, classify_ssi
+from hai_src.rules.ssi_schemas import (
     SSIExtraction,
     SSIStructuredData,
     SSIClassification,
@@ -19,8 +19,8 @@ from src.rules.ssi_schemas import (
     OrganSpaceSSIFindings,
     ReoperationFindings,
 )
-from src.rules.schemas import ConfidenceLevel
-from src.rules.nhsn_criteria import (
+from hai_src.rules.schemas import ConfidenceLevel
+from hai_src.rules.nhsn_criteria import (
     is_nhsn_operative_procedure,
     is_implant_procedure,
     get_surveillance_window,

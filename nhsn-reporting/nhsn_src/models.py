@@ -15,7 +15,7 @@ from typing import Any
 import json
 
 # Re-export HAI detection models from hai-detection module
-_hai_models_path = Path(__file__).parent.parent.parent / "hai-detection" / "src" / "models.py"
+_hai_models_path = Path(__file__).parent.parent.parent / "hai-detection" / "hai_src" / "models.py"
 _spec = importlib.util.spec_from_file_location("hai_detection_models", _hai_models_path)
 _hai_models = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_hai_models)
@@ -32,6 +32,11 @@ CultureResult = _hai_models.CultureResult
 DeviceInfo = _hai_models.DeviceInfo
 SupportingEvidence = _hai_models.SupportingEvidence
 LLMAuditEntry = _hai_models.LLMAuditEntry
+
+# CDI-specific models
+CDICandidate = _hai_models.CDICandidate
+CDITestResult = _hai_models.CDITestResult
+CDIEpisode = _hai_models.CDIEpisode
 
 
 class HAIType(Enum):

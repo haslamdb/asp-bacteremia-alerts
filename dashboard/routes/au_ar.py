@@ -4,36 +4,16 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-# CRITICAL: Add nhsn-reporting to the FRONT of sys.path before any other imports
-# This ensures nhsn-reporting's src package is found instead of hai-detection's
+# Add nhsn-reporting to path for nhsn_src package
 _nhsn_path = Path(__file__).parent.parent.parent / "nhsn-reporting"
-_nhsn_src_path = str(_nhsn_path)
-
-# Remove any cached 'src' module to force reload from nhsn-reporting
-# This is needed because hai.py may have already imported hai-detection's src
-if 'src' in sys.modules:
-    del sys.modules['src']
-if 'src.models' in sys.modules:
-    del sys.modules['src.models']
-if 'src.db' in sys.modules:
-    del sys.modules['src.db']
-if 'src.config' in sys.modules:
-    del sys.modules['src.config']
-if 'src.data' in sys.modules:
-    del sys.modules['src.data']
-
-# Insert nhsn-reporting at the front of sys.path
-if _nhsn_src_path in sys.path:
-    sys.path.remove(_nhsn_src_path)
-sys.path.insert(0, _nhsn_src_path)
+if str(_nhsn_path) not in sys.path:
+    sys.path.insert(0, str(_nhsn_path))
 
 from flask import Blueprint, render_template, request, jsonify, current_app, Response
 
-# CRITICAL: Import from nhsn-reporting's src NOW, at module level, to cache the correct modules
-# If we delay these imports to helper functions, hai.py's imports will have overwritten sys.modules
-from src.db import NHSNDatabase
-from src.config import Config as NHSNConfig
-from src.data import AUDataExtractor, ARDataExtractor, DenominatorCalculator
+from nhsn_src.db import NHSNDatabase
+from nhsn_src.config import Config as NHSNConfig
+from nhsn_src.data import AUDataExtractor, ARDataExtractor, DenominatorCalculator
 
 nhsn_reporting_bp = Blueprint("nhsn_reporting", __name__, url_prefix="/nhsn-reporting")
 
@@ -335,7 +315,7 @@ def hai_detail():
         stats = db.get_summary_stats()
 
         # Get confirmed HAI events in date range
-        from src.models import HAIType
+        from nhsn_src.models import HAIType
         hai_type = HAIType(hai_type_filter) if hai_type_filter else None
         confirmed_events = db.get_confirmed_hai_in_date_range(from_date, to_date)
 
@@ -740,7 +720,7 @@ def submission():
             last_submission = db.get_last_submission()
 
             # Check DIRECT configuration
-            from src.config import Config
+            from nhsn_src.config import Config
             direct_configured = Config.is_direct_configured()
             direct_config = None
             if direct_configured:
@@ -942,7 +922,7 @@ def hai_direct_submission():
         from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
         to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
 
-        from src.config import Config
+        from nhsn_src.config import Config
         if not Config.is_direct_configured():
             return redirect(url_for(
                 "nhsn_reporting.submission",
@@ -964,8 +944,8 @@ def hai_direct_submission():
                 error="No events to submit"
             ))
 
-        from src.cda import CDAGenerator, create_bsi_document_from_candidate
-        from src.direct import DirectClient
+        from nhsn_src.cda import CDAGenerator, create_bsi_document_from_candidate
+        from nhsn_src.direct import DirectClient
 
         direct_config = Config.get_direct_config()
         generator = CDAGenerator(
@@ -1031,8 +1011,8 @@ def hai_direct_submission():
 def hai_test_direct_connection():
     """Test the DIRECT protocol connection."""
     try:
-        from src.config import Config
-        from src.direct import DirectClient
+        from nhsn_src.config import Config
+        from nhsn_src.direct import DirectClient
 
         if not Config.is_direct_configured():
             return jsonify({"success": False, "message": "DIRECT protocol not configured"})

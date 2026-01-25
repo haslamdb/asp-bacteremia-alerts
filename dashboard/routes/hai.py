@@ -3,33 +3,16 @@
 import sys
 from pathlib import Path
 
-# CRITICAL: Add hai-detection to the FRONT of sys.path before any other imports
-# This ensures hai-detection's src package is found instead of nhsn-reporting's
+# Add hai-detection to path for hai_src package
 _hai_path = Path(__file__).parent.parent.parent / "hai-detection"
-_hai_src_path = str(_hai_path)
-
-# Remove any cached 'src' module to force reload from hai-detection
-# This is needed because au_ar.py may have already imported nhsn-reporting's src
-if 'src' in sys.modules:
-    del sys.modules['src']
-if 'src.models' in sys.modules:
-    del sys.modules['src.models']
-if 'src.db' in sys.modules:
-    del sys.modules['src.db']
-if 'src.config' in sys.modules:
-    del sys.modules['src.config']
-
-# Insert hai-detection at the front of sys.path
-if _hai_src_path in sys.path:
-    sys.path.remove(_hai_src_path)
-sys.path.insert(0, _hai_src_path)
+if str(_hai_path) not in sys.path:
+    sys.path.insert(0, str(_hai_path))
 
 from flask import Blueprint, render_template, request, jsonify, current_app
 
-# Now import from hai-detection's src (this will cache it)
-from src.db import HAIDatabase
-from src.config import Config as HAIConfig
-from src.models import (
+from hai_src.db import HAIDatabase
+from hai_src.config import Config as HAIConfig
+from hai_src.models import (
     HAIType, CandidateStatus, ClassificationDecision,
     ReviewQueueType, ReviewerDecision, HAICandidate
 )

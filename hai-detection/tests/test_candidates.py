@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock
 
-from src.models import (
+from hai_src.models import (
     Patient,
     CultureResult,
     DeviceInfo,
@@ -12,7 +12,7 @@ from src.models import (
     HAIType,
     CandidateStatus,
 )
-from src.candidates.clabsi import CLABSICandidateDetector, COMMON_CONTAMINANTS
+from hai_src.candidates.clabsi import CLABSICandidateDetector, COMMON_CONTAMINANTS
 
 
 class TestCLABSICandidateDetector:
