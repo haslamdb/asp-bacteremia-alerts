@@ -38,42 +38,30 @@
 <div class="analytics-section">
     <h2>Classification Breakdown</h2>
     <div class="classification-bars">
-        {% set total = summary.get('total_orders', 1) %}
-        {% set counts = summary.get('by_classification', {}) %}
+        {% set total = summary.get('total_orders', 1) or 1 %}
+        {% set appropriate = summary.get('appropriate', 0) %}
+        {% set inappropriate = summary.get('inappropriate', 0) %}
+        {% set unknown = summary.get('unknown', 0) %}
         <div class="bar-row">
-            <span class="bar-label">Always (A)</span>
+            <span class="bar-label">Appropriate (A, S, P)</span>
             <div class="bar-container">
-                <div class="bar bar-success" style="width: {{ (counts.get('A', 0) / total * 100)|round(1) }}%;"></div>
+                <div class="bar bar-success" style="width: {{ (appropriate / total * 100)|round(1) }}%;"></div>
             </div>
-            <span class="bar-value">{{ counts.get('A', 0) }} ({{ "%.1f"|format(counts.get('A', 0) / total * 100) }}%)</span>
+            <span class="bar-value">{{ appropriate }} ({{ "%.1f"|format(appropriate / total * 100) }}%)</span>
         </div>
         <div class="bar-row">
-            <span class="bar-label">Febrile Neutropenia (FN)</span>
+            <span class="bar-label">Inappropriate (N)</span>
             <div class="bar-container">
-                <div class="bar bar-success" style="width: {{ (counts.get('FN', 0) / total * 100)|round(1) }}%;"></div>
+                <div class="bar bar-danger" style="width: {{ (inappropriate / total * 100)|round(1) }}%;"></div>
             </div>
-            <span class="bar-value">{{ counts.get('FN', 0) }} ({{ "%.1f"|format(counts.get('FN', 0) / total * 100) }}%)</span>
+            <span class="bar-value">{{ inappropriate }} ({{ "%.1f"|format(inappropriate / total * 100) }}%)</span>
         </div>
         <div class="bar-row">
-            <span class="bar-label">Sometimes (S)</span>
+            <span class="bar-label">Unknown (U, FN)</span>
             <div class="bar-container">
-                <div class="bar bar-warning" style="width: {{ (counts.get('S', 0) / total * 100)|round(1) }}%;"></div>
+                <div class="bar bar-warning" style="width: {{ (unknown / total * 100)|round(1) }}%;"></div>
             </div>
-            <span class="bar-value">{{ counts.get('S', 0) }} ({{ "%.1f"|format(counts.get('S', 0) / total * 100) }}%)</span>
-        </div>
-        <div class="bar-row">
-            <span class="bar-label">Never (N)</span>
-            <div class="bar-container">
-                <div class="bar bar-danger" style="width: {{ (counts.get('N', 0) / total * 100)|round(1) }}%;"></div>
-            </div>
-            <span class="bar-value">{{ counts.get('N', 0) }} ({{ "%.1f"|format(counts.get('N', 0) / total * 100) }}%)</span>
-        </div>
-        <div class="bar-row">
-            <span class="bar-label">Prophylaxis (P)</span>
-            <div class="bar-container">
-                <div class="bar bar-info" style="width: {{ (counts.get('P', 0) / total * 100)|round(1) }}%;"></div>
-            </div>
-            <span class="bar-value">{{ counts.get('P', 0) }} ({{ "%.1f"|format(counts.get('P', 0) / total * 100) }}%)</span>
+            <span class="bar-value">{{ unknown }} ({{ "%.1f"|format(unknown / total * 100) }}%)</span>
         </div>
     </div>
 </div>
@@ -87,25 +75,22 @@
             <tr>
                 <th>Antibiotic</th>
                 <th>Total Orders</th>
-                <th>Always (A)</th>
-                <th>Sometimes (S)</th>
-                <th>Never (N)</th>
-                <th>Prophylaxis (P)</th>
+                <th>Appropriate</th>
+                <th>Inappropriate</th>
+                <th>Unknown</th>
                 <th>Appropriate %</th>
             </tr>
         </thead>
         <tbody>
             {% for row in by_antibiotic %}
             <tr>
-                <td>{{ row.medication_name }}</td>
-                <td>{{ row.total }}</td>
-                <td>{{ row.count_A or 0 }}</td>
-                <td>{{ row.count_S or 0 }}</td>
-                <td>{{ row.count_N or 0 }}</td>
-                <td>{{ row.count_P or 0 }}</td>
+                <td>{{ row['medication_name'] }}</td>
+                <td>{{ row['total_orders'] }}</td>
+                <td>{{ row.get('appropriate', 0) }}</td>
+                <td>{{ row.get('inappropriate', 0) }}</td>
+                <td>{{ row.get('unknown', 0) }}</td>
                 <td>
-                    {% set appropriate = (row.count_A or 0) + (row.count_FN or 0) + (row.count_P or 0) %}
-                    {% set rate = appropriate / row.total * 100 if row.total > 0 else 0 %}
+                    {% set rate = row.get('appropriate_rate', 0) * 100 %}
                     <span class="rate-badge {% if rate >= 80 %}rate-good{% elif rate >= 60 %}rate-ok{% else %}rate-poor{% endif %}">
                         {{ "%.0f"|format(rate) }}%
                     </span>
@@ -126,23 +111,22 @@
             <tr>
                 <th>Location</th>
                 <th>Total Orders</th>
-                <th>Always (A)</th>
-                <th>Sometimes (S)</th>
-                <th>Never (N)</th>
+                <th>Appropriate</th>
+                <th>Inappropriate</th>
+                <th>Unknown</th>
                 <th>Appropriate %</th>
             </tr>
         </thead>
         <tbody>
             {% for row in by_location %}
             <tr>
-                <td>{{ row.location or 'Unknown' }}</td>
-                <td>{{ row.total }}</td>
-                <td>{{ row.count_A or 0 }}</td>
-                <td>{{ row.count_S or 0 }}</td>
-                <td>{{ row.count_N or 0 }}</td>
+                <td>{{ row.get('location') or 'Unknown' }}</td>
+                <td>{{ row['total_orders'] }}</td>
+                <td>{{ row.get('appropriate', 0) }}</td>
+                <td>{{ row.get('inappropriate', 0) }}</td>
+                <td>{{ row.get('unknown', 0) }}</td>
                 <td>
-                    {% set appropriate = (row.count_A or 0) + (row.count_FN or 0) + (row.count_P or 0) %}
-                    {% set rate = appropriate / row.total * 100 if row.total > 0 else 0 %}
+                    {% set rate = row.get('appropriate_rate', 0) * 100 %}
                     <span class="rate-badge {% if rate >= 80 %}rate-good{% elif rate >= 60 %}rate-ok{% else %}rate-poor{% endif %}">
                         {{ "%.0f"|format(rate) }}%
                     </span>
@@ -163,23 +147,22 @@
             <tr>
                 <th>Service</th>
                 <th>Total Orders</th>
-                <th>Always (A)</th>
-                <th>Sometimes (S)</th>
-                <th>Never (N)</th>
+                <th>Appropriate</th>
+                <th>Inappropriate</th>
+                <th>Unknown</th>
                 <th>Appropriate %</th>
             </tr>
         </thead>
         <tbody>
             {% for row in by_service %}
             <tr>
-                <td>{{ row.service or 'Unknown' }}</td>
-                <td>{{ row.total }}</td>
-                <td>{{ row.count_A or 0 }}</td>
-                <td>{{ row.count_S or 0 }}</td>
-                <td>{{ row.count_N or 0 }}</td>
+                <td>{{ row.get('service') or 'Unknown' }}</td>
+                <td>{{ row['total_orders'] }}</td>
+                <td>{{ row.get('appropriate', 0) }}</td>
+                <td>{{ row.get('inappropriate', 0) }}</td>
+                <td>{{ row.get('unknown', 0) }}</td>
                 <td>
-                    {% set appropriate = (row.count_A or 0) + (row.count_FN or 0) + (row.count_P or 0) %}
-                    {% set rate = appropriate / row.total * 100 if row.total > 0 else 0 %}
+                    {% set rate = row.get('appropriate_rate', 0) * 100 %}
                     <span class="rate-badge {% if rate >= 80 %}rate-good{% elif rate >= 60 %}rate-ok{% else %}rate-poor{% endif %}">
                         {{ "%.0f"|format(rate) }}%
                     </span>
@@ -221,10 +204,14 @@
 <div class="analytics-section">
     <h2>Daily Trend (Last 30 Days)</h2>
     <div class="trend-chart">
+        {% set ns = namespace(max_total=1) %}
         {% for day in daily_trend %}
-        <div class="trend-bar" title="{{ day.date }}: {{ day.total }} orders">
-            <div class="trend-bar-inner" style="height: {{ (day.total / (daily_trend|map(attribute='total')|max or 1) * 100)|round }}%;"></div>
-            <span class="trend-date">{{ day.date[-5:] }}</span>
+            {% if day['total_orders'] > ns.max_total %}{% set ns.max_total = day['total_orders'] %}{% endif %}
+        {% endfor %}
+        {% for day in daily_trend %}
+        <div class="trend-bar" title="{{ day['date'] }}: {{ day['total_orders'] }} orders">
+            <div class="trend-bar-inner" style="height: {{ (day['total_orders'] / ns.max_total * 100)|round }}%;"></div>
+            <span class="trend-date">{{ day['date'][-5:] }}</span>
         </div>
         {% endfor %}
     </div>
