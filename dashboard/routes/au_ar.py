@@ -29,23 +29,25 @@ sys.path.insert(0, _nhsn_src_path)
 
 from flask import Blueprint, render_template, request, jsonify, current_app, Response
 
+# CRITICAL: Import from nhsn-reporting's src NOW, at module level, to cache the correct modules
+# If we delay these imports to helper functions, hai.py's imports will have overwritten sys.modules
+from src.db import NHSNDatabase
+from src.config import Config as NHSNConfig
+from src.data import AUDataExtractor, ARDataExtractor, DenominatorCalculator
+
 nhsn_reporting_bp = Blueprint("nhsn_reporting", __name__, url_prefix="/nhsn-reporting")
 
 
 def get_nhsn_db():
     """Get or create NHSN database instance for HAI data."""
     if not hasattr(current_app, "nhsn_db"):
-        from src.db import NHSNDatabase
-        from src.config import Config
-
-        current_app.nhsn_db = NHSNDatabase(Config.NHSN_DB_PATH)
+        current_app.nhsn_db = NHSNDatabase(NHSNConfig.NHSN_DB_PATH)
     return current_app.nhsn_db
 
 
 def get_au_extractor():
     """Get or create AU data extractor instance."""
     if not hasattr(current_app, "au_extractor"):
-        from src.data import AUDataExtractor
         current_app.au_extractor = AUDataExtractor()
     return current_app.au_extractor
 
@@ -53,7 +55,6 @@ def get_au_extractor():
 def get_ar_extractor():
     """Get or create AR data extractor instance."""
     if not hasattr(current_app, "ar_extractor"):
-        from src.data import ARDataExtractor
         current_app.ar_extractor = ARDataExtractor()
     return current_app.ar_extractor
 
@@ -61,7 +62,6 @@ def get_ar_extractor():
 def get_denominator_calculator():
     """Get or create denominator calculator instance."""
     if not hasattr(current_app, "denominator_calc"):
-        from src.data import DenominatorCalculator
         current_app.denominator_calc = DenominatorCalculator()
     return current_app.denominator_calc
 

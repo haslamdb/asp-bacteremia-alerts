@@ -1,0 +1,613 @@
+{
+  "metadata": {
+    "title": "Cincinnati Children's Hospital Medical Center Surgical Antimicrobial Prophylaxis Guidelines",
+    "version": "2024.1",
+    "effective_date": "2024-01-01",
+    "last_reviewed": "2024-01-01",
+    "approved_by": ["Antimicrobial Stewardship Program", "Department of Surgery", "Pharmacy and Therapeutics Committee"],
+    "references": [
+      "ASHP/IDSA/SHEA/SIS Clinical Practice Guidelines for Antimicrobial Prophylaxis in Surgery (2013)",
+      "Bratzler DW, et al. Clinical practice guidelines for antimicrobial prophylaxis in surgery. Am J Health Syst Pharm. 2013"
+    ],
+    "disclaimer": "SAMPLE DATA FOR DEVELOPMENT - NOT FOR CLINICAL USE"
+  },
+
+  "general_principles": {
+    "timing": {
+      "standard_window_minutes": 60,
+      "vancomycin_window_minutes": 120,
+      "fluoroquinolone_window_minutes": 120,
+      "description": "Administer within 60 minutes of incision (120 min for vancomycin/fluoroquinolones to allow complete infusion)"
+    },
+    "duration": {
+      "standard_hours": 24,
+      "cardiac_max_hours": 48,
+      "description": "Discontinue within 24 hours of surgery end (48 hours for cardiac surgery)"
+    },
+    "dosing": {
+      "cefazolin": {
+        "pediatric_mg_per_kg": 30,
+        "pediatric_max_mg": 2000,
+        "adult_standard_mg": 2000,
+        "adult_high_weight_threshold_kg": 120,
+        "adult_high_weight_mg": 3000,
+        "redose_interval_hours": 4
+      },
+      "vancomycin": {
+        "mg_per_kg": 15,
+        "max_mg": 2000,
+        "infusion_time_minutes": 60,
+        "redose_interval_hours": null,
+        "note": "Infuse over 60-120 minutes to avoid red man syndrome"
+      },
+      "metronidazole": {
+        "pediatric_mg_per_kg": 15,
+        "pediatric_max_mg": 500,
+        "adult_standard_mg": 500,
+        "redose_interval_hours": null
+      },
+      "clindamycin": {
+        "pediatric_mg_per_kg": 10,
+        "pediatric_max_mg": 900,
+        "adult_standard_mg": 900,
+        "redose_interval_hours": 6
+      },
+      "gentamicin": {
+        "mg_per_kg": 2.5,
+        "max_mg": 120,
+        "redose_interval_hours": null,
+        "note": "Use with caution; monitor renal function"
+      }
+    }
+  },
+
+  "procedures": {
+    "cardiac": {
+      "category_name": "Cardiac Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 48,
+      "procedures": [
+        {
+          "name": "Ventricular Septal Defect Repair",
+          "cpt_codes": ["33681", "33684"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "mrsa_high_risk_add": "vancomycin",
+          "notes": "May add vancomycin if MRSA colonized or institutional MRSA rate >10%"
+        },
+        {
+          "name": "Atrial Septal Defect Repair",
+          "cpt_codes": ["33641"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "mrsa_high_risk_add": "vancomycin"
+        },
+        {
+          "name": "Tetralogy of Fallot Repair",
+          "cpt_codes": ["33694"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "mrsa_high_risk_add": "vancomycin"
+        },
+        {
+          "name": "Aortic Valve Replacement",
+          "cpt_codes": ["33405", "33406"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin"],
+          "mrsa_high_risk_add": "vancomycin",
+          "notes": "Prosthetic valve - consider extended prophylaxis"
+        },
+        {
+          "name": "Heart Transplant",
+          "cpt_codes": ["33945"],
+          "first_line_agents": ["cefazolin", "vancomycin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "Per transplant protocol; consult ID"
+        }
+      ]
+    },
+
+    "thoracic": {
+      "category_name": "Thoracic (Non-Cardiac) Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Lobectomy",
+          "cpt_codes": ["32480", "32663"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        },
+        {
+          "name": "Lung Transplant",
+          "cpt_codes": ["32851", "32852", "32853", "32854"],
+          "first_line_agents": ["cefazolin", "vancomycin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "Per transplant protocol; consult ID"
+        },
+        {
+          "name": "Esophageal Atresia/TEF Repair",
+          "cpt_codes": ["43312", "43313", "43314"],
+          "first_line_agents": ["ampicillin-sulbactam"],
+          "alternative_agents": ["clindamycin", "metronidazole"],
+          "notes": "Neonatal procedure - adjust dosing"
+        },
+        {
+          "name": "Chest Wall Reconstruction (Pectus)",
+          "cpt_codes": ["21740", "21742", "21743"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "Bar placement - implant prophylaxis"
+        }
+      ]
+    },
+
+    "gastrointestinal_upper": {
+      "category_name": "Upper GI Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Gastrostomy Tube Placement",
+          "cpt_codes": ["43246", "43653", "43830", "43831"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Prophylaxis recommended for all G-tube placements in children"
+        },
+        {
+          "name": "Fundoplication (Nissen)",
+          "cpt_codes": ["43280", "43325", "43327", "43328"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"]
+        },
+        {
+          "name": "Pyloromyotomy",
+          "cpt_codes": ["43520"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Single dose typically sufficient"
+        }
+      ]
+    },
+
+    "gastrointestinal_colorectal": {
+      "category_name": "Colorectal Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "requires_anaerobic_coverage": true,
+      "procedures": [
+        {
+          "name": "Appendectomy (Non-perforated)",
+          "cpt_codes": ["44950", "44970"],
+          "first_line_agents": ["cefazolin", "metronidazole"],
+          "alternative_agents": ["clindamycin", "gentamicin"],
+          "notes": "If perforated, treat therapeutically"
+        },
+        {
+          "name": "Appendectomy (Laparoscopic)",
+          "cpt_codes": ["44970"],
+          "first_line_agents": ["cefazolin", "metronidazole"],
+          "alternative_agents": ["clindamycin", "gentamicin"]
+        },
+        {
+          "name": "Colectomy (Partial)",
+          "cpt_codes": ["44140", "44141", "44143", "44144", "44145", "44204", "44205", "44206", "44207"],
+          "first_line_agents": ["cefazolin", "metronidazole"],
+          "alternative_agents": ["clindamycin", "gentamicin"],
+          "notes": "Mechanical bowel prep per surgical preference"
+        },
+        {
+          "name": "Pull-Through for Hirschsprung Disease",
+          "cpt_codes": ["45120", "45121"],
+          "first_line_agents": ["cefazolin", "metronidazole"],
+          "alternative_agents": ["clindamycin", "gentamicin"]
+        },
+        {
+          "name": "Ileostomy/Colostomy Creation or Closure",
+          "cpt_codes": ["44310", "44312", "44320", "44625", "44626"],
+          "first_line_agents": ["cefazolin", "metronidazole"],
+          "alternative_agents": ["clindamycin", "gentamicin"]
+        }
+      ]
+    },
+
+    "hepatobiliary": {
+      "category_name": "Hepatobiliary Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Cholecystectomy (Laparoscopic)",
+          "cpt_codes": ["47562", "47563", "47564"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin", "gentamicin"],
+          "notes": "May omit prophylaxis for low-risk elective laparoscopic cholecystectomy"
+        },
+        {
+          "name": "Cholecystectomy (Open)",
+          "cpt_codes": ["47600", "47605", "47610"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin", "gentamicin"]
+        },
+        {
+          "name": "Kasai Procedure (Biliary Atresia)",
+          "cpt_codes": ["47701"],
+          "first_line_agents": ["piperacillin-tazobactam"],
+          "alternative_agents": ["clindamycin", "gentamicin", "metronidazole"],
+          "notes": "Neonatal procedure - extended spectrum coverage"
+        },
+        {
+          "name": "Liver Transplant",
+          "cpt_codes": ["47135", "47136"],
+          "first_line_agents": ["piperacillin-tazobactam"],
+          "alternative_agents": ["per_protocol"],
+          "notes": "Per transplant protocol; duration per protocol; consult ID"
+        },
+        {
+          "name": "Liver Resection",
+          "cpt_codes": ["47120", "47122", "47125", "47130"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin", "gentamicin"]
+        }
+      ]
+    },
+
+    "orthopedic": {
+      "category_name": "Orthopedic Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Spinal Fusion",
+          "cpt_codes": ["22551", "22552", "22554", "22556", "22558", "22600", "22610", "22612", "22614", "22800", "22802", "22804"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "mrsa_high_risk_add": "vancomycin",
+          "notes": "Implant procedure - consider vancomycin for high-risk patients"
+        },
+        {
+          "name": "Scoliosis Correction (Growing Rods)",
+          "cpt_codes": ["22840", "22841", "22842", "22843", "22844"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "mrsa_high_risk_add": "vancomycin"
+        },
+        {
+          "name": "Hip Arthroplasty/Reconstruction",
+          "cpt_codes": ["27130", "27132", "27134"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        },
+        {
+          "name": "ORIF - Long Bone Fracture",
+          "cpt_codes": ["27244", "27245", "27506", "27507", "27511", "27513", "27514"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "Prophylaxis for closed fracture ORIF with hardware"
+        },
+        {
+          "name": "Knee Arthroscopy with Hardware",
+          "cpt_codes": ["29888", "29889"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "ACL reconstruction and similar"
+        },
+        {
+          "name": "Club Foot Correction",
+          "cpt_codes": ["28262", "28264", "28270", "28299"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "If hardware placed"
+        }
+      ]
+    },
+
+    "neurosurgery": {
+      "category_name": "Neurosurgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Craniotomy",
+          "cpt_codes": ["61304", "61305", "61312", "61313", "61314", "61315", "61320", "61321", "61510", "61512"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        },
+        {
+          "name": "VP Shunt Placement",
+          "cpt_codes": ["62220", "62223"],
+          "first_line_agents": ["cefazolin", "vancomycin"],
+          "alternative_agents": ["vancomycin"],
+          "notes": "Consider adding vancomycin for all shunt procedures given high morbidity of shunt infection"
+        },
+        {
+          "name": "VP Shunt Revision",
+          "cpt_codes": ["62225", "62230"],
+          "first_line_agents": ["cefazolin", "vancomycin"],
+          "alternative_agents": ["vancomycin"],
+          "notes": "Higher infection risk with revision"
+        },
+        {
+          "name": "Myelomeningocele Repair",
+          "cpt_codes": ["63704", "63706"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "Neonatal procedure - adjust dosing"
+        },
+        {
+          "name": "Chiari Decompression",
+          "cpt_codes": ["61343", "61345"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        },
+        {
+          "name": "Epilepsy Surgery",
+          "cpt_codes": ["61536", "61537", "61538", "61539"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        }
+      ]
+    },
+
+    "urology": {
+      "category_name": "Urologic Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Pyeloplasty",
+          "cpt_codes": ["50400", "50405", "50544"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["ciprofloxacin", "gentamicin"],
+          "notes": "Adjust if known urine culture results"
+        },
+        {
+          "name": "Ureteral Reimplantation",
+          "cpt_codes": ["50780", "50782", "50783"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["ciprofloxacin", "gentamicin"]
+        },
+        {
+          "name": "Nephrectomy",
+          "cpt_codes": ["50220", "50225", "50230", "50545", "50546"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["ciprofloxacin", "clindamycin"]
+        },
+        {
+          "name": "Kidney Transplant",
+          "cpt_codes": ["50360", "50365"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin"],
+          "notes": "Per transplant protocol; consult ID"
+        },
+        {
+          "name": "Hypospadias Repair",
+          "cpt_codes": ["54300", "54304", "54308", "54312", "54316", "54318", "54322", "54324", "54326", "54328"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Single dose typically sufficient"
+        },
+        {
+          "name": "Orchiopexy",
+          "cpt_codes": ["54640", "54650", "54692"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Prophylaxis optional for simple orchiopexy"
+        }
+      ]
+    },
+
+    "ent": {
+      "category_name": "ENT Surgery",
+      "prophylaxis_indicated": false,
+      "duration_limit_hours": 24,
+      "notes": "Most clean ENT procedures do not require prophylaxis",
+      "procedures": [
+        {
+          "name": "Tonsillectomy/Adenoidectomy",
+          "cpt_codes": ["42820", "42821", "42825", "42826", "42830", "42831", "42835", "42836"],
+          "prophylaxis_indicated": false,
+          "first_line_agents": [],
+          "notes": "Prophylaxis NOT indicated"
+        },
+        {
+          "name": "Myringotomy with Tubes",
+          "cpt_codes": ["69433", "69436"],
+          "prophylaxis_indicated": false,
+          "first_line_agents": [],
+          "notes": "Prophylaxis NOT indicated"
+        },
+        {
+          "name": "Cochlear Implant",
+          "cpt_codes": ["69930"],
+          "prophylaxis_indicated": true,
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"],
+          "notes": "Implant procedure - prophylaxis indicated"
+        },
+        {
+          "name": "Major Head/Neck Surgery with Mucosal Incision",
+          "cpt_codes": ["31360", "31365", "31367", "31368", "31370", "31375", "31380", "31382"],
+          "prophylaxis_indicated": true,
+          "first_line_agents": ["ampicillin-sulbactam"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Clean-contaminated - prophylaxis indicated"
+        }
+      ]
+    },
+
+    "hernia": {
+      "category_name": "Hernia Repair",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Inguinal Hernia Repair (with mesh)",
+          "cpt_codes": ["49505", "49507", "49520", "49521", "49525", "49650", "49651"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Prophylaxis recommended when mesh used"
+        },
+        {
+          "name": "Inguinal Hernia Repair (without mesh)",
+          "cpt_codes": ["49505", "49507"],
+          "prophylaxis_indicated": false,
+          "first_line_agents": [],
+          "notes": "Prophylaxis typically NOT indicated for pediatric tissue repair without mesh"
+        },
+        {
+          "name": "Umbilical Hernia Repair",
+          "cpt_codes": ["49585", "49587"],
+          "prophylaxis_indicated": false,
+          "first_line_agents": [],
+          "notes": "Clean procedure - prophylaxis typically not indicated"
+        },
+        {
+          "name": "Diaphragmatic Hernia Repair (Congenital)",
+          "cpt_codes": ["39503"],
+          "first_line_agents": ["ampicillin-sulbactam"],
+          "alternative_agents": ["clindamycin", "gentamicin"],
+          "notes": "Neonatal procedure - adjust dosing"
+        }
+      ]
+    },
+
+    "plastics": {
+      "category_name": "Plastic Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "Cleft Lip Repair",
+          "cpt_codes": ["40700", "40701", "40702", "40720", "40761"],
+          "first_line_agents": ["ampicillin-sulbactam"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Oral flora coverage"
+        },
+        {
+          "name": "Cleft Palate Repair",
+          "cpt_codes": ["42200", "42205", "42210", "42215", "42220", "42225"],
+          "first_line_agents": ["ampicillin-sulbactam"],
+          "alternative_agents": ["clindamycin"],
+          "notes": "Oral flora coverage"
+        },
+        {
+          "name": "Craniosynostosis Repair",
+          "cpt_codes": ["61550", "61552", "61556", "61557", "61558"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        }
+      ]
+    },
+
+    "vascular": {
+      "category_name": "Vascular Surgery",
+      "prophylaxis_indicated": true,
+      "duration_limit_hours": 24,
+      "procedures": [
+        {
+          "name": "AV Fistula/Graft Creation",
+          "cpt_codes": ["36818", "36819", "36820", "36821", "36825", "36830"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin", "clindamycin"]
+        },
+        {
+          "name": "Central Line Placement (Tunneled)",
+          "cpt_codes": ["36558", "36560", "36561", "36563", "36565", "36566"],
+          "first_line_agents": ["cefazolin"],
+          "alternative_agents": ["vancomycin"],
+          "notes": "Consider local CLABSI rates; may omit for routine placement in low-risk"
+        }
+      ]
+    }
+  },
+
+  "allergy_alternatives": {
+    "beta_lactam_severe_allergy": {
+      "description": "History of anaphylaxis, angioedema, or severe urticaria to penicillins or cephalosporins",
+      "alternatives": {
+        "clean_procedures": ["vancomycin", "clindamycin"],
+        "colorectal": ["clindamycin", "gentamicin", "metronidazole"],
+        "urologic": ["ciprofloxacin", "gentamicin"],
+        "oral_flora": ["clindamycin"]
+      }
+    },
+    "beta_lactam_mild_allergy": {
+      "description": "Distant rash or unknown reaction - may consider cephalosporin with monitoring",
+      "note": "Discuss with patient/family; consider allergist consult if unclear"
+    },
+    "vancomycin_allergy": {
+      "description": "True vancomycin allergy (not red man syndrome)",
+      "alternatives": ["clindamycin", "daptomycin"],
+      "consult_id": true
+    }
+  },
+
+  "mrsa_screening": {
+    "high_risk_procedures": [
+      "cardiac_surgery",
+      "spinal_fusion",
+      "vp_shunt",
+      "orthopedic_implant"
+    ],
+    "screening_recommendation": "Nasal swab within 5 days of surgery for high-risk procedures",
+    "positive_action": "Add vancomycin to standard prophylaxis",
+    "decolonization": "Consider mupirocin nasal ointment and chlorhexidine bathing pre-op"
+  },
+
+  "weight_based_adjustments": {
+    "cefazolin": {
+      "normal_weight": {
+        "dose_mg": 2000
+      },
+      "high_weight": {
+        "threshold_kg": 120,
+        "dose_mg": 3000
+      },
+      "pediatric": {
+        "mg_per_kg": 30,
+        "max_mg": 2000,
+        "note": "Use 3g if weight >120kg regardless of age"
+      }
+    }
+  },
+
+  "redosing_intervals": {
+    "cefazolin": {
+      "interval_hours": 4,
+      "blood_loss_threshold_ml": 1500,
+      "note": "Redose after 4 hours OR blood loss >1500 mL"
+    },
+    "cefoxitin": {
+      "interval_hours": 2
+    },
+    "ampicillin_sulbactam": {
+      "interval_hours": 2
+    },
+    "clindamycin": {
+      "interval_hours": 6
+    },
+    "vancomycin": {
+      "interval_hours": null,
+      "note": "Redosing typically not required due to long half-life"
+    },
+    "metronidazole": {
+      "interval_hours": null,
+      "note": "Redosing typically not required due to long half-life"
+    }
+  },
+
+  "special_populations": {
+    "neonates": {
+      "note": "Adjust doses based on weight and gestational age; consult pharmacy",
+      "common_procedures": ["TEF_repair", "myelomeningocele", "CDH_repair", "kasai", "gastroschisis"]
+    },
+    "immunocompromised": {
+      "note": "Consider broader coverage; consult ID",
+      "conditions": ["transplant", "oncology", "immunodeficiency"]
+    },
+    "renal_impairment": {
+      "note": "Adjust vancomycin and aminoglycoside dosing based on renal function"
+    }
+  }
+}

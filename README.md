@@ -46,6 +46,8 @@ aegis/
 ├── dashboard/                      # Web dashboard for alert management
 ├── asp-bacteremia-alerts/          # Blood culture coverage monitoring
 ├── antimicrobial-usage-alerts/     # Broad-spectrum usage monitoring
+├── guideline-adherence/            # Real-time guideline bundle monitoring
+├── surgical-prophylaxis/           # Surgical prophylaxis compliance
 ├── hai-detection/                  # HAI candidate detection, LLM extraction, IP review
 ├── nhsn-reporting/                 # AU/AR reporting, NHSN submission
 ├── scripts/                        # Demo and utility scripts
@@ -97,6 +99,58 @@ Monitors antimicrobial usage patterns including broad-spectrum duration and anti
 
 **[Documentation →](antimicrobial-usage-alerts/README.md)**
 
+### guideline-adherence
+
+Real-time monitoring of evidence-based clinical guideline bundles. Generates **GUIDELINE_DEVIATION** alerts when bundle elements are not completed within their time windows, and tracks aggregate compliance metrics for quality improvement and Joint Commission reporting.
+
+**Supported Bundles (7):**
+| Bundle | Elements | Key Metrics |
+|--------|----------|-------------|
+| **Pediatric Sepsis (CMS SEP-1)** | 6 | Blood culture, lactate, ABX ≤1h, fluids, reassessment |
+| **Febrile Infant (AAP 2021)** | 12 | UA, blood cx, inflammatory markers, LP (age-stratified) |
+| **Pediatric CAP** | 6 | CXR, SpO2, empiric choice, duration ≤7d |
+| **Febrile Neutropenia** | 6 | Cultures, ABX ≤1h, risk stratification |
+| **Surgical Prophylaxis** | 5 | Agent selection, timing ≤60min, duration ≤24h |
+| **Pediatric UTI** | 7 | UA, culture, empiric choice, imaging |
+| **SSTI/Cellulitis** | 6 | Margins marked, MRSA coverage, I&D if needed |
+
+**Features:**
+- Age-stratified logic for Febrile Infant bundle (8-21d, 22-28d, 29-60d per AAP 2021)
+- Inflammatory marker threshold evaluation (PCT, ANC, CRP)
+- FHIR-based real-time monitoring
+- Integration with ASP Alerts queue
+- Compliance metrics dashboard
+
+**[Documentation →](guideline-adherence/README.md)**
+
+### surgical-prophylaxis
+
+Automated monitoring of surgical antimicrobial prophylaxis compliance following ASHP/IDSA/SHEA/SIS guidelines. Evaluates surgical cases against a 6-element bundle and generates **SURGICAL_PROPHYLAXIS** alerts for non-compliant cases.
+
+**Bundle Elements (6):**
+| Element | Description | Threshold |
+|---------|-------------|-----------|
+| **Indication** | Prophylaxis given/withheld appropriately | Per CPT code |
+| **Agent Selection** | Correct antibiotic for procedure | Per guidelines |
+| **Timing** | Administered before incision | ≤60 min (120 for vanco) |
+| **Dosing** | Weight-based dosing | ±10% of calculated |
+| **Redosing** | Intraop redose for long surgery | Per interval (4h cefazolin) |
+| **Discontinuation** | Stopped after surgery | ≤24h (48h cardiac) |
+
+**Features:**
+- CPT code-based procedure identification (55+ procedures, 11 categories)
+- Allergy-aware agent selection (beta-lactam alternatives)
+- MRSA colonization screening integration
+- Pediatric and adult dosing tables
+- Integration with ASP Alerts queue
+
+**Future Enhancements:**
+- Real-time pre-operative alerting via Epic Secure Chat
+- Alert when patient arrives in OR without prophylaxis
+- SSI outcome correlation
+
+**[Documentation →](surgical-prophylaxis/README.md)**
+
 ### hai-detection
 
 Healthcare-Associated Infection (HAI) candidate detection, LLM-assisted classification, and IP review workflow. Uses rule-based screening combined with LLM fact extraction and deterministic NHSN rules to identify HAI candidates.
@@ -136,6 +190,8 @@ Web-based dashboard providing a unified interface for all AEGIS modules. The lan
 - **ASP Alerts** (`/asp-alerts/`) - Antimicrobial stewardship alert management
 - **HAI Detection** (`/hai-detection/`) - CLABSI and SSI candidate screening and IP review workflow
 - **NHSN Reporting** (`/nhsn-reporting/`) - AU, AR, and HAI data aggregation with NHSN submission
+- **Guideline Adherence** (`/guideline-adherence/`) - Bundle compliance monitoring and metrics
+- **Surgical Prophylaxis** (`/surgical-prophylaxis/`) - Surgical prophylaxis compliance (coming soon)
 - **Dashboards** (`/dashboards/`) - Analytics dashboards (coming soon)
 
 **Features:**
@@ -412,11 +468,15 @@ Each module uses environment variables for configuration. Copy `.env.template` t
 | High | **Natural Language Query Interface** | Allow ASP/IPC users to query data in plain English (e.g., "Show E. coli resistance in urine isolates over 10 years"). Uses Claude API with BAA for SQL generation; PHI stays on-premises |
 | High | **Interactive Analytics Dashboards** | Plotly-based interactive charts for resistance trends, antibiotic usage patterns, HAI rates over time. Drill-down capability, date range selection, export to PDF/PNG |
 | High | **Automated Metrics** | Auto-generate DOT reports, benchmarks, and quality metrics with AI-written narrative summaries |
-| High | **Guideline Adherence** | Monitor prescribing against fever/neutropenia and other guidelines; report concordance |
 | High | **Bug-Drug Mismatch** | Identify when organisms are not covered by current therapy; suggest alternatives |
+| High | **Real-Time Pre-Op Alerting** | Alert surgical team via Epic Secure Chat when patient arrives in OR without prophylaxis |
 | Medium | **Predictive Risk Models** | ML models to identify patients at high risk for resistant infections or C. diff |
 | Medium | **Duration Optimization** | Evidence-based duration recommendations at approval with reassessment triggers |
 | Low | **Automated Approvals** | AI pre-screening of antibiotic approval requests with auto-approval or ASP referral |
+
+**Recently Implemented:**
+- ✅ **Guideline Adherence** - Real-time bundle monitoring with 7 guidelines including Febrile Infant (AAP 2021)
+- ✅ **Surgical Prophylaxis** - 6-element compliance monitoring with CPT-based evaluation
 
 ## Development
 
@@ -472,6 +532,18 @@ aegis/
 │   └── src/
 │       ├── alerters/          # Notification handlers
 │       ├── monitor.py         # Usage monitoring service
+│       └── runner.py          # CLI entry point
+├── guideline-adherence/
+│   └── src/
+│       ├── checkers/          # Element checkers (lab, medication, note)
+│       ├── monitor.py         # Guideline adherence monitor
+│       ├── fhir_client.py     # FHIR data access
+│       └── runner.py          # CLI entry point
+├── surgical-prophylaxis/
+│   └── src/
+│       ├── evaluator.py       # 6-element bundle evaluation
+│       ├── monitor.py         # Prophylaxis compliance monitor
+│       ├── fhir_client.py     # FHIR data access
 │       └── runner.py          # CLI entry point
 ├── hai-detection/
 │   └── src/

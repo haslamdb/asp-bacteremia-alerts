@@ -250,6 +250,54 @@ python -m src.runner --once --bundle febrile_infant_2024 --verbose
 
 ---
 
+## Step 6d: Demo - Surgical Prophylaxis
+
+The Surgical Prophylaxis module monitors compliance with surgical antimicrobial prophylaxis guidelines, evaluating 6 bundle elements.
+
+**Terminal 4:**
+```bash
+cd aegis/surgical-prophylaxis
+
+# Run the surgical prophylaxis monitor (dry run first)
+python -m src.runner --once --dry-run --verbose
+
+# Run with alerts enabled
+python -m src.runner --once --verbose
+```
+
+### Surgical Prophylaxis Bundle Elements
+
+| Element | Description | Threshold |
+|---------|-------------|-----------|
+| Indication | Prophylaxis given/withheld appropriately | Per CPT code |
+| Agent Selection | Correct antibiotic for procedure | Per guidelines |
+| Timing | Administered before incision | ≤60 min (120 for vanco) |
+| Dosing | Weight-based dosing | ±10% of calculated |
+| Redosing | Intraop redose for long surgery | Per interval |
+| Discontinuation | Stopped after surgery | ≤24h (48h cardiac) |
+
+### Procedure Categories (11)
+
+| Category | Example Procedures | First-Line Agent |
+|----------|-------------------|------------------|
+| Cardiac | VSD repair, valve replacement | Cefazolin |
+| Colorectal | Appendectomy, colectomy | Cefazolin + Metronidazole |
+| Orthopedic | Spinal fusion, ORIF | Cefazolin |
+| Neurosurgery | Craniotomy, VP shunt | Cefazolin ± Vancomycin |
+| ENT | T&A (no prophylaxis), cochlear implant | Varies |
+
+### Alert Types
+
+- **SURGICAL_PROPHYLAXIS** - Non-compliance with prophylaxis bundle element
+- Severity levels: Critical (missing prophylaxis), Warning (wrong agent/timing), Info (prolonged duration)
+- Alerts appear in ASP Alerts queue
+
+### Future Enhancement: Real-Time Pre-Op Alerting
+
+The module is designed to support real-time alerting via Epic Secure Chat when a patient arrives in the OR without appropriate prophylaxis. See `FUTURE_ENHANCEMENTS.md` for details.
+
+---
+
 ## Step 7: Demo - Blood Culture Alert
 
 Now we'll add a patient with MRSA bacteremia but no vancomycin coverage.
