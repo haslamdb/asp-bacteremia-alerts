@@ -126,60 +126,6 @@
             {% endif %}
         </div>
 
-        <!-- NHSN Criteria -->
-        <div class="alert-detail-card">
-            <div class="info-section">
-                <h3>NHSN Criteria Assessment</h3>
-                <div class="criteria-list">
-                    <div class="criteria-item {% if candidate.meets_initial_criteria %}criteria-met{% else %}criteria-failed{% endif %}">
-                        <span class="criteria-icon">{% if candidate.meets_initial_criteria %}✓{% else %}✗{% endif %}</span>
-                        <div class="criteria-text">
-                            <strong>Initial Screening Criteria</strong>
-                            {% if not candidate.meets_initial_criteria %}
-                            <p class="text-muted">{{ candidate.exclusion_reason }}</p>
-                            {% elif candidate.hai_type.value == 'clabsi' %}
-                            <p class="text-muted">BSI with central line present &gt;2 days</p>
-                            {% elif candidate.hai_type.value == 'cdi' %}
-                            <p class="text-muted">C. difficile positive toxin/PCR test</p>
-                            {% elif candidate.hai_type.value == 'cauti' %}
-                            <p class="text-muted">Urinary catheter present &gt;2 days</p>
-                            {% elif candidate.hai_type.value == 'vae' %}
-                            <p class="text-muted">Mechanical ventilation &ge;2 days</p>
-                            {% elif candidate.hai_type.value == 'ssi' %}
-                            <p class="text-muted">NHSN operative procedure within surveillance window</p>
-                            {% else %}
-                            <p class="text-muted">Meets initial HAI screening criteria</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="criteria-item {% if classifications %}criteria-met{% else %}criteria-pending{% endif %}">
-                        <span class="criteria-icon">{% if classifications %}✓{% else %}?{% endif %}</span>
-                        <div class="criteria-text">
-                            <strong>LLM Classification</strong>
-                            {% if classifications %}
-                            <p class="text-muted">LLM review complete</p>
-                            {% else %}
-                            <p class="text-muted">Awaiting LLM classification</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="criteria-item {% if candidate.status.value in ['confirmed', 'rejected'] %}criteria-met{% else %}criteria-pending{% endif %}">
-                        <span class="criteria-icon">{% if candidate.status.value in ['confirmed', 'rejected'] %}✓{% else %}?{% endif %}</span>
-                        <div class="criteria-text">
-                            <strong>IP Review</strong>
-                            {% if candidate.status.value == 'confirmed' %}
-                            <p class="text-muted">Confirmed as HAI</p>
-                            {% elif candidate.status.value == 'rejected' %}
-                            <p class="text-muted">Confirmed not HAI</p>
-                            {% else %}
-                            <p class="text-muted">Requires IP decision</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- LLM Classifications -->
         {% if classifications %}
         <div class="alert-detail-card">
@@ -246,6 +192,60 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- NHSN Criteria -->
+        <div class="alert-detail-card">
+            <div class="info-section">
+                <h3>NHSN Criteria Assessment</h3>
+                <div class="criteria-list">
+                    <div class="criteria-item {% if candidate.meets_initial_criteria %}criteria-met{% else %}criteria-failed{% endif %}">
+                        <span class="criteria-icon">{% if candidate.meets_initial_criteria %}✓{% else %}✗{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>Initial Screening Criteria</strong>
+                            {% if not candidate.meets_initial_criteria %}
+                            <p class="text-muted">{{ candidate.exclusion_reason }}</p>
+                            {% elif candidate.hai_type.value == 'clabsi' %}
+                            <p class="text-muted">BSI with central line present &gt;2 days</p>
+                            {% elif candidate.hai_type.value == 'cdi' %}
+                            <p class="text-muted">C. difficile positive toxin/PCR test</p>
+                            {% elif candidate.hai_type.value == 'cauti' %}
+                            <p class="text-muted">Urinary catheter present &gt;2 days</p>
+                            {% elif candidate.hai_type.value == 'vae' %}
+                            <p class="text-muted">Mechanical ventilation &ge;2 days</p>
+                            {% elif candidate.hai_type.value == 'ssi' %}
+                            <p class="text-muted">NHSN operative procedure within surveillance window</p>
+                            {% else %}
+                            <p class="text-muted">Meets initial HAI screening criteria</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="criteria-item {% if classifications %}criteria-met{% else %}criteria-pending{% endif %}">
+                        <span class="criteria-icon">{% if classifications %}✓{% else %}?{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>LLM Classification</strong>
+                            {% if classifications %}
+                            <p class="text-muted">LLM review complete</p>
+                            {% else %}
+                            <p class="text-muted">Awaiting LLM classification</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="criteria-item {% if candidate.status.value in ['confirmed', 'rejected'] %}criteria-met{% else %}criteria-pending{% endif %}">
+                        <span class="criteria-icon">{% if candidate.status.value in ['confirmed', 'rejected'] %}✓{% else %}?{% endif %}</span>
+                        <div class="criteria-text">
+                            <strong>IP Review</strong>
+                            {% if candidate.status.value == 'confirmed' %}
+                            <p class="text-muted">Confirmed as HAI</p>
+                            {% elif candidate.status.value == 'rejected' %}
+                            <p class="text-muted">Confirmed not HAI</p>
+                            {% else %}
+                            <p class="text-muted">Requires IP decision</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Right Column: Classification Actions -->
