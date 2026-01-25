@@ -17,7 +17,7 @@ import logging
 from datetime import datetime, timedelta
 
 from .base import BaseHAIClassifier
-from ..models import HAICandidate, ClinicalNote, Classification, ClassificationDecision
+from ..models import HAICandidate, HAIType, ClinicalNote, Classification, ClassificationDecision
 from ..extraction.cdi_extractor import CDIExtractor
 from ..rules.cdi_engine import CDIRulesEngine
 from ..rules.cdi_schemas import CDIClassification, CDIStructuredData, CDIPriorEpisode
@@ -36,6 +36,8 @@ class CDIClassifier(BaseHAIClassifier):
     5. Return Classification result
     """
 
+    PROMPT_VERSION = "cdi_v1"
+
     # Note types relevant to CDI assessment
     RELEVANT_NOTE_TYPES = [
         "progress_note",
@@ -44,6 +46,62 @@ class CDIClassifier(BaseHAIClassifier):
         "gi_consult",       # GI consult
         "discharge_summary",
     ]
+
+    @property
+    def hai_type(self) -> str:
+        """The HAI type this classifier handles."""
+        return HAIType.CDI.value
+
+    @property
+    def prompt_version(self) -> str:
+        """Version of the prompt template being used."""
+        return self.PROMPT_VERSION
+
+    def build_prompt(
+        self,
+        candidate: HAICandidate,
+        notes: list[ClinicalNote],
+    ) -> str:
+        """Build the classification prompt.
+
+        Note: CDI classification uses the CDIExtractor internally which
+        builds its own prompt. This method returns the prompt that would
+        be used for the extraction phase.
+
+        Args:
+            candidate: The CDI candidate
+            notes: Clinical notes for context
+
+        Returns:
+            Formatted prompt string
+        """
+        # CDI uses extractor which builds its own prompt
+        # This is for API compatibility with base class
+        patient_mrn = candidate.patient.mrn if candidate.patient else "Unknown"
+        test_date = candidate.culture.collection_date if candidate.culture else "Unknown"
+
+        notes_text = "\n\n".join([
+            f"--- {note.note_type} ({note.note_date}) ---\n{note.content}"
+            for note in notes
+        ]) if notes else "No notes available"
+
+        return f"""Evaluate this C. difficile test result for CDI classification.
+
+Patient MRN: {patient_mrn}
+Test Date: {test_date}
+Test Result: Positive C. difficile
+
+Clinical Notes:
+{notes_text}
+
+Extract:
+1. Is diarrhea documented? (unformed stool required for CDI)
+2. How many days after admission was the specimen collected?
+3. Is there prior CDI history mentioned?
+4. Was CDI treatment initiated?
+5. Are there alternative diagnoses mentioned?
+
+Respond with JSON: {{"diarrhea_documented": true/false, "specimen_day": N, "prior_cdi": true/false, "treatment_started": true/false, "reasoning": "..."}}"""
 
     def __init__(
         self,
@@ -115,34 +173,56 @@ class CDIClassifier(BaseHAIClassifier):
         decision = self._map_decision(result.classification)
 
         # Build supporting/contradicting evidence
+        from ..models import SupportingEvidence
+
         supporting = []
         contradicting = []
 
         if result.test_positive:
-            supporting.append(f"Positive {result.test_type} test")
+            supporting.append(SupportingEvidence(
+                text=f"Positive {result.test_type} test",
+                source="lab_result",
+            ))
         if result.specimen_day:
-            supporting.append(f"Specimen day {result.specimen_day}")
+            supporting.append(SupportingEvidence(
+                text=f"Specimen day {result.specimen_day}",
+                source="admission_data",
+            ))
         if result.diarrhea_documented:
-            supporting.append("Diarrhea documented")
+            supporting.append(SupportingEvidence(
+                text="Diarrhea documented",
+                source="clinical_note",
+            ))
         if result.treatment_initiated:
-            supporting.append(f"CDI treatment initiated ({result.treatment_type or 'unspecified'})")
+            supporting.append(SupportingEvidence(
+                text=f"CDI treatment initiated ({result.treatment_type or 'unspecified'})",
+                source="clinical_note",
+            ))
         if result.is_recurrent:
-            supporting.append(f"Recurrent episode ({result.days_since_last_cdi} days since last)")
+            supporting.append(SupportingEvidence(
+                text=f"Recurrent episode ({result.days_since_last_cdi} days since last)",
+                source="prior_episodes",
+            ))
 
         for reason in result.review_reasons:
-            contradicting.append(reason)
+            contradicting.append(SupportingEvidence(
+                text=reason,
+                source="rules_engine",
+            ))
 
         # Create Classification object
+        # Note: result.reasoning is a list[str], join for Classification
+        reasoning_text = " ".join(result.reasoning) if result.reasoning else None
+
         classification = Classification(
             id=str(uuid.uuid4()),
             candidate_id=candidate.id,
             decision=decision,
             confidence=result.confidence,
-            reasoning=result.reasoning,
+            reasoning=reasoning_text,
             supporting_evidence=supporting,
             contradicting_evidence=contradicting,
-            extraction_data=extraction.to_dict(),
-            rules_result=result.to_dict(),
+            prompt_version=self.PROMPT_VERSION,
             created_at=datetime.now(),
         )
 

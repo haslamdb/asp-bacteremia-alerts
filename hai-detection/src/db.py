@@ -23,6 +23,8 @@ from .models import (
     LLMAuditEntry,
     SSICandidate,
     SurgicalProcedure,
+    VAECandidate,
+    VentilationEpisode,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,6 +90,14 @@ class HAIDatabase:
         # Save SSI-specific data if present
         if candidate.hai_type == HAIType.SSI and hasattr(candidate, "_ssi_data"):
             self.save_ssi_data(candidate)
+
+        # Save VAE-specific data if present
+        if candidate.hai_type == HAIType.VAE and hasattr(candidate, "_vae_data"):
+            self.save_vae_data(candidate)
+
+        # Save CDI-specific data if present
+        if candidate.hai_type == HAIType.CDI and hasattr(candidate, "_cdi_data"):
+            self.save_cdi_data(candidate)
 
     def get_candidate(self, candidate_id: str) -> HAICandidate | None:
         """Get a candidate by ID."""
@@ -248,6 +258,18 @@ class HAIDatabase:
             if ssi_data:
                 candidate._ssi_data = ssi_data  # type: ignore
 
+        # Load VAE-specific data if this is a VAE candidate
+        if candidate.hai_type == HAIType.VAE:
+            vae_data = self._load_vae_data(candidate.id)
+            if vae_data:
+                candidate._vae_data = vae_data  # type: ignore
+
+        # Load CDI-specific data if this is a CDI candidate
+        if candidate.hai_type == HAIType.CDI:
+            cdi_data = self.get_cdi_data(candidate.id)
+            if cdi_data:
+                candidate._cdi_data = cdi_data  # type: ignore
+
         return candidate
 
     # --- SSI Operations ---
@@ -375,6 +397,266 @@ class HAIDatabase:
                 wound_culture_date=datetime.fromisoformat(detail_row["wound_culture_date"]) if detail_row["wound_culture_date"] else None,
                 readmission_for_ssi=bool(detail_row["readmission_for_ssi"]),
                 reoperation_for_ssi=bool(detail_row["reoperation_for_ssi"]),
+            )
+
+    # --- VAE Operations ---
+
+    def save_vae_data(self, candidate: HAICandidate) -> None:
+        """Save VAE-specific data (episode and candidate details).
+
+        Args:
+            candidate: HAI candidate with _vae_data attached
+        """
+        vae_data: VAECandidate | None = getattr(candidate, "_vae_data", None)
+        if not vae_data:
+            return
+
+        with self._get_connection() as conn:
+            # Save ventilation episode first
+            episode = vae_data.episode
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO vae_ventilation_episodes (
+                    id, patient_id, patient_mrn, intubation_date, extubation_date,
+                    encounter_id, location_code, fhir_device_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    episode.id,
+                    episode.patient_id,
+                    episode.patient_mrn,
+                    episode.intubation_date.isoformat(),
+                    episode.extubation_date.isoformat() if episode.extubation_date else None,
+                    episode.encounter_id,
+                    episode.location_code,
+                    episode.fhir_device_id,
+                ),
+            )
+
+            # Save VAE candidate details
+            import uuid
+            detail_id = str(uuid.uuid4())
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO vae_candidate_details (
+                    id, candidate_id, episode_id, vac_onset_date, ventilator_day_at_onset,
+                    baseline_start_date, baseline_end_date, baseline_min_fio2, baseline_min_peep,
+                    worsening_start_date, fio2_increase, peep_increase,
+                    met_fio2_criterion, met_peep_criterion,
+                    vae_classification, vae_tier,
+                    temperature_criterion_met, wbc_criterion_met, antimicrobial_criterion_met,
+                    qualifying_antimicrobials,
+                    purulent_secretions_met, positive_culture_met, quantitative_culture_met,
+                    organism_identified, specimen_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    detail_id,
+                    candidate.id,
+                    episode.id,
+                    vae_data.vac_onset_date.isoformat(),
+                    vae_data.ventilator_day_at_onset,
+                    vae_data.baseline_start_date.isoformat() if vae_data.baseline_start_date else None,
+                    vae_data.baseline_end_date.isoformat() if vae_data.baseline_end_date else None,
+                    vae_data.baseline_min_fio2,
+                    vae_data.baseline_min_peep,
+                    vae_data.worsening_start_date.isoformat() if vae_data.worsening_start_date else None,
+                    vae_data.fio2_increase,
+                    vae_data.peep_increase,
+                    vae_data.met_fio2_criterion,
+                    vae_data.met_peep_criterion,
+                    vae_data.vae_classification,
+                    vae_data.vae_tier,
+                    vae_data.temperature_criterion_met,
+                    vae_data.wbc_criterion_met,
+                    vae_data.antimicrobial_criterion_met,
+                    json.dumps(vae_data.qualifying_antimicrobials),
+                    vae_data.purulent_secretions_met,
+                    vae_data.positive_culture_met,
+                    vae_data.quantitative_culture_met,
+                    vae_data.organism_identified,
+                    vae_data.specimen_type,
+                ),
+            )
+            conn.commit()
+
+    def _load_vae_data(self, candidate_id: str) -> VAECandidate | None:
+        """Load VAE-specific data for a candidate.
+
+        Args:
+            candidate_id: The candidate ID
+
+        Returns:
+            VAECandidate with episode data, or None if not found
+        """
+        with self._get_connection() as conn:
+            # Get VAE details with episode data
+            detail_row = conn.execute(
+                """
+                SELECT d.*, e.patient_id, e.patient_mrn, e.intubation_date, e.extubation_date,
+                       e.encounter_id, e.location_code, e.fhir_device_id
+                FROM vae_candidate_details d
+                JOIN vae_ventilation_episodes e ON d.episode_id = e.id
+                WHERE d.candidate_id = ?
+                """,
+                (candidate_id,),
+            ).fetchone()
+
+            if not detail_row:
+                return None
+
+            # Build VentilationEpisode
+            episode = VentilationEpisode(
+                id=detail_row["episode_id"],
+                patient_id=detail_row["patient_id"],
+                patient_mrn=detail_row["patient_mrn"],
+                intubation_date=datetime.fromisoformat(detail_row["intubation_date"]),
+                extubation_date=datetime.fromisoformat(detail_row["extubation_date"]) if detail_row["extubation_date"] else None,
+                encounter_id=detail_row["encounter_id"],
+                location_code=detail_row["location_code"],
+                fhir_device_id=detail_row["fhir_device_id"],
+            )
+
+            # Parse qualifying antimicrobials JSON
+            qualifying_antimicrobials = []
+            if detail_row["qualifying_antimicrobials"]:
+                try:
+                    qualifying_antimicrobials = json.loads(detail_row["qualifying_antimicrobials"])
+                except json.JSONDecodeError:
+                    pass
+
+            # Build VAECandidate
+            return VAECandidate(
+                candidate_id=candidate_id,
+                episode=episode,
+                vac_onset_date=date.fromisoformat(detail_row["vac_onset_date"]),
+                ventilator_day_at_onset=detail_row["ventilator_day_at_onset"],
+                baseline_start_date=date.fromisoformat(detail_row["baseline_start_date"]) if detail_row["baseline_start_date"] else None,
+                baseline_end_date=date.fromisoformat(detail_row["baseline_end_date"]) if detail_row["baseline_end_date"] else None,
+                baseline_min_fio2=detail_row["baseline_min_fio2"],
+                baseline_min_peep=detail_row["baseline_min_peep"],
+                worsening_start_date=date.fromisoformat(detail_row["worsening_start_date"]) if detail_row["worsening_start_date"] else None,
+                fio2_increase=detail_row["fio2_increase"],
+                peep_increase=detail_row["peep_increase"],
+                met_fio2_criterion=bool(detail_row["met_fio2_criterion"]),
+                met_peep_criterion=bool(detail_row["met_peep_criterion"]),
+                vae_classification=detail_row["vae_classification"],
+                vae_tier=detail_row["vae_tier"],
+                temperature_criterion_met=bool(detail_row["temperature_criterion_met"]),
+                wbc_criterion_met=bool(detail_row["wbc_criterion_met"]),
+                antimicrobial_criterion_met=bool(detail_row["antimicrobial_criterion_met"]),
+                qualifying_antimicrobials=qualifying_antimicrobials,
+                purulent_secretions_met=bool(detail_row["purulent_secretions_met"]),
+                positive_culture_met=bool(detail_row["positive_culture_met"]),
+                quantitative_culture_met=bool(detail_row["quantitative_culture_met"]),
+                organism_identified=detail_row["organism_identified"],
+                specimen_type=detail_row["specimen_type"],
+            )
+
+    # --- CDI Data Operations ---
+
+    def save_cdi_data(self, candidate: HAICandidate) -> None:
+        """Save CDI-specific candidate data."""
+        cdi_data = getattr(candidate, "_cdi_data", None)
+        if not cdi_data:
+            return
+
+        detail_id = f"cdi-{candidate.id}"
+
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO cdi_candidate_details (
+                    id, candidate_id, test_type, test_date, loinc_code,
+                    specimen_day, onset_type, is_recurrent, days_since_last_cdi,
+                    prior_episode_date, recent_discharge_date, days_since_prior_discharge,
+                    diarrhea_documented, treatment_initiated, treatment_type,
+                    classification, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    detail_id,
+                    candidate.id,
+                    cdi_data.test_result.test_type,
+                    cdi_data.test_result.test_date.isoformat(),
+                    cdi_data.test_result.loinc_code,
+                    cdi_data.specimen_day,
+                    cdi_data.onset_type,
+                    cdi_data.is_recurrent,
+                    cdi_data.days_since_last_cdi,
+                    cdi_data.prior_episodes[0].test_date.isoformat() if cdi_data.prior_episodes else None,
+                    cdi_data.recent_discharge_date.isoformat() if cdi_data.recent_discharge_date else None,
+                    (cdi_data.admission_date.date() - cdi_data.recent_discharge_date.date()).days
+                        if cdi_data.recent_discharge_date and cdi_data.admission_date else None,
+                    getattr(cdi_data, "diarrhea_documented", False),
+                    getattr(cdi_data, "treatment_initiated", False),
+                    getattr(cdi_data, "treatment_type", None),
+                    cdi_data.classification,
+                    datetime.now().isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def get_cdi_data(self, candidate_id: str) -> "CDICandidate | None":
+        """Get CDI-specific data for a candidate."""
+        from .models import CDICandidate, CDITestResult, CDIEpisode
+
+        with self._get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM cdi_candidate_details WHERE candidate_id = ?
+                """,
+                (candidate_id,),
+            ).fetchone()
+
+            if not row:
+                return None
+
+            # Get the main candidate for admission date
+            candidate_row = conn.execute(
+                "SELECT culture_date FROM hai_candidates WHERE id = ?",
+                (candidate_id,),
+            ).fetchone()
+
+            # Build CDITestResult
+            test_result = CDITestResult(
+                fhir_id=candidate_id,  # We don't store original fhir_id
+                patient_id="",
+                test_date=datetime.fromisoformat(row["test_date"]),
+                test_type=row["test_type"],
+                result="positive",
+                loinc_code=row["loinc_code"],
+            )
+
+            # Build prior episodes if present
+            prior_episodes = []
+            if row["prior_episode_date"]:
+                prior_episodes.append(CDIEpisode(
+                    id="prior",
+                    patient_id="",
+                    test_date=datetime.fromisoformat(row["prior_episode_date"]),
+                    test_type=row["test_type"],
+                    onset_type="unknown",
+                    is_recurrent=False,
+                ))
+
+            return CDICandidate(
+                candidate_id=candidate_id,
+                test_result=test_result,
+                admission_date=datetime.fromisoformat(candidate_row["culture_date"]) - timedelta(days=row["specimen_day"] - 1)
+                    if candidate_row and row["specimen_day"] else None,
+                specimen_day=row["specimen_day"],
+                onset_type=row["onset_type"],
+                prior_episodes=prior_episodes,
+                days_since_last_cdi=row["days_since_last_cdi"],
+                is_recurrent=bool(row["is_recurrent"]),
+                is_duplicate=False,
+                recent_discharge_date=datetime.fromisoformat(row["recent_discharge_date"]) if row["recent_discharge_date"] else None,
+                recent_discharge_facility=None,
+                classification=row["classification"],
+                diarrhea_documented=bool(row["diarrhea_documented"]),
+                treatment_initiated=bool(row["treatment_initiated"]),
+                treatment_type=row["treatment_type"],
             )
 
     # --- Classification Operations ---

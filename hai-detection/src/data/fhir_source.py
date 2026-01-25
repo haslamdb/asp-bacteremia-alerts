@@ -2236,3 +2236,121 @@ class FHIRCDITestSource:
         except requests.RequestException as e:
             logger.error(f"Failed to fetch patient {patient_id}: {e}")
             return None
+
+    def get_stool_frequency(
+        self,
+        patient_id: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[dict]:
+        """Get stool frequency/output observations from flowsheets.
+
+        Queries FHIR Observation resources for stool count data.
+        This supplements LLM-based extraction with structured flowsheet data.
+
+        LOINC codes for stool output:
+        - 8251-1: Number of stools in 24 hours
+        - 9295-2: Stool consistency
+        - 80349-7: Stool output measurement
+
+        Args:
+            patient_id: FHIR Patient ID
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            List of dicts with date, frequency, consistency info
+        """
+        # LOINC codes for stool-related observations
+        stool_loinc_codes = [
+            "8251-1",   # Number of stools in 24 hours
+            "9295-2",   # Stool consistency
+            "80349-7",  # Stool output measurement
+        ]
+
+        results = []
+
+        try:
+            # Build params - use list of tuples for multiple date params
+            params = [
+                ("patient", patient_id),
+                ("code", ",".join([f"http://loinc.org|{code}" for code in stool_loinc_codes])),
+                ("date", f"ge{start_date.strftime('%Y-%m-%d')}"),
+                ("date", f"le{end_date.strftime('%Y-%m-%d')}"),
+                ("_sort", "-date"),
+            ]
+
+            response = self.session.get(
+                f"{self.base_url}/Observation",
+                params=params,
+                timeout=10,
+            )
+            response.raise_for_status()
+            bundle = response.json()
+
+            for entry in bundle.get("entry", []):
+                resource = entry.get("resource", {})
+                if resource.get("resourceType") != "Observation":
+                    continue
+
+                observation = self._parse_stool_observation(resource)
+                if observation:
+                    results.append(observation)
+
+        except requests.RequestException as e:
+            logger.debug(f"Failed to query stool observations: {e}")
+
+        return results
+
+    def _parse_stool_observation(self, resource: dict) -> dict | None:
+        """Parse a stool-related FHIR Observation.
+
+        Args:
+            resource: FHIR Observation resource
+
+        Returns:
+            Dict with observation data, or None if invalid
+        """
+        try:
+            # Get date
+            effective = resource.get("effectiveDateTime")
+            if not effective:
+                return None
+            obs_date = datetime.fromisoformat(effective.replace("Z", "+00:00"))
+
+            # Get LOINC code
+            loinc_code = None
+            for coding in resource.get("code", {}).get("coding", []):
+                if coding.get("system") == "http://loinc.org":
+                    loinc_code = coding.get("code")
+                    break
+
+            # Parse value based on type
+            result = {
+                "date": obs_date,
+                "loinc_code": loinc_code,
+            }
+
+            # Numeric value (stool count)
+            if "valueQuantity" in resource:
+                result["value"] = resource["valueQuantity"].get("value")
+                result["unit"] = resource["valueQuantity"].get("unit")
+                result["type"] = "count"
+
+            # Coded value (consistency)
+            elif "valueCodeableConcept" in resource:
+                for coding in resource["valueCodeableConcept"].get("coding", []):
+                    result["value"] = coding.get("display")
+                    result["type"] = "consistency"
+                    break
+
+            # String value
+            elif "valueString" in resource:
+                result["value"] = resource["valueString"]
+                result["type"] = "text"
+
+            return result
+
+        except Exception as e:
+            logger.debug(f"Failed to parse stool observation: {e}")
+            return None

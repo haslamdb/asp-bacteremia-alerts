@@ -21,6 +21,7 @@ import logging
 from pathlib import Path
 
 from ..models import HAICandidate, ClinicalNote
+from ..llm.factory import get_llm_client
 from ..rules.schemas import ConfidenceLevel, EvidenceSource
 from ..rules.cdi_schemas import (
     CDIExtraction,
@@ -30,6 +31,64 @@ from ..rules.cdi_schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# JSON Schema for CDI extraction output
+CDI_EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "diarrhea": {
+            "type": "object",
+            "properties": {
+                "documented": {
+                    "type": "string",
+                    "enum": ["definite", "probable", "possible", "not_found", "ruled_out"]
+                },
+                "date": {"type": ["string", "null"]},
+                "frequency": {"type": ["integer", "null"]},
+                "consistency": {
+                    "type": ["string", "null"],
+                    "enum": ["liquid", "watery", "loose", "soft", "formed", None]
+                },
+            },
+            "required": ["documented"],
+        },
+        "prior_history": {
+            "type": "object",
+            "properties": {
+                "mentioned": {"type": "string"},
+                "date": {"type": ["string", "null"]},
+                "treatment": {"type": ["string", "null"]},
+            },
+        },
+        "treatment": {
+            "type": "object",
+            "properties": {
+                "initiated": {"type": "string"},
+                "type": {"type": ["string", "null"]},
+                "route": {"type": ["string", "null"]},
+                "start_date": {"type": ["string", "null"]},
+            },
+        },
+        "clinical_impression": {"type": ["string", "null"]},
+        "cdi_suspected": {"type": "string"},
+        "cdi_diagnosed": {"type": "string"},
+        "recent_antibiotics": {
+            "type": "object",
+            "properties": {
+                "documented": {"type": "string"},
+                "list": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "recent_hospitalization": {"type": "string"},
+        "alternative_diagnoses": {"type": "array", "items": {"type": "string"}},
+        "documentation_quality": {
+            "type": "string",
+            "enum": ["detailed", "adequate", "limited", "poor"],
+        },
+    },
+    "required": ["diarrhea", "documentation_quality"],
+}
 
 
 class CDIExtractor:
@@ -48,12 +107,19 @@ class CDIExtractor:
         """Initialize the CDI extractor.
 
         Args:
-            llm_client: LLM client for extraction. Uses default if None.
+            llm_client: LLM client for extraction. Uses factory default if None.
             prompt_version: Version of prompt template to use.
         """
-        self.llm_client = llm_client
+        self._llm_client = llm_client
         self.prompt_version = prompt_version
         self.prompt_template = self._load_prompt_template()
+
+    @property
+    def llm_client(self):
+        """Lazy-load LLM client."""
+        if self._llm_client is None:
+            self._llm_client = get_llm_client()
+        return self._llm_client
 
     def extract(
         self,
@@ -95,17 +161,21 @@ class CDIExtractor:
 
         # Call LLM
         try:
-            if self.llm_client:
-                response = self.llm_client.extract(prompt)
-                extraction = self._parse_response(response)
-            else:
-                # No LLM client - return minimal extraction
-                logger.warning("No LLM client configured, returning minimal extraction")
-                extraction = CDIExtraction(
-                    documentation_quality="not_extracted",
-                    notes_reviewed_count=len(notes),
-                    extraction_notes="LLM extraction not configured",
-                )
+            # Use structured output for reliable JSON
+            result = self.llm_client.generate_structured(
+                prompt=prompt,
+                output_schema=CDI_EXTRACTION_SCHEMA,
+                temperature=0.0,  # Deterministic extraction
+            )
+            extraction = self._parse_response(result)
+        except ValueError as e:
+            # LLM not configured
+            logger.warning(f"LLM not configured: {e}")
+            extraction = CDIExtraction(
+                documentation_quality="not_extracted",
+                notes_reviewed_count=len(notes),
+                extraction_notes=f"LLM not configured: {e}",
+            )
         except Exception as e:
             logger.error(f"LLM extraction failed: {e}")
             extraction = CDIExtraction(
@@ -135,69 +205,65 @@ class CDIExtractor:
 
         return "\n\n".join(formatted)
 
-    def _parse_response(self, response: str) -> CDIExtraction:
-        """Parse LLM response into CDIExtraction."""
-        try:
-            # Try to parse as JSON
-            data = json.loads(response)
+    def _parse_response(self, data: dict) -> CDIExtraction:
+        """Parse LLM structured response into CDIExtraction.
 
-            # Parse diarrhea findings
-            diarrhea = DiarrheaExtraction(
-                diarrhea_documented=self._parse_confidence(
-                    data.get("diarrhea", {}).get("documented")
-                ),
-                diarrhea_date=data.get("diarrhea", {}).get("date"),
-                stool_frequency=data.get("diarrhea", {}).get("frequency"),
-                stool_consistency=data.get("diarrhea", {}).get("consistency"),
-            )
+        Args:
+            data: Parsed JSON dict from generate_structured()
 
-            # Parse prior history
-            prior_history = CDIHistoryExtraction(
-                prior_cdi_mentioned=self._parse_confidence(
-                    data.get("prior_history", {}).get("mentioned")
-                ),
-                prior_cdi_date=data.get("prior_history", {}).get("date"),
-                prior_cdi_treatment=data.get("prior_history", {}).get("treatment"),
-            )
+        Returns:
+            CDIExtraction with all extracted fields
+        """
+        # Parse diarrhea findings
+        diarrhea = DiarrheaExtraction(
+            diarrhea_documented=self._parse_confidence(
+                data.get("diarrhea", {}).get("documented")
+            ),
+            diarrhea_date=data.get("diarrhea", {}).get("date"),
+            stool_frequency=data.get("diarrhea", {}).get("frequency"),
+            stool_consistency=data.get("diarrhea", {}).get("consistency"),
+        )
 
-            # Parse treatment
-            treatment = CDITreatmentExtraction(
-                treatment_initiated=self._parse_confidence(
-                    data.get("treatment", {}).get("initiated")
-                ),
-                treatment_type=data.get("treatment", {}).get("type"),
-                treatment_route=data.get("treatment", {}).get("route"),
-                treatment_start_date=data.get("treatment", {}).get("start_date"),
-            )
+        # Parse prior history
+        prior_history = CDIHistoryExtraction(
+            prior_cdi_mentioned=self._parse_confidence(
+                data.get("prior_history", {}).get("mentioned")
+            ),
+            prior_cdi_date=data.get("prior_history", {}).get("date"),
+            prior_cdi_treatment=data.get("prior_history", {}).get("treatment"),
+        )
 
-            return CDIExtraction(
-                diarrhea=diarrhea,
-                prior_history=prior_history,
-                treatment=treatment,
-                clinical_team_impression=data.get("clinical_impression"),
-                cdi_suspected_by_team=self._parse_confidence(
-                    data.get("cdi_suspected")
-                ),
-                cdi_diagnosed=self._parse_confidence(
-                    data.get("cdi_diagnosed")
-                ),
-                recent_antibiotic_use=self._parse_confidence(
-                    data.get("recent_antibiotics", {}).get("documented")
-                ),
-                recent_hospitalization=self._parse_confidence(
-                    data.get("recent_hospitalization")
-                ),
-                recent_antibiotics_list=data.get("recent_antibiotics", {}).get("list", []),
-                alternative_diagnoses=data.get("alternative_diagnoses", []),
-                documentation_quality=data.get("documentation_quality", "adequate"),
-            )
+        # Parse treatment
+        treatment = CDITreatmentExtraction(
+            treatment_initiated=self._parse_confidence(
+                data.get("treatment", {}).get("initiated")
+            ),
+            treatment_type=data.get("treatment", {}).get("type"),
+            treatment_route=data.get("treatment", {}).get("route"),
+            treatment_start_date=data.get("treatment", {}).get("start_date"),
+        )
 
-        except json.JSONDecodeError:
-            logger.warning("Could not parse LLM response as JSON")
-            return CDIExtraction(
-                documentation_quality="parse_error",
-                extraction_notes="Could not parse LLM response",
-            )
+        return CDIExtraction(
+            diarrhea=diarrhea,
+            prior_history=prior_history,
+            treatment=treatment,
+            clinical_team_impression=data.get("clinical_impression"),
+            cdi_suspected_by_team=self._parse_confidence(
+                data.get("cdi_suspected")
+            ),
+            cdi_diagnosed=self._parse_confidence(
+                data.get("cdi_diagnosed")
+            ),
+            recent_antibiotic_use=self._parse_confidence(
+                data.get("recent_antibiotics", {}).get("documented")
+            ),
+            recent_hospitalization=self._parse_confidence(
+                data.get("recent_hospitalization")
+            ),
+            recent_antibiotics_list=data.get("recent_antibiotics", {}).get("list", []),
+            alternative_diagnoses=data.get("alternative_diagnoses", []),
+            documentation_quality=data.get("documentation_quality", "adequate"),
+        )
 
     def _parse_confidence(self, value: str | None) -> ConfidenceLevel:
         """Parse a confidence level string to enum."""
