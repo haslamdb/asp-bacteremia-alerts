@@ -468,3 +468,234 @@ class FHIRClient:
             )
 
         return result
+
+    # Real-time scheduling methods
+
+    def get_appointments(
+        self,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        service_type: str = "surgery",
+        status: str = "booked,arrived,checked-in",
+    ) -> list[dict]:
+        """
+        Get scheduled appointments (surgeries).
+
+        Args:
+            date_from: Start date for appointment search
+            date_to: End date for appointment search
+            service_type: Type of service (default: surgery)
+            status: Appointment status filter
+
+        Returns:
+            List of FHIR Appointment resources
+        """
+        params = {
+            "_count": 100,
+            "status": status,
+        }
+
+        if date_from:
+            params["date"] = [f"ge{date_from.isoformat()}"]
+        if date_to:
+            if "date" in params:
+                params["date"].append(f"le{date_to.isoformat()}")
+            else:
+                params["date"] = f"le{date_to.isoformat()}"
+
+        # Add service type filter if supported
+        if service_type:
+            params["service-type"] = service_type
+
+        return self._get_all_pages("Appointment", params)
+
+    def get_practitioner(self, practitioner_id: str) -> Optional[dict]:
+        """
+        Get practitioner details.
+
+        Args:
+            practitioner_id: FHIR Practitioner ID
+
+        Returns:
+            FHIR Practitioner resource or None
+        """
+        try:
+            return self._get(f"Practitioner/{practitioner_id}")
+        except requests.HTTPError:
+            return None
+
+    def get_practitioner_by_role(
+        self,
+        role: str,
+        location: Optional[str] = None,
+    ) -> Optional[dict]:
+        """
+        Get practitioner by role (e.g., anesthesiologist on call).
+
+        This is a placeholder - actual implementation depends on
+        how provider schedules are exposed via FHIR.
+
+        Args:
+            role: Provider role (e.g., 'anesthesia', 'preop_rn')
+            location: Optional location filter
+
+        Returns:
+            FHIR Practitioner resource or None
+        """
+        # This would typically query a PractitionerRole resource
+        # or use a custom extension/API
+        params = {
+            "role": role,
+            "_count": 1,
+        }
+
+        if location:
+            params["location"] = location
+
+        try:
+            results = self._get_all_pages("PractitionerRole", params)
+            if results:
+                # Get the practitioner from the role
+                prac_ref = results[0].get("practitioner", {}).get("reference", "")
+                prac_id = prac_ref.replace("Practitioner/", "")
+                if prac_id:
+                    return self.get_practitioner(prac_id)
+        except Exception:
+            pass
+
+        return None
+
+    def get_location(self, location_id: str) -> Optional[dict]:
+        """
+        Get location details.
+
+        Args:
+            location_id: FHIR Location ID
+
+        Returns:
+            FHIR Location resource or None
+        """
+        try:
+            return self._get(f"Location/{location_id}")
+        except requests.HTTPError:
+            return None
+
+    def check_prophylaxis_order_exists(
+        self,
+        patient_id: str,
+        since_hours: int = 24,
+    ) -> bool:
+        """
+        Quick check if a prophylaxis order exists for patient.
+
+        Args:
+            patient_id: Patient FHIR ID
+            since_hours: Look back this many hours
+
+        Returns:
+            True if prophylaxis order exists
+        """
+        orders = self.get_medication_orders(
+            patient_id,
+            since_hours=since_hours,
+            prophylaxis_only=True,
+        )
+        return len(orders) > 0
+
+    def check_prophylaxis_administered(
+        self,
+        patient_id: str,
+        since_hours: int = 4,
+    ) -> bool:
+        """
+        Quick check if prophylaxis has been administered.
+
+        Args:
+            patient_id: Patient FHIR ID
+            since_hours: Look back this many hours
+
+        Returns:
+            True if prophylaxis has been given
+        """
+        admins = self.get_medication_administrations(
+            patient_id,
+            since_hours=since_hours,
+            prophylaxis_only=True,
+        )
+        return len(admins) > 0
+
+    def get_active_antibiotics(
+        self,
+        patient_id: str,
+    ) -> list[dict]:
+        """
+        Get all active antibiotic orders (not just prophylaxis).
+
+        Used to detect therapeutic antibiotics.
+
+        Args:
+            patient_id: Patient FHIR ID
+
+        Returns:
+            List of active antibiotic MedicationRequest resources
+        """
+        cutoff = datetime.now() - timedelta(hours=72)
+        params = {
+            "subject": f"Patient/{patient_id}",
+            "authoredon": f"ge{cutoff.isoformat()}",
+            "status": "active",
+            "_count": 50,
+        }
+
+        orders = self._get_all_pages("MedicationRequest", params)
+
+        # Filter to antibiotics
+        antibiotic_keywords = [
+            "cefazolin", "vancomycin", "clindamycin", "metronidazole",
+            "gentamicin", "cefoxitin", "ampicillin", "piperacillin",
+            "ceftriaxone", "cefepime", "meropenem", "azithromycin",
+            "levofloxacin", "ciprofloxacin", "doxycycline", "linezolid",
+        ]
+
+        return [
+            o for o in orders
+            if any(
+                kw in self._get_medication_name(o).lower()
+                for kw in antibiotic_keywords
+            )
+        ]
+
+    def has_therapeutic_antibiotics(
+        self,
+        patient_id: str,
+    ) -> bool:
+        """
+        Check if patient has therapeutic (non-prophylaxis) antibiotics.
+
+        Args:
+            patient_id: Patient FHIR ID
+
+        Returns:
+            True if patient has therapeutic antibiotic orders
+        """
+        antibiotics = self.get_active_antibiotics(patient_id)
+
+        # Check for therapeutic indicators
+        for order in antibiotics:
+            # Check category
+            categories = order.get("category", [])
+            for cat in categories:
+                for coding in cat.get("coding", []):
+                    code = coding.get("code", "").lower()
+                    if "therapeutic" in code or "treatment" in code:
+                        return True
+
+            # Check for extended duration (>24h typically indicates therapeutic)
+            dosage = order.get("dosageInstruction", [{}])[0]
+            timing = dosage.get("timing", {})
+            repeat = timing.get("repeat", {})
+            duration = repeat.get("boundsDuration", {}).get("value", 0)
+            if duration > 24:
+                return True
+
+        return False

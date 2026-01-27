@@ -454,3 +454,448 @@ class ProphylaxisDatabase:
             rows = conn.execute(query, params).fetchall()
 
         return [dict(row) for row in rows]
+
+    # --- Real-time monitoring tables ---
+
+    def _init_realtime_schema(self) -> None:
+        """Initialize real-time monitoring schema."""
+        schema_path = Path(__file__).parent.parent / "schema_realtime.sql"
+        if schema_path.exists():
+            with open(schema_path) as f:
+                schema = f.read()
+            with sqlite3.connect(self.db_path) as conn:
+                conn.executescript(schema)
+
+    def save_journey(
+        self,
+        journey_id: str,
+        case_id: str,
+        patient_mrn: str,
+        patient_name: Optional[str] = None,
+        procedure_description: Optional[str] = None,
+        procedure_cpt_codes: Optional[list[str]] = None,
+        scheduled_time: Optional[datetime] = None,
+        current_state: str = "unknown",
+        prophylaxis_indicated: Optional[bool] = None,
+        order_exists: bool = False,
+        administered: bool = False,
+        is_emergency: bool = False,
+        fhir_appointment_id: Optional[str] = None,
+    ) -> None:
+        """Save or update a surgical journey."""
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO surgical_journeys (
+                    journey_id, case_id, patient_mrn, patient_name,
+                    procedure_description, procedure_cpt_codes, scheduled_time,
+                    current_state, prophylaxis_indicated, order_exists, administered,
+                    is_emergency, fhir_appointment_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """,
+                (
+                    journey_id,
+                    case_id,
+                    patient_mrn,
+                    patient_name,
+                    procedure_description,
+                    json.dumps(procedure_cpt_codes) if procedure_cpt_codes else None,
+                    scheduled_time.isoformat() if scheduled_time else None,
+                    current_state,
+                    prophylaxis_indicated,
+                    order_exists,
+                    administered,
+                    is_emergency,
+                    fhir_appointment_id,
+                ),
+            )
+
+    def get_journey(self, journey_id: str) -> Optional[dict]:
+        """Get a journey by ID."""
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM surgical_journeys WHERE journey_id = ?",
+                (journey_id,),
+            ).fetchone()
+
+        if not row:
+            return None
+
+        result = dict(row)
+        if result.get("procedure_cpt_codes"):
+            result["procedure_cpt_codes"] = json.loads(result["procedure_cpt_codes"])
+        return result
+
+    def get_journey_for_patient(self, patient_mrn: str) -> Optional[dict]:
+        """Get active journey for a patient."""
+        with self._get_conn() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM surgical_journeys
+                WHERE patient_mrn = ? AND completed_at IS NULL
+                ORDER BY scheduled_time DESC
+                LIMIT 1
+                """,
+                (patient_mrn,),
+            ).fetchone()
+
+        if not row:
+            return None
+
+        result = dict(row)
+        if result.get("procedure_cpt_codes"):
+            result["procedure_cpt_codes"] = json.loads(result["procedure_cpt_codes"])
+        return result
+
+    def get_active_journeys(self) -> list[dict]:
+        """Get all active (non-completed) journeys."""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM surgical_journeys
+                WHERE completed_at IS NULL
+                ORDER BY scheduled_time
+                """
+            ).fetchall()
+
+        result = []
+        for row in rows:
+            d = dict(row)
+            if d.get("procedure_cpt_codes"):
+                d["procedure_cpt_codes"] = json.loads(d["procedure_cpt_codes"])
+            result.append(d)
+        return result
+
+    def update_journey_state(
+        self,
+        journey_id: str,
+        current_state: str,
+    ) -> None:
+        """Update the current state of a journey."""
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE surgical_journeys
+                SET current_state = ?, updated_at = datetime('now')
+                WHERE journey_id = ?
+                """,
+                (current_state, journey_id),
+            )
+
+    def update_journey_prophylaxis_status(
+        self,
+        journey_id: str,
+        order_exists: Optional[bool] = None,
+        administered: Optional[bool] = None,
+    ) -> None:
+        """Update prophylaxis status for a journey."""
+        updates = ["updated_at = datetime('now')"]
+        params = []
+
+        if order_exists is not None:
+            updates.append("order_exists = ?")
+            params.append(order_exists)
+        if administered is not None:
+            updates.append("administered = ?")
+            params.append(administered)
+
+        params.append(journey_id)
+
+        with self._get_conn() as conn:
+            conn.execute(
+                f"UPDATE surgical_journeys SET {', '.join(updates)} WHERE journey_id = ?",
+                params,
+            )
+
+    def mark_journey_alert_sent(
+        self,
+        journey_id: str,
+        trigger: str,
+    ) -> None:
+        """Mark that an alert was sent for a specific trigger."""
+        field_map = {
+            "t24": "alert_t24_sent",
+            "t2": "alert_t2_sent",
+            "preop_arrival": "alert_t2_sent",
+            "t60": "alert_t60_sent",
+            "t0": "alert_t0_sent",
+            "or_entry": "alert_t0_sent",
+        }
+
+        field = field_map.get(trigger)
+        if not field:
+            return
+
+        time_field = field.replace("_sent", "_time")
+
+        with self._get_conn() as conn:
+            conn.execute(
+                f"""
+                UPDATE surgical_journeys
+                SET {field} = 1, {time_field} = datetime('now'), updated_at = datetime('now')
+                WHERE journey_id = ?
+                """,
+                (journey_id,),
+            )
+
+    def complete_journey(
+        self,
+        journey_id: str,
+    ) -> None:
+        """Mark a journey as complete."""
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE surgical_journeys
+                SET completed_at = datetime('now'), updated_at = datetime('now')
+                WHERE journey_id = ?
+                """,
+                (journey_id,),
+            )
+
+    def save_location_history(
+        self,
+        patient_mrn: str,
+        journey_id: Optional[str],
+        location_code: str,
+        location_state: str,
+        event_time: datetime,
+        hl7_message_id: Optional[str] = None,
+    ) -> int:
+        """Save a patient location change. Returns location_id."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO patient_locations (
+                    patient_mrn, journey_id, location_code, location_state,
+                    event_time, message_time, hl7_message_id
+                ) VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+                """,
+                (
+                    patient_mrn,
+                    journey_id,
+                    location_code,
+                    location_state,
+                    event_time.isoformat(),
+                    hl7_message_id,
+                ),
+            )
+            return cursor.lastrowid
+
+    def get_location_history(
+        self,
+        patient_mrn: Optional[str] = None,
+        journey_id: Optional[str] = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Get patient location history."""
+        with self._get_conn() as conn:
+            query = "SELECT * FROM patient_locations WHERE 1=1"
+            params = []
+
+            if patient_mrn:
+                query += " AND patient_mrn = ?"
+                params.append(patient_mrn)
+            if journey_id:
+                query += " AND journey_id = ?"
+                params.append(journey_id)
+
+            query += " ORDER BY event_time DESC LIMIT ?"
+            params.append(limit)
+
+            rows = conn.execute(query, params).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def save_preop_check(
+        self,
+        journey_id: str,
+        trigger_type: str,
+        prophylaxis_indicated: bool,
+        order_exists: bool,
+        administered: bool,
+        minutes_to_or: Optional[int],
+        alert_required: bool,
+        alert_severity: Optional[str] = None,
+        recommendation: Optional[str] = None,
+        alert_id: Optional[str] = None,
+    ) -> int:
+        """Save a pre-op check result. Returns check_id."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO preop_checks (
+                    journey_id, trigger_type, trigger_time,
+                    prophylaxis_indicated, order_exists, administered,
+                    minutes_to_or, alert_required, alert_severity,
+                    recommendation, alert_id
+                ) VALUES (?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    journey_id,
+                    trigger_type,
+                    prophylaxis_indicated,
+                    order_exists,
+                    administered,
+                    minutes_to_or,
+                    alert_required,
+                    alert_severity,
+                    recommendation,
+                    alert_id,
+                ),
+            )
+            return cursor.lastrowid
+
+    def get_preop_checks(
+        self,
+        journey_id: str,
+    ) -> list[dict]:
+        """Get pre-op checks for a journey."""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM preop_checks
+                WHERE journey_id = ?
+                ORDER BY trigger_time DESC
+                """,
+                (journey_id,),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def save_escalation(
+        self,
+        alert_id: str,
+        journey_id: Optional[str],
+        trigger_type: str,
+        recipient_role: str,
+        delivery_channel: str,
+        recipient_id: Optional[str] = None,
+        recipient_name: Optional[str] = None,
+        next_escalation_at: Optional[datetime] = None,
+    ) -> int:
+        """Save an escalation record. Returns escalation_id."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO alert_escalations (
+                    alert_id, journey_id, trigger_type, recipient_role,
+                    recipient_id, recipient_name, delivery_channel,
+                    sent_at, next_escalation_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                """,
+                (
+                    alert_id,
+                    journey_id,
+                    trigger_type,
+                    recipient_role,
+                    recipient_id,
+                    recipient_name,
+                    delivery_channel,
+                    next_escalation_at.isoformat() if next_escalation_at else None,
+                ),
+            )
+            return cursor.lastrowid
+
+    def get_pending_escalations(self) -> list[dict]:
+        """Get escalations that need to be processed."""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM alert_escalations
+                WHERE response_at IS NULL
+                AND escalated = 0
+                AND next_escalation_at IS NOT NULL
+                AND next_escalation_at <= datetime('now')
+                ORDER BY next_escalation_at
+                """
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    def update_escalation_response(
+        self,
+        escalation_id: int,
+        response_action: str,
+        response_by: Optional[str] = None,
+    ) -> None:
+        """Record a response to an escalation."""
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE alert_escalations
+                SET response_at = datetime('now'), response_action = ?, response_by = ?
+                WHERE escalation_id = ?
+                """,
+                (response_action, response_by, escalation_id),
+            )
+
+    def mark_escalation_escalated(
+        self,
+        escalation_id: int,
+    ) -> None:
+        """Mark an escalation as having been escalated to next level."""
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE alert_escalations SET escalated = 1 WHERE escalation_id = ?",
+                (escalation_id,),
+            )
+
+    def get_realtime_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> dict:
+        """Get real-time monitoring statistics."""
+        if not start_date:
+            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        if not end_date:
+            end_date = datetime.now()
+
+        with self._get_conn() as conn:
+            # Journey stats
+            journey_stats = conn.execute(
+                """
+                SELECT
+                    COUNT(*) as total_journeys,
+                    SUM(CASE WHEN completed_at IS NULL THEN 1 ELSE 0 END) as active_journeys,
+                    SUM(CASE WHEN alert_t0_sent = 1 THEN 1 ELSE 0 END) as t0_alerts,
+                    SUM(CASE WHEN administered = 1 THEN 1 ELSE 0 END) as administered
+                FROM surgical_journeys
+                WHERE created_at >= ? AND created_at <= ?
+                """,
+                (start_date.isoformat(), end_date.isoformat()),
+            ).fetchone()
+
+            # Check stats
+            check_stats = conn.execute(
+                """
+                SELECT
+                    trigger_type,
+                    COUNT(*) as total_checks,
+                    SUM(CASE WHEN alert_required = 1 THEN 1 ELSE 0 END) as alerts_sent
+                FROM preop_checks
+                WHERE created_at >= ? AND created_at <= ?
+                GROUP BY trigger_type
+                """,
+                (start_date.isoformat(), end_date.isoformat()),
+            ).fetchall()
+
+            # Escalation stats
+            escalation_stats = conn.execute(
+                """
+                SELECT
+                    COUNT(*) as total_escalations,
+                    SUM(CASE WHEN response_at IS NOT NULL THEN 1 ELSE 0 END) as responded,
+                    SUM(CASE WHEN escalated = 1 THEN 1 ELSE 0 END) as escalated
+                FROM alert_escalations
+                WHERE sent_at >= ? AND sent_at <= ?
+                """,
+                (start_date.isoformat(), end_date.isoformat()),
+            ).fetchone()
+
+        return {
+            "journeys": dict(journey_stats) if journey_stats else {},
+            "checks_by_trigger": {row[0]: {"total": row[1], "alerts": row[2]} for row in check_stats},
+            "escalations": dict(escalation_stats) if escalation_stats else {},
+        }

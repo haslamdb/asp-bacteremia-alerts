@@ -320,3 +320,94 @@ def get_config() -> GuidelinesConfig:
     if _config is None:
         _config = GuidelinesConfig()
     return _config
+
+
+# Real-time monitoring configuration
+
+# HL7 Listener settings
+HL7_ENABLED = os.getenv("HL7_ENABLED", "true").lower() == "true"
+HL7_LISTENER_HOST = os.getenv("HL7_LISTENER_HOST", "0.0.0.0")
+HL7_LISTENER_PORT = int(os.getenv("HL7_LISTENER_PORT", "2575"))
+
+# FHIR polling intervals (minutes)
+FHIR_SCHEDULE_POLL_INTERVAL = int(os.getenv("FHIR_SCHEDULE_POLL_INTERVAL", "15"))
+FHIR_PROPHYLAXIS_POLL_INTERVAL = int(os.getenv("FHIR_PROPHYLAXIS_POLL_INTERVAL", "5"))
+FHIR_LOOKAHEAD_HOURS = int(os.getenv("FHIR_LOOKAHEAD_HOURS", "48"))
+
+# Epic Secure Chat settings
+EPIC_CHAT_ENABLED = os.getenv("EPIC_CHAT_ENABLED", "false").lower() == "true"
+EPIC_CHAT_CLIENT_ID = os.getenv("EPIC_CHAT_CLIENT_ID", "")
+EPIC_CHAT_PRIVATE_KEY_PATH = os.getenv("EPIC_CHAT_PRIVATE_KEY_PATH", "")
+EPIC_FHIR_BASE_URL = os.getenv("EPIC_FHIR_BASE_URL", "")
+EPIC_TOKEN_ENDPOINT = os.getenv("EPIC_TOKEN_ENDPOINT", "")
+
+# Teams fallback settings
+TEAMS_FALLBACK_ENABLED = os.getenv("TEAMS_FALLBACK_ENABLED", "true").lower() == "true"
+TEAMS_SURGICAL_PROPHYLAXIS_WEBHOOK = os.getenv("TEAMS_SURGICAL_PROPHYLAXIS_WEBHOOK", "")
+
+# Location pattern matching (comma-separated lists)
+LOCATION_PREOP_PATTERNS = os.getenv(
+    "LOCATION_PREOP_PATTERNS",
+    "PREOP,PHOLD,PRE-OP,SURG PREP,SDS,ASC"
+).split(",")
+LOCATION_OR_PATTERNS = os.getenv(
+    "LOCATION_OR_PATTERNS",
+    "OR,OPER,SURG SUITE,THEATER,CATH LAB"
+).split(",")
+LOCATION_PACU_PATTERNS = os.getenv(
+    "LOCATION_PACU_PATTERNS",
+    "PACU,RECOVERY,POST ANES"
+).split(",")
+
+# Alert trigger thresholds (enable/disable each trigger)
+ALERT_T24_ENABLED = os.getenv("ALERT_T24_ENABLED", "true").lower() == "true"
+ALERT_T2_ENABLED = os.getenv("ALERT_T2_ENABLED", "true").lower() == "true"
+ALERT_T60_ENABLED = os.getenv("ALERT_T60_ENABLED", "true").lower() == "true"
+ALERT_T0_ENABLED = os.getenv("ALERT_T0_ENABLED", "true").lower() == "true"
+
+# Escalation timing (minutes)
+ESCALATION_PREOP_DELAY = int(os.getenv("ESCALATION_PREOP_DELAY", "30"))
+ESCALATION_T60_DELAY = int(os.getenv("ESCALATION_T60_DELAY", "15"))
+ESCALATION_T0_DELAY = int(os.getenv("ESCALATION_T0_DELAY", "5"))
+
+
+class RealtimeConfig:
+    """Configuration for real-time monitoring features."""
+
+    def __init__(self):
+        self.hl7_enabled = HL7_ENABLED
+        self.hl7_host = HL7_LISTENER_HOST
+        self.hl7_port = HL7_LISTENER_PORT
+
+        self.fhir_schedule_poll_interval = FHIR_SCHEDULE_POLL_INTERVAL
+        self.fhir_prophylaxis_poll_interval = FHIR_PROPHYLAXIS_POLL_INTERVAL
+        self.fhir_lookahead_hours = FHIR_LOOKAHEAD_HOURS
+
+        self.epic_chat_enabled = EPIC_CHAT_ENABLED
+        self.teams_enabled = TEAMS_FALLBACK_ENABLED
+        self.teams_webhook = TEAMS_SURGICAL_PROPHYLAXIS_WEBHOOK
+
+        self.location_preop_patterns = LOCATION_PREOP_PATTERNS
+        self.location_or_patterns = LOCATION_OR_PATTERNS
+        self.location_pacu_patterns = LOCATION_PACU_PATTERNS
+
+        self.alert_t24_enabled = ALERT_T24_ENABLED
+        self.alert_t2_enabled = ALERT_T2_ENABLED
+        self.alert_t60_enabled = ALERT_T60_ENABLED
+        self.alert_t0_enabled = ALERT_T0_ENABLED
+
+        self.escalation_preop_delay = ESCALATION_PREOP_DELAY
+        self.escalation_t60_delay = ESCALATION_T60_DELAY
+        self.escalation_t0_delay = ESCALATION_T0_DELAY
+
+
+# Global realtime config instance
+_realtime_config: Optional[RealtimeConfig] = None
+
+
+def get_realtime_config() -> RealtimeConfig:
+    """Get or create the global realtime configuration instance."""
+    global _realtime_config
+    if _realtime_config is None:
+        _realtime_config = RealtimeConfig()
+    return _realtime_config

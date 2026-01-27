@@ -198,3 +198,115 @@ class TimingResult:
     within_standard_window: bool = False
     within_extended_window: bool = False  # For vanco/fluoroquinolones
     details: str = ""
+
+
+# Real-time monitoring models
+
+class LocationState(Enum):
+    """Patient location states in surgical workflow."""
+    UNKNOWN = "unknown"
+    INPATIENT = "inpatient"
+    PRE_OP_HOLDING = "pre_op"
+    OR_SUITE = "or_suite"
+    PACU = "pacu"
+    DISCHARGED = "discharged"
+
+
+class AlertTrigger(Enum):
+    """Alert trigger points in surgical workflow."""
+    T24 = "t24"
+    T2 = "t2"
+    T60 = "t60"
+    T0 = "t0"
+    PREOP_ARRIVAL = "preop_arrival"
+    OR_ENTRY = "or_entry"
+
+
+class RealtimeAlertSeverity(Enum):
+    """Alert severity for real-time prophylaxis alerts."""
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+@dataclass
+class SurgicalJourneyRecord:
+    """Database record for a surgical journey."""
+    journey_id: str
+    case_id: str
+    patient_mrn: str
+    patient_name: Optional[str] = None
+    procedure_description: Optional[str] = None
+    procedure_cpt_codes: list[str] = field(default_factory=list)
+    scheduled_time: Optional[datetime] = None
+    current_state: LocationState = LocationState.UNKNOWN
+
+    # Prophylaxis status
+    prophylaxis_indicated: Optional[bool] = None
+    order_exists: bool = False
+    administered: bool = False
+
+    # Alert tracking
+    alert_t24_sent: bool = False
+    alert_t2_sent: bool = False
+    alert_t60_sent: bool = False
+    alert_t0_sent: bool = False
+
+    # Flags
+    is_emergency: bool = False
+    excluded: bool = False
+    exclusion_reason: Optional[str] = None
+
+    # Timestamps
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+
+@dataclass
+class PatientLocationRecord:
+    """Database record for patient location history."""
+    location_id: Optional[int] = None
+    patient_mrn: str = ""
+    journey_id: Optional[str] = None
+    location_code: str = ""
+    location_state: LocationState = LocationState.UNKNOWN
+    event_time: Optional[datetime] = None
+    message_time: Optional[datetime] = None
+    hl7_message_id: Optional[str] = None
+
+
+@dataclass
+class PreOpCheckRecord:
+    """Database record for pre-op check results."""
+    check_id: Optional[int] = None
+    journey_id: str = ""
+    trigger_type: AlertTrigger = AlertTrigger.T0
+    trigger_time: Optional[datetime] = None
+    prophylaxis_indicated: bool = False
+    order_exists: bool = False
+    administered: bool = False
+    minutes_to_or: Optional[int] = None
+    alert_required: bool = False
+    alert_severity: Optional[RealtimeAlertSeverity] = None
+    recommendation: Optional[str] = None
+    alert_id: Optional[str] = None
+
+
+@dataclass
+class AlertEscalationRecord:
+    """Database record for alert escalation tracking."""
+    escalation_id: Optional[int] = None
+    alert_id: str = ""
+    journey_id: Optional[str] = None
+    escalation_level: int = 1
+    trigger_type: AlertTrigger = AlertTrigger.T0
+    recipient_role: str = ""
+    recipient_id: Optional[str] = None
+    recipient_name: Optional[str] = None
+    delivery_channel: str = ""
+    sent_at: Optional[datetime] = None
+    delivery_status: str = "pending"
+    response_at: Optional[datetime] = None
+    response_action: Optional[str] = None
+    escalated: bool = False
