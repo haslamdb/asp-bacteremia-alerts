@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """CLI runner for guideline adherence monitoring.
 
-This script provides two modes:
-1. Adherence checking - Check compliance for active episodes
-2. Trigger monitoring - Poll for new diagnoses/orders that should trigger bundles
+This script provides three modes:
+1. Adherence checking (FHIR) - Query FHIR directly for patients and check compliance
+2. Trigger monitoring - Poll for new diagnoses/orders that create episodes
+3. Episode checking - Check episodes in database for adherence and create alerts
 
 Usage:
-    # Check adherence for active episodes
+    # Check adherence for active episodes (queries FHIR directly)
     python -m guideline_src.runner --once                    # Run once
     python -m guideline_src.runner --once --bundle sepsis    # Run for sepsis only
     python -m guideline_src.runner --once --dry-run          # Run without creating alerts
@@ -16,7 +17,14 @@ Usage:
     python -m guideline_src.runner --trigger --once          # Poll once
     python -m guideline_src.runner --trigger --daemon        # Poll continuously
     python -m guideline_src.runner --trigger --status        # Show monitoring status
-    python -m guideline_src.runner --trigger --list-bundles  # List available bundles
+
+    # Episode checking (check episodes in database, create alerts)
+    python -m guideline_src.runner --episodes --once         # Check episodes once
+    python -m guideline_src.runner --episodes --daemon       # Check continuously
+    python -m guideline_src.runner --episodes --status       # Show status
+
+    # List bundles
+    python -m guideline_src.runner --list-bundles            # List available bundles
 """
 
 import argparse
@@ -439,10 +447,18 @@ Examples:
         action="store_true",
         help="Use trigger monitoring mode (poll for new diagnoses/orders)",
     )
+
+    # Episode checking mode
+    parser.add_argument(
+        "--episodes",
+        action="store_true",
+        help="Check episodes in database for adherence (creates alerts)",
+    )
+
     parser.add_argument(
         "--status",
         action="store_true",
-        help="Show current monitoring status (with --trigger)",
+        help="Show current monitoring status (with --trigger or --episodes)",
     )
     parser.add_argument(
         "--list-bundles",
@@ -505,6 +521,56 @@ Examples:
             use_fhir=args.use_fhir,
         )
         sys.exit(result)
+
+    # Handle episode checking mode
+    if args.episodes:
+        from guideline_src.episode_monitor import EpisodeAdherenceMonitor
+
+        monitor = EpisodeAdherenceMonitor()
+
+        if args.status:
+            monitor.print_status()
+            sys.exit(0)
+
+        if not (args.once or args.daemon):
+            parser.error("--episodes requires --once or --daemon")
+
+        bundle = args.bundle[0] if args.bundle else None
+
+        print("\n" + "=" * 70)
+        print("EPISODE ADHERENCE MONITOR")
+        print("=" * 70)
+        print(f"Mode: {'Single run' if args.once else 'Daemon'}")
+        print(f"Dry run: {args.dry_run}")
+        print("=" * 70)
+
+        if args.once:
+            results = monitor.check_all_episodes(
+                bundle_id=bundle,
+                dry_run=args.dry_run,
+                verbose=args.verbose,
+            )
+            print(f"\nChecked {len(results)} episode(s)")
+            total_alerts = sum(r.get("alerts_created", 0) for r in results)
+            if total_alerts:
+                print(f"Created {total_alerts} alert(s)")
+            sys.exit(0)
+        else:
+            interval = args.interval or 5  # minutes for episode checking
+            print(f"Checking every {interval} minutes. Press Ctrl+C to stop.\n")
+
+            try:
+                while True:
+                    results = monitor.check_all_episodes(
+                        bundle_id=bundle,
+                        dry_run=args.dry_run,
+                        verbose=args.verbose,
+                    )
+                    logger.info(f"Checked {len(results)} episodes")
+                    time.sleep(interval * 60)
+            except KeyboardInterrupt:
+                print("\nShutting down...")
+            sys.exit(0)
 
     # Handle adherence mode (default)
     if not (args.once or args.daemon):
