@@ -188,7 +188,21 @@ python -m guideline_src.runner --trigger --status
 # Use real FHIR connection
 python -m guideline_src.runner --trigger --daemon --use-fhir
 
-# === ADHERENCE CHECKING (check active episodes) ===
+# === EPISODE MONITORING (check deadlines, create alerts) ===
+
+# Check all active episodes for overdue elements
+python -m guideline_src.runner --episodes --once
+
+# Run as daemon (every 5 minutes)
+python -m guideline_src.runner --episodes --daemon --interval 5
+
+# Show episode status (active episodes, pending elements, alerts)
+python -m guideline_src.runner --episodes --status
+
+# Verbose output
+python -m guideline_src.runner --episodes --once --verbose
+
+# === ADHERENCE CHECKING (verify element completion via FHIR) ===
 
 # Check all active episodes once
 python -m guideline_src.runner --once
@@ -210,7 +224,11 @@ python -m guideline_src.runner --daemon --interval 15
 * * * * * cd /home/david/projects/aegis/guideline-adherence && \
     python -m guideline_src.runner --trigger --once --use-fhir >> /var/log/aegis/trigger-monitor.log 2>&1
 
-# Adherence checking - check active episodes every 15 minutes
+# Episode monitoring - check for overdue elements every 5 minutes
+*/5 * * * * cd /home/david/projects/aegis/guideline-adherence && \
+    python -m guideline_src.runner --episodes --once >> /var/log/aegis/episode-monitor.log 2>&1
+
+# Adherence checking - verify element completion every 15 minutes
 */15 * * * * cd /home/david/projects/aegis/guideline-adherence && \
     python -m guideline_src.runner --once >> /var/log/aegis/guideline-adherence.log 2>&1
 ```
@@ -236,41 +254,48 @@ export ENABLED_BUNDLES=sepsis_peds_2024,febrile_infant_2024,neonatal_hsv_2024
 
 ## Architecture
 
+The system operates in three modes:
+
 ```
 FHIR Server (Conditions, Medications, Labs, Vitals)
          │
          ▼
 ┌─────────────────────────────────────────────────────────┐
-│           BUNDLE TRIGGER MONITOR                         │
-│  - Polls for new diagnoses, orders, labs                │
+│    MODE 1: BUNDLE TRIGGER MONITOR (--trigger)           │
+│  - Polls for new diagnoses, orders, labs, vitals        │
 │  - Matches to bundle triggers                           │
 │  - Creates episodes when criteria met                   │
 └─────────────────────┬───────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│              EPISODE MANAGER                             │
-│  - Tracks active episodes per patient/bundle            │
-│  - Initializes element deadlines                        │
-│  - Stores to bundle_episodes table                      │
+│              EPISODE DATABASE                            │
+│  - bundle_episodes: Active monitoring episodes          │
+│  - bundle_element_results: Element status tracking      │
+│  - bundle_alerts: Generated alerts                      │
 └─────────────────────┬───────────────────────────────────┘
                       │
+          ┌───────────┴───────────┐
+          ▼                       ▼
+┌─────────────────────┐  ┌───────────────────────────────┐
+│ MODE 2: EPISODE     │  │ MODE 3: ADHERENCE MONITOR     │
+│ MONITOR (--episodes)│  │         (--once)              │
+│ - Checks deadlines  │  │ - Verifies completion via FHIR│
+│ - Creates alerts    │  │ - Uses specialized checkers   │
+│ - Assigns severity  │  │ - Calculates adherence %      │
+└─────────┬───────────┘  └──────────────┬────────────────┘
+          │                             │
+          └───────────┬─────────────────┘
                       ▼
-┌─────────────────────────────────────────────────────────┐
-│           GUIDELINE ADHERENCE MONITOR                    │
-│  - Checks element completion via FHIR                   │
-│  - Uses specialized checkers per bundle type            │
-│  - Updates element_results table                        │
-└─────────────────────┬───────────────────────────────────┘
-                      │
               ┌───────┴───────┐
               ▼               ▼
          Compliant      Non-Compliant
               │               │
               │               ▼
               │        ASP Alert (GUIDELINE_DEVIATION)
+              │        → CRITICAL for ABX/acyclovir delays
+              │        → WARNING for other elements
               │        → Teams notification
-              │        → Resolve/Override workflow
               │
               └───────┬───────┘
                       ▼
@@ -290,10 +315,11 @@ guideline-adherence/
 │   ├── config.py                 # Configuration with LOINC codes, thresholds
 │   ├── models.py                 # GuidelineMonitorResult, ElementCheckResult
 │   ├── fhir_client.py            # Extended FHIR client
-│   ├── monitor.py                # GuidelineAdherenceMonitor class
-│   ├── bundle_monitor.py         # BundleTriggerMonitor class (NEW)
+│   ├── monitor.py                # GuidelineAdherenceMonitor (Mode 3)
+│   ├── bundle_monitor.py         # BundleTriggerMonitor (Mode 1)
+│   ├── episode_monitor.py        # EpisodeAdherenceMonitor (Mode 2)
 │   ├── adherence_db.py           # Legacy adherence database
-│   ├── episode_db.py             # Episode tracking database (NEW)
+│   ├── episode_db.py             # Episode tracking database
 │   ├── checkers/
 │   │   ├── __init__.py
 │   │   ├── base.py               # ElementChecker ABC
@@ -301,11 +327,12 @@ guideline-adherence/
 │   │   ├── medication_checker.py # Antibiotic timing, fluid bolus
 │   │   ├── note_checker.py       # Reassessment documentation
 │   │   ├── febrile_infant_checker.py  # Age-stratified febrile infant logic
-│   │   ├── hsv_checker.py        # Neonatal HSV bundle (NEW)
-│   │   └── cdiff_testing_checker.py   # C. diff testing stewardship (NEW)
-│   └── runner.py                 # CLI entry point
+│   │   ├── hsv_checker.py        # Neonatal HSV bundle
+│   │   └── cdiff_testing_checker.py   # C. diff testing stewardship
+│   └── runner.py                 # CLI entry point (all three modes)
 ├── guideline_adherence.py        # Bundle definitions (GUIDELINE_BUNDLES)
-├── schema.sql                    # Database schema (NEW)
+├── demo_patients.py              # Demo patient scenarios for testing
+├── schema.sql                    # Database schema
 └── tests/
 ```
 

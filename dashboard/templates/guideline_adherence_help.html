@@ -63,31 +63,97 @@
     </div>
 
     <div class="help-card">
-        <h2>How It Works</h2>
+        <h2>How It Works - Three-Mode Monitoring Pipeline</h2>
+        <p>The guideline monitoring system operates in three distinct modes that work together:</p>
+
+        <div class="monitoring-architecture">
+            <div class="architecture-row">
+                <div class="architecture-box source">
+                    <strong>FHIR Server</strong>
+                    <span>Conditions, Medications, Labs, Vitals</span>
+                </div>
+            </div>
+            <div class="architecture-arrow">&darr;</div>
+            <div class="architecture-row">
+                <div class="architecture-box mode-1">
+                    <strong>Mode 1: Trigger Monitoring</strong>
+                    <span><code>--trigger</code></span>
+                    <ul>
+                        <li>Polls FHIR for new diagnoses, orders, labs</li>
+                        <li>Matches to bundle trigger criteria</li>
+                        <li>Creates episodes when criteria met</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="architecture-arrow">&darr;</div>
+            <div class="architecture-row">
+                <div class="architecture-box mode-2">
+                    <strong>Mode 2: Episode Monitoring</strong>
+                    <span><code>--episodes</code></span>
+                    <ul>
+                        <li>Reads active episodes from database</li>
+                        <li>Checks element deadlines vs current time</li>
+                        <li>Creates alerts for overdue/not met elements</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="architecture-arrow">&darr;</div>
+            <div class="architecture-row">
+                <div class="architecture-box mode-3">
+                    <strong>Mode 3: Adherence Checking</strong>
+                    <span><code>--once</code> (default)</span>
+                    <ul>
+                        <li>Direct FHIR queries for patient compliance</li>
+                        <li>Updates element completion status</li>
+                        <li>Calculates adherence percentages</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="architecture-arrow">&darr;</div>
+            <div class="architecture-row outputs">
+                <div class="architecture-box output-alerts">
+                    <strong>ASP Alerts</strong>
+                    <span>GUIDELINE_DEVIATION</span>
+                </div>
+                <div class="architecture-box output-dashboard">
+                    <strong>Dashboard</strong>
+                    <span>Compliance metrics</span>
+                </div>
+            </div>
+        </div>
+
+        <h3>Workflow Steps</h3>
         <div class="workflow">
             <div class="workflow-step">
                 <div class="step-number">1</div>
                 <div class="step-content">
                     <h4>Bundle Triggered</h4>
-                    <p>Patient identified with qualifying diagnosis (e.g., sepsis ICD-10 codes A41.x, R65.2x)</p>
+                    <p>Trigger monitor detects qualifying condition (diagnosis, medication order, lab order, or vital sign)</p>
                 </div>
             </div>
             <div class="workflow-step">
                 <div class="step-number">2</div>
                 <div class="step-content">
-                    <h4>Elements Monitored</h4>
-                    <p>Each bundle element is tracked against its time window (e.g., antibiotics within 1 hour)</p>
+                    <h4>Episode Created</h4>
+                    <p>Episode stored in database with element deadlines calculated from trigger time</p>
                 </div>
             </div>
             <div class="workflow-step">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                    <h4>Alert if Not Met</h4>
-                    <p>When time window expires without completion, a GUIDELINE_DEVIATION alert is created in ASP Alerts</p>
+                    <h4>Elements Monitored</h4>
+                    <p>Episode monitor checks each element deadline; adherence monitor verifies completion via FHIR</p>
                 </div>
             </div>
             <div class="workflow-step">
                 <div class="step-number">4</div>
+                <div class="step-content">
+                    <h4>Alert if Not Met</h4>
+                    <p>When deadline expires without completion, a GUIDELINE_DEVIATION alert is created (CRITICAL for ABX/acyclovir delays)</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <div class="step-number">5</div>
                 <div class="step-content">
                     <h4>Review & Resolve</h4>
                     <p>ASP team reviews alert, documents action, resolves in ASP Alerts queue</p>
@@ -139,8 +205,18 @@
                 </tr>
                 <tr>
                     <td><strong>Febrile Infant (AAP 2021)</strong></td>
-                    <td>12</td>
-                    <td>UA, blood cx, inflammatory markers, LP (age-stratified), HSV consideration</td>
+                    <td>14</td>
+                    <td>UA, blood cx, inflammatory markers, LP (age-stratified), HSV risk, safe discharge</td>
+                </tr>
+                <tr>
+                    <td><strong>Neonatal HSV (CCHMC 2024)</strong></td>
+                    <td>11</td>
+                    <td>CSF/blood PCR, surface cultures, LFTs, acyclovir &le;1h, ID consult, treatment duration</td>
+                </tr>
+                <tr>
+                    <td><strong>C. diff Testing (CCHMC 2024)</strong></td>
+                    <td>8</td>
+                    <td>Diagnostic stewardship: age, symptoms, laxatives, risk factors, appropriateness score</td>
                 </tr>
             </tbody>
         </table>
@@ -250,31 +326,246 @@
             <li>ANC &gt; 4,000/&mu;L</li>
             <li>CRP &gt; 2.0 mg/dL</li>
         </ul>
-        <p><strong>HSV Consideration:</strong> Required for infants 8-28 days. Consider acyclovir if maternal HSV history, vesicular rash, seizures, or CSF pleocytosis.</p>
+        <p><strong>HSV Risk Integration (CCHMC Enhancement):</strong> For infants 0-28 days, HSV risk factors are automatically detected:</p>
+        <ul>
+            <li>Maternal HSV history</li>
+            <li>Scalp electrode use</li>
+            <li>Vesicular rash</li>
+            <li>Seizures</li>
+            <li>CSF pleocytosis</li>
+            <li>Elevated LFTs (&gt;3x ULN)</li>
+        </ul>
+        <p>If risk factors present &rarr; Acyclovir administration is tracked as a required element.</p>
+
+        <p><strong>Safe Discharge Checklist (CCHMC Enhancement):</strong> For infants being discharged home, tracks 5 safety elements:</p>
+        <ol>
+            <li>Follow-up within 24h arranged</li>
+            <li>Working phone number documented</li>
+            <li>Reliable transportation confirmed</li>
+            <li>Parent education completed</li>
+            <li>Return precautions verbalized</li>
+        </ol>
+    </div>
+
+    <div class="help-card">
+        <h2>Neonatal HSV Bundle Details (CCHMC 2024)</h2>
+        <p>Comprehensive monitoring for suspected HSV in neonates &le;21 days. Triggered by HSV diagnosis, acyclovir order, or HSV PCR order.</p>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Element</th>
+                    <th>Time Window</th>
+                    <th>Required</th>
+                    <th>Data Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>CSF HSV PCR</td>
+                    <td>4 hours</td>
+                    <td>Yes</td>
+                    <td>Lab orders (LOINC 16955-7)</td>
+                </tr>
+                <tr>
+                    <td>Surface cultures (SEM)</td>
+                    <td>4 hours</td>
+                    <td>Yes</td>
+                    <td>Lab orders</td>
+                </tr>
+                <tr>
+                    <td>Blood HSV PCR</td>
+                    <td>4 hours</td>
+                    <td>Yes</td>
+                    <td>Lab orders (LOINC 49986-3)</td>
+                </tr>
+                <tr>
+                    <td>LFTs obtained</td>
+                    <td>4 hours</td>
+                    <td>Yes</td>
+                    <td>Lab results (AST, ALT)</td>
+                </tr>
+                <tr>
+                    <td>Acyclovir started</td>
+                    <td>1 hour</td>
+                    <td>Yes</td>
+                    <td>Medication Administration</td>
+                </tr>
+                <tr>
+                    <td>Acyclovir 60mg/kg/day Q8H</td>
+                    <td>24 hours</td>
+                    <td>Yes</td>
+                    <td>Medication orders</td>
+                </tr>
+                <tr>
+                    <td>ID consult</td>
+                    <td>24 hours</td>
+                    <td>Yes</td>
+                    <td>Consult orders</td>
+                </tr>
+                <tr>
+                    <td>Ophthalmology (if ocular)</td>
+                    <td>48 hours</td>
+                    <td>Conditional</td>
+                    <td>Consult orders</td>
+                </tr>
+                <tr>
+                    <td>Neuroimaging (if CNS)</td>
+                    <td>48 hours</td>
+                    <td>Conditional</td>
+                    <td>Imaging orders</td>
+                </tr>
+                <tr>
+                    <td>Treatment duration met</td>
+                    <td>End of therapy</td>
+                    <td>Yes</td>
+                    <td>Medication orders</td>
+                </tr>
+                <tr>
+                    <td>Suppressive therapy follow-up</td>
+                    <td>Discharge</td>
+                    <td>Yes</td>
+                    <td>Clinical notes</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Classification-Based Treatment Duration:</strong></p>
+        <ul>
+            <li><strong>SEM (Skin, Eye, Mouth):</strong> 14 days</li>
+            <li><strong>CNS disease:</strong> 21 days</li>
+            <li><strong>Disseminated:</strong> 21 days</li>
+        </ul>
+    </div>
+
+    <div class="help-card">
+        <h2>C. diff Testing Appropriateness Bundle (CCHMC 2024)</h2>
+        <p>Diagnostic stewardship bundle to ensure C. diff testing criteria are met before ordering. Triggered when a C. diff test is ordered.</p>
+
+        <h3>Appropriateness Criteria</h3>
+        <table class="help-table">
+            <thead>
+                <tr>
+                    <th>Criterion</th>
+                    <th>Requirement</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Age</td>
+                    <td>&ge;3 years (or exception documented)</td>
+                </tr>
+                <tr>
+                    <td>Symptoms</td>
+                    <td>&ge;3 liquid stools in 24 hours</td>
+                </tr>
+                <tr>
+                    <td>No laxatives</td>
+                    <td>Not given within 48 hours</td>
+                </tr>
+                <tr>
+                    <td>No enteral contrast</td>
+                    <td>Not given within 48 hours</td>
+                </tr>
+                <tr>
+                    <td>No tube feed changes</td>
+                    <td>Not changed within 48 hours</td>
+                </tr>
+                <tr>
+                    <td>No active GI bleed</td>
+                    <td>Documented absence</td>
+                </tr>
+                <tr>
+                    <td>Risk factor present</td>
+                    <td>Antibiotics, hospitalization, PPI, gastrostomy, or chronic disease</td>
+                </tr>
+                <tr>
+                    <td>Symptom duration</td>
+                    <td>&ge;48 hours if low-risk patient</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Appropriateness Classification</h3>
+        <ul>
+            <li><strong class="status-met">Appropriate:</strong> All criteria met</li>
+            <li><strong class="status-warning">Potentially Inappropriate:</strong> 1-2 concerns</li>
+            <li><strong class="status-not-met">Inappropriate:</strong> 3+ concerns or major exclusion</li>
+        </ul>
     </div>
 
     <div class="help-card">
         <h2>Running the Monitor</h2>
-        <h3>CLI Commands</h3>
+
+        <h3>Mode 1: Trigger Monitoring</h3>
+        <p>Polls FHIR for new patients matching bundle trigger criteria and creates episodes.</p>
         <pre class="code-block">
-# Run monitor once (check all active episodes)
 cd /home/david/projects/aegis/guideline-adherence
-python -m src.runner --once
+
+# Poll once for new triggers
+python -m guideline_src.runner --trigger --once
+
+# Poll continuously (every 60 seconds)
+python -m guideline_src.runner --trigger --daemon --interval 60
+
+# Show monitoring status
+python -m guideline_src.runner --trigger --status
+
+# Use real FHIR connection
+python -m guideline_src.runner --trigger --daemon --use-fhir</pre>
+
+        <h3>Mode 2: Episode Monitoring</h3>
+        <p>Checks active episodes for compliance and creates alerts for overdue elements.</p>
+        <pre class="code-block">
+# Check all active episodes once
+python -m guideline_src.runner --episodes --once
+
+# Run as daemon (every 5 minutes)
+python -m guideline_src.runner --episodes --daemon --interval 5
+
+# Show episode status (active episodes, pending elements, alerts)
+python -m guideline_src.runner --episodes --status
+
+# Verbose output (shows all element checks)
+python -m guideline_src.runner --episodes --once --verbose</pre>
+
+        <h3>Mode 3: Adherence Checking</h3>
+        <p>Direct FHIR queries to verify element completion and calculate adherence.</p>
+        <pre class="code-block">
+# Check all active episodes once
+python -m guideline_src.runner --once
 
 # Run for specific bundle only
-python -m src.runner --once --bundle sepsis_peds_2024
+python -m guideline_src.runner --once --bundle sepsis_peds_2024
 
 # Dry run (no alerts created)
-python -m src.runner --once --dry-run --verbose
+python -m guideline_src.runner --once --dry-run --verbose
 
 # Run as daemon (every 15 minutes)
-python -m src.runner --daemon --interval 15</pre>
+python -m guideline_src.runner --daemon --interval 15</pre>
 
-        <h3>Cron Setup</h3>
+        <h3>Utility Commands</h3>
         <pre class="code-block">
-# Add to crontab for automatic monitoring every 15 minutes
+# List available bundles
+python -m guideline_src.runner --list-bundles
+
+# Create demo patients for testing
+python demo_patients.py</pre>
+
+        <h3>Cron Setup (Production)</h3>
+        <pre class="code-block">
+# Trigger monitoring - poll for new patients every minute
+* * * * * cd /home/david/projects/aegis/guideline-adherence && \
+    python -m guideline_src.runner --trigger --once --use-fhir \
+    >> /var/log/aegis/trigger-monitor.log 2>&1
+
+# Episode monitoring - check for overdue elements every 5 minutes
+*/5 * * * * cd /home/david/projects/aegis/guideline-adherence && \
+    python -m guideline_src.runner --episodes --once \
+    >> /var/log/aegis/episode-monitor.log 2>&1
+
+# Adherence checking - full compliance check every 15 minutes
 */15 * * * * cd /home/david/projects/aegis/guideline-adherence && \
-    python -m src.runner --once >> /var/log/aegis/guideline-adherence.log 2>&1</pre>
+    python -m guideline_src.runner --once \
+    >> /var/log/aegis/guideline-adherence.log 2>&1</pre>
     </div>
 
     <div class="help-card">
@@ -324,7 +615,11 @@ python -m src.runner --daemon --interval 15</pre>
         <h2>References</h2>
         <ul>
             <li>Surviving Sepsis Campaign. International Guidelines for Management of Sepsis and Septic Shock. 2021.</li>
-            <li>Bradley JS, et al. The Management of Community-Acquired Pneumonia in Infants and Children Older Than 3 Months of Age: PIDS and IDSA. Clin Infect Dis. 2011.</li>
+            <li>AAP Clinical Practice Guideline. Evaluation and Management of Well-Appearing Febrile Infants 8 to 60 Days Old. <em>Pediatrics</em>. August 2021.</li>
+            <li>Kimberlin DW. Neonatal herpes simplex infection. <em>Clin Microbiol Rev</em>. 2004.</li>
+            <li>IDSA/SHEA. Clinical Practice Guidelines for <em>Clostridium difficile</em> Infection. 2018.</li>
+            <li>CCHMC Pocket Docs. Bugs & Drugs Guidelines, Neonatal HSV Algorithm, C. diff Testing Algorithm. 2024.</li>
+            <li>Bradley JS, et al. The Management of Community-Acquired Pneumonia in Infants and Children Older Than 3 Months of Age: PIDS and IDSA. <em>Clin Infect Dis</em>. 2011.</li>
             <li>The Joint Commission. MM.09.01.01 - Antimicrobial Stewardship Standard. Effective January 1, 2023.</li>
             <li>CMS Severe Sepsis and Septic Shock Early Management Bundle (SEP-1).</li>
         </ul>
@@ -417,6 +712,116 @@ python -m src.runner --daemon --interval 15</pre>
     font-family: monospace;
     white-space: pre;
     margin: 0.5rem 0;
+}
+
+/* Monitoring Architecture Diagram */
+.monitoring-architecture {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+}
+
+.architecture-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.architecture-row.outputs {
+    gap: 2rem;
+}
+
+.architecture-arrow {
+    text-align: center;
+    font-size: 1.5rem;
+    color: var(--color-gray-400);
+    margin: 0.5rem 0;
+}
+
+.architecture-box {
+    background: white;
+    border: 2px solid var(--color-gray-300);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    min-width: 280px;
+    text-align: center;
+}
+
+.architecture-box strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.architecture-box span {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.architecture-box code {
+    background: var(--color-gray-100);
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+}
+
+.architecture-box ul {
+    text-align: left;
+    margin: 0.75rem 0 0;
+    padding-left: 1.25rem;
+    font-size: 0.8rem;
+    color: var(--color-gray-700);
+}
+
+.architecture-box ul li {
+    margin: 0.25rem 0;
+}
+
+.architecture-box.source {
+    border-color: var(--color-info);
+    background: #e7f3ff;
+}
+
+.architecture-box.mode-1 {
+    border-color: #10b981;
+    background: #ecfdf5;
+}
+
+.architecture-box.mode-2 {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.architecture-box.mode-3 {
+    border-color: #8b5cf6;
+    background: #f5f3ff;
+}
+
+.architecture-box.output-alerts {
+    border-color: var(--color-danger);
+    background: #fef2f2;
+    min-width: 150px;
+}
+
+.architecture-box.output-dashboard {
+    border-color: var(--color-primary);
+    background: #eff6ff;
+    min-width: 150px;
+}
+
+/* Status colors for C. diff appropriateness */
+.status-met {
+    color: #059669;
+}
+
+.status-warning {
+    color: #d97706;
+}
+
+.status-not-met {
+    color: #dc2626;
 }
 </style>
 {% endblock %}
