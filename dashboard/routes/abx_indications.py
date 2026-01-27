@@ -239,3 +239,112 @@ def analytics():
 def help_page():
     """Render the help page for Antibiotic Indications."""
     return render_template("abx_indications_help.html")
+
+
+@abx_indications_bp.route("/candidate/<candidate_id>/acknowledge", methods=["POST"])
+def acknowledge_candidate(candidate_id: str):
+    """Quick acknowledge/dismiss a candidate without full review.
+
+    This marks the candidate as reviewed but doesn't require all the
+    review fields. Used for quickly clearing the queue.
+    """
+    try:
+        db = _get_indication_db()
+        data = request.get_json() or {}
+
+        reviewer = data.get("reviewer", "system").strip()
+        notes = data.get("notes", "Acknowledged without detailed review").strip()
+
+        candidate = db.get_candidate(candidate_id)
+        if not candidate:
+            return jsonify({"success": False, "error": "Candidate not found"}), 404
+
+        # Save as a simple acknowledgment (not an override)
+        review_id = db.save_review(
+            candidate_id=candidate_id,
+            reviewer=reviewer,
+            decision="acknowledged",
+            is_override=False,
+            notes=notes,
+        )
+
+        return jsonify({
+            "success": True,
+            "review_id": review_id,
+            "message": "Candidate acknowledged",
+        })
+
+    except Exception as e:
+        logger.error(f"Error acknowledging candidate {candidate_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@abx_indications_bp.route("/acknowledge-all", methods=["POST"])
+def acknowledge_all():
+    """Acknowledge all pending candidates at once.
+
+    Useful for clearing the queue when doing bulk review.
+    """
+    try:
+        db = _get_indication_db()
+        data = request.get_json() or {}
+
+        reviewer = data.get("reviewer", "system").strip()
+        notes = data.get("notes", "Bulk acknowledged").strip()
+
+        # Get all pending candidates
+        pending = db.list_candidates(status="pending", limit=1000)
+
+        count = 0
+        for candidate in pending:
+            db.save_review(
+                candidate_id=candidate.id,
+                reviewer=reviewer,
+                decision="acknowledged",
+                is_override=False,
+                notes=notes,
+            )
+            count += 1
+
+        return jsonify({
+            "success": True,
+            "acknowledged_count": count,
+            "message": f"Acknowledged {count} pending candidates",
+        })
+
+    except Exception as e:
+        logger.error(f"Error in bulk acknowledge: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@abx_indications_bp.route("/pending")
+def pending_list():
+    """Show only pending candidates that need review."""
+    try:
+        db = _get_indication_db()
+
+        # Get only pending candidates
+        pending_candidates = db.list_candidates(status="pending", limit=100)
+
+        # Get counts by classification for pending only
+        counts = {}
+        for c in pending_candidates:
+            cls = c.final_classification or "U"
+            counts[cls] = counts.get(cls, 0) + 1
+
+        return render_template(
+            "abx_indications_pending.html",
+            candidates=pending_candidates,
+            counts=counts,
+            total_pending=len(pending_candidates),
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading pending candidates: {e}")
+        return render_template(
+            "abx_indications_pending.html",
+            candidates=[],
+            counts={},
+            total_pending=0,
+            error=str(e),
+        )

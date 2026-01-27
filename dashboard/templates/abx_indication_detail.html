@@ -295,6 +295,17 @@
             <button type="button" id="submit-review-btn" class="btn btn-primary btn-block" style="margin-top: 1rem; padding: 1rem; font-size: 1rem;">
                 Submit Review
             </button>
+
+            <div class="classification-divider" style="margin-top: 1.5rem;">
+                <span>Or Quick Actions:</span>
+            </div>
+
+            <button type="button" id="acknowledge-btn" class="btn btn-secondary btn-block" style="margin-top: 0.5rem;">
+                Acknowledge &amp; Clear
+            </button>
+            <p class="form-help" style="margin-top: 0.25rem; font-size: 0.75rem;">
+                Mark as reviewed without changing classification
+            </p>
         </div>
 
         <div id="review-result" class="hidden"></div>
@@ -338,6 +349,9 @@ document.querySelectorAll('.confirm-buttons button, .override-buttons button').f
 
 // Submit button click handler
 document.getElementById('submit-review-btn').addEventListener('click', submitReview);
+
+// Acknowledge button click handler
+document.getElementById('acknowledge-btn')?.addEventListener('click', acknowledgeCandidate);
 
 async function submitReview() {
     if (!selectedDecision) {
@@ -390,6 +404,39 @@ async function submitReview() {
         }
     } catch (err) {
         resultDiv.innerHTML = '<div class="alert alert-danger">Failed to submit: ' + err.message + '</div>';
+        resultDiv.classList.remove('hidden');
+    }
+}
+
+async function acknowledgeCandidate() {
+    const reviewer = document.getElementById('reviewer').value.trim() || 'reviewer';
+    const notes = document.getElementById('notes').value.trim();
+    const resultDiv = document.getElementById('review-result');
+
+    const data = {
+        reviewer: reviewer,
+        notes: notes || 'Acknowledged via detail page'
+    };
+
+    try {
+        const response = await fetch('{{ url_for("abx_indications.acknowledge_candidate", candidate_id=candidate.id) }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success">Acknowledged! Returning to dashboard...</div>';
+            resultDiv.classList.remove('hidden');
+            setTimeout(() => window.location.href = '{{ url_for("abx_indications.dashboard") }}', 1000);
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + result.error + '</div>';
+            resultDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Failed: ' + err.message + '</div>';
         resultDiv.classList.remove('hidden');
     }
 }
