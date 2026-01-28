@@ -2144,3 +2144,191 @@ table a.btn:hover {
         gap: 0.75rem;
     }
 }
+
+/* ============================================
+   Shared Info Grid Pattern
+   Used by: ABX Indications, Surgical Prophylaxis, HAI Detection
+   ============================================ */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.info-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-value {
+    font-size: 0.875rem;
+    color: var(--color-gray-800);
+}
+
+.info-value.patient-mrn {
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.info-value.medication-name {
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* ============================================
+   Shared Evidence Sources Pattern
+   Used by: ABX Indications, HAI Detection
+   ============================================ */
+.evidence-sources {
+    border-left: 3px solid var(--color-success);
+    padding: 1rem;
+    background: var(--color-gray-50);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.evidence-item {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.evidence-item:first-of-type {
+    margin-top: 0.5rem;
+}
+
+.evidence-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.badge-note-type {
+    background: var(--color-primary);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.evidence-date {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+}
+
+.evidence-author {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    font-style: italic;
+}
+
+.evidence-relevance {
+    font-size: 0.85rem;
+    color: var(--color-gray-700);
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid var(--color-gray-300);
+}
+
+.evidence-quotes {
+    margin: 0;
+    padding-left: 1.5rem;
+    list-style: none;
+}
+
+.evidence-quotes .quote {
+    font-style: italic;
+    color: var(--color-gray-600);
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.evidence-quotes .quote::before {
+    content: '"';
+}
+
+.evidence-quotes .quote::after {
+    content: '"';
+}
+
+/* Supporting vs Contradicting evidence variants */
+.evidence-sources.evidence-supporting {
+    border-left-color: var(--color-success);
+}
+
+.evidence-sources.evidence-contradicting {
+    border-left-color: var(--color-danger);
+}
+
+/* Badge variant for evidence source (HAI format) */
+.badge-evidence-source {
+    background: var(--color-gray-600);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+/* ============================================
+   Shared Extraction Metadata Pattern
+   Used by: ABX Indications, HAI Detection
+   ============================================ */
+.extraction-meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--color-gray-500);
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-gray-200);
+    flex-wrap: wrap;
+}
+
+.extraction-meta .confidence,
+.extraction-meta .model,
+.extraction-meta .tokens,
+.extraction-meta .notes-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.extraction-meta .notes-count {
+    background: var(--color-gray-100);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* ============================================
+   Shared Supporting Quotes Pattern (legacy)
+   Used by: ABX Indications fallback
+   ============================================ */
+.supporting-quotes {
+    border-left: 3px solid var(--color-primary);
+    padding: 1rem;
+    background: var(--color-gray-50);
+    border-radius: 8px;
+}
+
+.supporting-quotes .quote {
+    font-style: italic;
+    color: var(--color-gray-600);
+    margin-bottom: 0.5rem;
+}

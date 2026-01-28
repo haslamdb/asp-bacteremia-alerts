@@ -1,0 +1,377 @@
+{# ==============================================
+   Shared UI Component Macros
+   Used across ABX Indications, Surgical Prophylaxis, and HAI Detection
+   ============================================== #}
+
+{# Info Grid Macro
+   Renders a responsive grid of label/value pairs
+
+   Usage:
+   {% from "macros/components.html" import info_grid %}
+   {{ info_grid([
+       {'label': 'Patient MRN', 'value': patient.mrn, 'class': 'patient-mrn'},
+       {'label': 'Name', 'value': patient.name},
+       {'label': 'Location', 'value': patient.location or '-'}
+   ]) }}
+#}
+{% macro info_grid(items) %}
+<div class="info-grid">
+    {% for item in items %}
+    <div class="info-item">
+        <span class="info-label">{{ item.label }}</span>
+        <span class="info-value {{ item.class or '' }}">{{ item.value if item.value is not none and item.value != '' else '-' }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+
+{# Evidence Sources Macro (Full Attribution Format)
+   Renders LLM evidence with note type badges, dates, authors, and quotes
+
+   Expected source structure (ABX Indications format):
+   {
+       note_type: str,      # PROGRESS_NOTE, ID_CONSULT, etc.
+       note_date: str|None,
+       author: str|None,
+       quotes: list[str],
+       relevance: str|None
+   }
+
+   Usage:
+   {% from "macros/components.html" import evidence_sources_full %}
+   {{ evidence_sources_full(extraction.evidence_sources) }}
+#}
+{% macro evidence_sources_full(sources, title="Supporting Evidence with Sources") %}
+{% if sources %}
+<div class="extraction-section evidence-sources">
+    <strong>{{ title }}:</strong>
+    {% for source in sources %}
+    <div class="evidence-item">
+        <div class="evidence-header">
+            <span class="badge badge-note-type">{{ source.note_type }}</span>
+            {% if source.note_date %}<span class="evidence-date">{{ source.note_date }}</span>{% endif %}
+            {% if source.author %}<span class="evidence-author">by {{ source.author }}</span>{% endif %}
+        </div>
+        {% if source.relevance %}<div class="evidence-relevance">{{ source.relevance }}</div>{% endif %}
+        {% if source.quotes %}
+        <ul class="evidence-quotes">
+            {% for quote in source.quotes %}<li class="quote">{{ quote }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{# Evidence Sources Macro (Simple Format)
+   Renders LLM evidence with source string and text
+
+   Expected source structure (HAI Detection format):
+   {
+       text: str,           # The evidence quote/text
+       source: str,         # Free-form string like "Progress Note from 01/15"
+       relevance: str|None
+   }
+
+   Usage:
+   {% from "macros/components.html" import evidence_sources_simple %}
+   {{ evidence_sources_simple(classification.supporting_evidence, variant='supporting') }}
+   {{ evidence_sources_simple(classification.contradicting_evidence, variant='contradicting') }}
+#}
+{% macro evidence_sources_simple(sources, title="Evidence", variant='supporting') %}
+{% if sources %}
+<div class="extraction-section evidence-sources evidence-{{ variant }}">
+    <strong>{{ title }}:</strong>
+    {% for item in sources %}
+    <div class="evidence-item">
+        <div class="evidence-header">
+            <span class="badge badge-evidence-source">{{ item.source }}</span>
+        </div>
+        <div class="evidence-text">{{ item.text }}</div>
+        {% if item.relevance %}<div class="evidence-relevance">{{ item.relevance }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{# Extraction Metadata Macro
+   Renders confidence, model, token counts in a consistent footer format
+
+   Usage:
+   {% from "macros/components.html" import extraction_meta %}
+   {{ extraction_meta(
+       confidence=extraction.confidence,
+       model=extraction.model_used,
+       notes_filtered=extraction.notes_filtered_count,
+       notes_total=extraction.notes_total_count,
+       tokens=extraction.tokens_used
+   ) }}
+#}
+{% macro extraction_meta(confidence, model, notes_filtered=none, notes_total=none, tokens=none, prompt_version=none) %}
+<div class="extraction-meta">
+    {% if confidence is not none %}
+    <span class="confidence">Confidence: {{ "%.0f"|format((confidence or 0) * 100) }}%</span>
+    {% endif %}
+    {% if model %}
+    <span class="model">Model: {{ model }}</span>
+    {% endif %}
+    {% if prompt_version %}
+    <span class="prompt">Prompt: {{ prompt_version }}</span>
+    {% endif %}
+    {% if notes_filtered is not none and notes_total is not none %}
+    <span class="notes-count">Notes: {{ notes_filtered }}/{{ notes_total }}</span>
+    {% endif %}
+    {% if tokens %}
+    <span class="tokens">Tokens: {{ tokens }}</span>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# Classification Badge Macro
+   Renders a badge with appropriate styling based on classification value
+
+   Usage:
+   {% from "macros/components.html" import classification_badge %}
+   {{ classification_badge('A', size='lg') }}
+   {{ classification_badge(candidate.final_classification) }}
+#}
+{% macro classification_badge(classification, size='') %}
+{% set labels = {
+    'A': 'Appropriate',
+    'S': 'Sometimes',
+    'N': 'Never Appropriate',
+    'P': 'Prophylaxis',
+    'FN': 'Febrile Neutropenia',
+    'U': 'Unknown'
+} %}
+<span class="badge {{ 'badge-lg' if size == 'lg' else '' }} badge-classification-{{ classification }}">
+    {{ labels.get(classification, classification or 'Unknown') }}
+</span>
+{% endmacro %}
+
+
+{# Status Badge Macro
+   Renders a badge with appropriate styling based on status value
+
+   Usage:
+   {% from "macros/components.html" import status_badge %}
+   {{ status_badge('confirmed') }}
+   {{ status_badge(candidate.status.value) }}
+#}
+{% macro status_badge(status, size='') %}
+{% set badge_class = {
+    'confirmed': 'success',
+    'rejected': 'danger',
+    'pending': 'warning',
+    'pending_review': 'info',
+    'classified': 'info',
+    'excluded': 'secondary'
+}.get(status, 'secondary') %}
+<span class="badge {{ 'badge-lg' if size == 'lg' else '' }} badge-{{ badge_class }}">
+    {{ status | replace('_', ' ') | title }}
+</span>
+{% endmacro %}
+
+
+{# ==============================================
+   HAI Type-Specific Detail Fields Macro
+   Centralizes NHSN-required fields for each HAI type
+   ============================================== #}
+
+{# HAI Type Details Macro
+   Renders type-specific information sections based on HAI type.
+   Centralizes field definitions for easier maintenance when NHSN requirements change.
+
+   Usage:
+   {% from "macros/components.html" import hai_type_details %}
+   {{ hai_type_details(
+       hai_type=candidate.hai_type.value,
+       candidate=candidate,
+       ssi_data=ssi_data,
+       cdi_data=cdi_data,
+       cauti_data=cauti_data,
+       vae_data=vae_data
+   ) }}
+#}
+{% macro hai_type_details(hai_type, candidate, ssi_data=none, cdi_data=none, cauti_data=none, vae_data=none) %}
+
+{% if hai_type == 'clabsi' %}
+    {{ _clabsi_details(candidate) }}
+
+{% elif hai_type == 'ssi' %}
+    {{ _ssi_details(ssi_data) }}
+
+{% elif hai_type == 'cdi' %}
+    {{ _cdi_details(cdi_data) }}
+
+{% elif hai_type == 'cauti' %}
+    {{ _cauti_details(cauti_data) }}
+
+{% elif hai_type == 'vae' %}
+    {{ _vae_details(vae_data) }}
+
+{% else %}
+    <h3>Device/Procedure Information</h3>
+    <p class="text-muted">No device or procedure information available for this HAI type.</p>
+{% endif %}
+
+{% endmacro %}
+
+
+{# --- CLABSI Details --- #}
+{% macro _clabsi_details(candidate) %}
+<h3>CLABSI Details</h3>
+{{ info_grid([
+    {'label': 'Device Days', 'value': candidate.device_days_at_culture if candidate.device_days_at_culture is not none else '?'},
+    {'label': 'Line Site', 'value': candidate.device_info.site if candidate.device_info and candidate.device_info.site else none},
+    {'label': 'Line Type', 'value': (candidate.device_info.device_type | replace('_', ' ') | title) if candidate.device_info and candidate.device_info.device_type else none},
+    {'label': 'Inserted', 'value': candidate.device_info.insertion_date.strftime('%m/%d/%Y') if candidate.device_info and candidate.device_info.insertion_date else '?'},
+    {'label': 'Removed', 'value': candidate.device_info.removal_date.strftime('%m/%d/%Y') if candidate.device_info and candidate.device_info.removal_date else none}
+]) }}
+{% endmacro %}
+
+
+{# --- SSI Details --- #}
+{% macro _ssi_details(ssi_data) %}
+{% if ssi_data %}
+<h3>SSI / Procedure Information</h3>
+{{ info_grid([
+    {'label': 'Procedure', 'value': ssi_data.procedure_name},
+    {'label': 'NHSN Category', 'value': ssi_data.nhsn_category},
+    {'label': 'Procedure Date', 'value': ssi_data.procedure_date.strftime('%Y-%m-%d') if ssi_data.procedure_date else 'Unknown'},
+    {'label': 'Days Post-Op', 'value': ssi_data.days_post_op},
+    {'label': 'Wound Class', 'value': _wound_class_display(ssi_data.wound_class)},
+    {'label': 'Implant', 'value': _implant_display(ssi_data.implant_used, ssi_data.implant_type)},
+    {'label': 'Surveillance Window', 'value': (ssi_data.surveillance_days|string ~ ' days') if ssi_data.surveillance_days else none},
+    {'label': 'SSI Type', 'value': (ssi_data.ssi_type | replace('_', ' ') | title) if ssi_data.ssi_type else none}
+]) }}
+{% else %}
+<h3>SSI / Procedure Information</h3>
+<p class="text-muted">No SSI-specific data available.</p>
+{% endif %}
+{% endmacro %}
+
+{% macro _wound_class_display(wound_class) %}
+{% if wound_class %}
+{% set wound_labels = {'1': 'Clean', '2': 'Clean-Contaminated', '3': 'Contaminated', '4': 'Dirty-Infected'} %}
+{{ wound_class|string ~ ' - ' ~ wound_labels.get(wound_class|string, 'Unknown') }}
+{% endif %}
+{% endmacro %}
+
+{% macro _implant_display(implant_used, implant_type) %}
+{% if implant_used %}Yes{% if implant_type %} ({{ implant_type }}){% endif %}{% else %}No{% endif %}
+{% endmacro %}
+
+
+{# --- CDI Details --- #}
+{% macro _cdi_details(cdi_data) %}
+{% if cdi_data %}
+<h3>CDI Details</h3>
+{{ info_grid([
+    {'label': 'Test Type', 'value': cdi_data.test_type},
+    {'label': 'Test Date', 'value': cdi_data.test_date.strftime('%m/%d/%Y %H:%M') if cdi_data.test_date else none},
+    {'label': 'Admission Date', 'value': cdi_data.admission_date.strftime('%m/%d/%Y') if cdi_data.admission_date else none},
+    {'label': 'Specimen Day', 'value': cdi_data.specimen_day},
+    {'label': 'Onset Type', 'value': cdi_data.onset_type_display},
+    {'label': 'Classification', 'value': (cdi_data.classification | replace('_', ' ') | title) if cdi_data.classification else none}
+]) }}
+
+<h3>Recurrence Information</h3>
+{{ info_grid([
+    {'label': 'Is Recurrent', 'value': 'Yes' if cdi_data.is_recurrent else 'No'},
+    {'label': 'Is Duplicate', 'value': 'Yes (not reportable)' if cdi_data.is_duplicate else 'No'},
+    {'label': 'Days Since Last CDI', 'value': cdi_data.days_since_last_cdi},
+    {'label': 'Prior Episodes', 'value': cdi_data.prior_episode_count}
+]) }}
+
+{% if cdi_data.onset_type == 'co_hcfa' %}
+<h3>CO-HCFA Details</h3>
+{{ info_grid([
+    {'label': 'Recent Discharge', 'value': cdi_data.recent_discharge_date.strftime('%m/%d/%Y') if cdi_data.recent_discharge_date else none},
+    {'label': 'Discharge Facility', 'value': cdi_data.recent_discharge_facility}
+]) }}
+{% endif %}
+
+{% else %}
+<h3>CDI Details</h3>
+<p class="text-muted">No CDI-specific data available.</p>
+{% endif %}
+{% endmacro %}
+
+
+{# --- CAUTI Details --- #}
+{% macro _cauti_details(cauti_data) %}
+{% if cauti_data %}
+<h3>CAUTI Details</h3>
+{{ info_grid([
+    {'label': 'Catheter Days', 'value': cauti_data.catheter_days},
+    {'label': 'Patient Age', 'value': (cauti_data.patient_age|string ~ ' years') if cauti_data.patient_age else none},
+    {'label': 'Culture CFU/mL', 'value': cauti_data.culture_cfu_ml},
+    {'label': 'Organism', 'value': cauti_data.culture_organism},
+    {'label': 'Organism Count', 'value': cauti_data.culture_organism_count}
+]) }}
+
+{% if cauti_data.catheter_type or cauti_data.catheter_insertion_date %}
+<h3>Catheter Information</h3>
+{{ info_grid([
+    {'label': 'Catheter Type', 'value': (cauti_data.catheter_type | replace('_', ' ') | title) if cauti_data.catheter_type else none},
+    {'label': 'Site', 'value': cauti_data.catheter_site},
+    {'label': 'Inserted', 'value': cauti_data.catheter_insertion_date.strftime('%m/%d/%Y') if cauti_data.catheter_insertion_date else none},
+    {'label': 'Removed', 'value': cauti_data.catheter_removal_date.strftime('%m/%d/%Y') if cauti_data.catheter_removal_date else none}
+]) }}
+{% endif %}
+
+{% else %}
+<h3>CAUTI Details</h3>
+<p class="text-muted">No CAUTI-specific data available.</p>
+{% endif %}
+{% endmacro %}
+
+
+{# --- VAE Details --- #}
+{% macro _vae_details(vae_data) %}
+{% if vae_data %}
+<h3>VAE Details</h3>
+{{ info_grid([
+    {'label': 'VAC Onset Date', 'value': vae_data.vac_onset_date.strftime('%m/%d/%Y') if vae_data.vac_onset_date else none},
+    {'label': 'Vent Day at Onset', 'value': vae_data.ventilator_day_at_onset},
+    {'label': 'FiO2 Criterion Met', 'value': 'Yes' if vae_data.met_fio2_criterion else 'No'},
+    {'label': 'PEEP Criterion Met', 'value': 'Yes' if vae_data.met_peep_criterion else 'No'}
+]) }}
+
+<h3>Baseline Period</h3>
+{{ info_grid([
+    {'label': 'Baseline Start', 'value': vae_data.baseline_start_date.strftime('%m/%d/%Y') if vae_data.baseline_start_date else none},
+    {'label': 'Baseline End', 'value': vae_data.baseline_end_date.strftime('%m/%d/%Y') if vae_data.baseline_end_date else none},
+    {'label': 'Baseline Min FiO2', 'value': (vae_data.baseline_min_fio2|string ~ '%') if vae_data.baseline_min_fio2 else none},
+    {'label': 'Baseline Min PEEP', 'value': (vae_data.baseline_min_peep|string ~ ' cmH2O') if vae_data.baseline_min_peep else none}
+]) }}
+
+<h3>Worsening Period</h3>
+{{ info_grid([
+    {'label': 'Worsening Start', 'value': vae_data.worsening_start_date.strftime('%m/%d/%Y') if vae_data.worsening_start_date else none},
+    {'label': 'FiO2 Increase', 'value': ('+' ~ vae_data.fio2_increase|round(1)|string ~ '%') if vae_data.fio2_increase else none},
+    {'label': 'PEEP Increase', 'value': ('+' ~ vae_data.peep_increase|round(1)|string ~ ' cmH2O') if vae_data.peep_increase else none}
+]) }}
+
+{% if vae_data.intubation_date %}
+<h3>Ventilation Episode</h3>
+{{ info_grid([
+    {'label': 'Intubation Date', 'value': vae_data.intubation_date.strftime('%m/%d/%Y %H:%M') if vae_data.intubation_date else none},
+    {'label': 'Extubation Date', 'value': vae_data.extubation_date.strftime('%m/%d/%Y %H:%M') if vae_data.extubation_date else none},
+    {'label': 'Ventilator Mode', 'value': vae_data.ventilator_mode},
+    {'label': 'Location', 'value': vae_data.location}
+]) }}
+{% endif %}
+
+{% else %}
+<h3>VAE Details</h3>
+<p class="text-muted">No VAE-specific data available.</p>
+{% endif %}
+{% endmacro %}

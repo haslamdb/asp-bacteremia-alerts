@@ -124,8 +124,12 @@ def candidate_detail(candidate_id):
 
         classifications = db.get_classifications_for_candidate(candidate_id)
 
-        # Extract SSI-specific data if available
+        # Extract type-specific data based on HAI type
         ssi_data = None
+        cdi_data = None
+        cauti_data = None
+        vae_data = None
+
         if candidate.hai_type == HAIType.SSI and hasattr(candidate, "_ssi_data"):
             ssi_candidate = candidate._ssi_data
             if ssi_candidate and hasattr(ssi_candidate, "procedure"):
@@ -143,11 +147,85 @@ def candidate_detail(candidate_id):
                     "ssi_type": getattr(ssi_candidate, "ssi_type", None),
                 }
 
+        elif candidate.hai_type == HAIType.CDI and hasattr(candidate, "_cdi_data"):
+            cdi_candidate = candidate._cdi_data
+            if cdi_candidate:
+                # Map onset type to display name
+                onset_display = {
+                    "ho": "Healthcare-Facility Onset (HO-CDI)",
+                    "co": "Community Onset (CO-CDI)",
+                    "co_hcfa": "Community Onset, Healthcare-Facility Associated (CO-HCFA)",
+                }
+                cdi_data = {
+                    "test_type": cdi_candidate.test_result.test_type if cdi_candidate.test_result else None,
+                    "test_date": cdi_candidate.test_result.test_date if cdi_candidate.test_result else None,
+                    "admission_date": cdi_candidate.admission_date,
+                    "specimen_day": cdi_candidate.specimen_day,
+                    "onset_type": cdi_candidate.onset_type,
+                    "onset_type_display": onset_display.get(cdi_candidate.onset_type, cdi_candidate.onset_type),
+                    "is_recurrent": cdi_candidate.is_recurrent,
+                    "is_duplicate": cdi_candidate.is_duplicate,
+                    "days_since_last_cdi": cdi_candidate.days_since_last_cdi,
+                    "prior_episode_count": len(cdi_candidate.prior_episodes) if cdi_candidate.prior_episodes else 0,
+                    "recent_discharge_date": cdi_candidate.recent_discharge_date,
+                    "recent_discharge_facility": cdi_candidate.recent_discharge_facility,
+                    "classification": getattr(cdi_candidate, "classification", None),
+                }
+
+        elif candidate.hai_type == HAIType.CAUTI and hasattr(candidate, "_cauti_data"):
+            cauti_candidate = candidate._cauti_data
+            if cauti_candidate:
+                cauti_data = {
+                    "catheter_days": cauti_candidate.catheter_days,
+                    "patient_age": cauti_candidate.patient_age,
+                    "culture_cfu_ml": cauti_candidate.culture_cfu_ml,
+                    "culture_organism": cauti_candidate.culture_organism,
+                    "culture_organism_count": cauti_candidate.culture_organism_count,
+                }
+                # Add catheter episode details if available
+                if cauti_candidate.catheter_episode:
+                    ep = cauti_candidate.catheter_episode
+                    cauti_data.update({
+                        "catheter_type": ep.catheter_type,
+                        "catheter_site": ep.site,
+                        "catheter_insertion_date": ep.insertion_date,
+                        "catheter_removal_date": ep.removal_date,
+                    })
+
+        elif candidate.hai_type == HAIType.VAE and hasattr(candidate, "_vae_data"):
+            vae_candidate = candidate._vae_data
+            if vae_candidate:
+                vae_data = {
+                    "vac_onset_date": vae_candidate.vac_onset_date,
+                    "ventilator_day_at_onset": vae_candidate.ventilator_day_at_onset,
+                    "baseline_start_date": vae_candidate.baseline_start_date,
+                    "baseline_end_date": vae_candidate.baseline_end_date,
+                    "baseline_min_fio2": vae_candidate.baseline_min_fio2,
+                    "baseline_min_peep": vae_candidate.baseline_min_peep,
+                    "worsening_start_date": vae_candidate.worsening_start_date,
+                    "fio2_increase": vae_candidate.fio2_increase,
+                    "peep_increase": vae_candidate.peep_increase,
+                    "met_fio2_criterion": vae_candidate.met_fio2_criterion,
+                    "met_peep_criterion": vae_candidate.met_peep_criterion,
+                }
+                # Add ventilation episode details if available
+                if vae_candidate.episode:
+                    ep = vae_candidate.episode
+                    vae_data.update({
+                        "intubation_date": ep.intubation_date,
+                        "extubation_date": ep.extubation_date,
+                        "ventilator_mode": getattr(ep, "mode", None),
+                        "location": getattr(ep, "location", None),
+                    })
+
         return render_template(
             "hai_candidate_detail.html",
             candidate=candidate,
             classifications=classifications,
             ssi_data=ssi_data,
+            cdi_data=cdi_data,
+            cauti_data=cauti_data,
+            vae_data=vae_data,
         )
     except Exception as e:
         current_app.logger.error(f"Error loading candidate {candidate_id}: {e}")
@@ -156,6 +234,9 @@ def candidate_detail(candidate_id):
             candidate=None,
             classifications=None,
             ssi_data=None,
+            cdi_data=None,
+            cauti_data=None,
+            vae_data=None,
             error=str(e),
         ), 500
 
