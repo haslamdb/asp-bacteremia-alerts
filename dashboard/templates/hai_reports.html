@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/components.html" import stats_grid, quick_links, alert_box, empty_state, hai_type_badge, decision_badge, bar_chart, metric_row, filter_select %}
 
 {% block title %}HAI Reports - {{ app_name }}{% endblock %}
 
@@ -9,55 +10,30 @@
 </div>
 
 {% if error %}
-<div class="alert alert-warning">
-    <strong>Note:</strong> Unable to load some data.
-    <br><small>{{ error }}</small>
-</div>
+{{ alert_box("Unable to load some data.", "warning", error) }}
 {% endif %}
 
 <div class="filters">
     <form method="get" class="filter-form">
-        <label>
-            HAI Type:
-            <select name="type" onchange="this.form.submit()">
-                {% for value, display in hai_types %}
-                <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ display }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>
-            Time Period:
-            <select name="days" onchange="this.form.submit()">
-                <option value="submission" {% if current_days == 'submission' %}selected{% endif %}>Since Last Submission{% if last_submission %} ({{ last_submission.period_end }}){% endif %}</option>
-                <option value="7" {% if current_days == '7' %}selected{% endif %}>Last 7 days</option>
-                <option value="14" {% if current_days == '14' %}selected{% endif %}>Last 14 days</option>
-                <option value="30" {% if current_days == '30' %}selected{% endif %}>Last 30 days</option>
-                <option value="60" {% if current_days == '60' %}selected{% endif %}>Last 60 days</option>
-                <option value="90" {% if current_days == '90' %}selected{% endif %}>Last 90 days</option>
-            </select>
-        </label>
+        {{ filter_select("type", hai_types, current_type, "HAI Type", true) }}
+        {{ filter_select("days", [
+            ("submission", "Since Last Submission" ~ (" (" ~ last_submission.period_end ~ ")" if last_submission else "")),
+            ("7", "Last 7 days"),
+            ("14", "Last 14 days"),
+            ("30", "Last 30 days"),
+            ("60", "Last 60 days"),
+            ("90", "Last 90 days")
+        ], current_days, "Time Period", true) }}
     </form>
 </div>
 
 <!-- Summary Stats -->
-<div class="stats-grid">
-    <div class="stat-card stat-success">
-        <div class="stat-value">{{ report_data.total_confirmed }}</div>
-        <div class="stat-label">Confirmed HAI</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value">{{ report_data.total_rejected }}</div>
-        <div class="stat-label">Not HAI</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value">{{ report_data.total_reviewed }}</div>
-        <div class="stat-label">Total Reviewed</div>
-    </div>
-    <div class="stat-card stat-info">
-        <div class="stat-value">{{ "%.1f"|format(report_data.confirmation_rate) }}%</div>
-        <div class="stat-label">HAI Rate</div>
-    </div>
-</div>
+{{ stats_grid([
+    {"value": report_data.total_confirmed, "label": "Confirmed HAI", "variant": "success"},
+    {"value": report_data.total_rejected, "label": "Not HAI"},
+    {"value": report_data.total_reviewed, "label": "Total Reviewed"},
+    {"value": "%.1f"|format(report_data.confirmation_rate) ~ "%", "label": "HAI Rate", "variant": "info"}
+]) }}
 
 <div class="reports-layout">
     <!-- Left Column -->
@@ -66,28 +42,9 @@
         <div class="report-card">
             <h3>Confirmed HAI by Day</h3>
             {% if report_data.by_day %}
-            <div class="chart-container">
-                <div class="bar-chart">
-                    {% set max_count = namespace(val=1) %}
-                    {% for item in report_data.by_day %}
-                        {% if item.count > max_count.val %}
-                            {% set max_count.val = item.count %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for item in report_data.by_day %}
-                    <div class="bar-row">
-                        <span class="bar-label">{{ item.date }}</span>
-                        <div class="bar-wrapper">
-                            <div class="bar bar-hai" style="width: {{ (item.count / max_count.val * 100)|int }}%;">
-                                <span class="bar-value">{{ item.count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+            {{ bar_chart(report_data.by_day, "bar-hai", true) }}
             {% else %}
-            <p class="no-data">No confirmed HAI in this period.</p>
+            {{ empty_state("No confirmed HAI in this period.") }}
             {% endif %}
         </div>
 
@@ -95,7 +52,7 @@
         <div class="report-card">
             <h3>Confirmed HAI Cases</h3>
             {% if confirmed_hais %}
-            <table class="table">
+            <table class="data-table">
                 <thead>
                     <tr>
                         <th>Date</th>
@@ -114,11 +71,7 @@
                             <strong>{{ hai.patient.name or 'Unknown' }}</strong>
                             <br><small class="text-muted">{{ hai.patient.mrn }}</small>
                         </td>
-                        <td>
-                            <span class="badge badge-hai-{{ hai.hai_type.value }}">
-                                {{ hai.hai_type.value | upper }}
-                            </span>
-                        </td>
+                        <td>{{ hai_type_badge(hai.hai_type.value) }}</td>
                         <td>{{ hai.culture.organism or 'Unknown' }}</td>
                         <td>{{ hai.device_days_at_culture if hai.device_days_at_culture is not none else '-' }}</td>
                         <td>
@@ -129,7 +82,7 @@
                 </tbody>
             </table>
             {% else %}
-            <p class="no-data">No confirmed HAI cases in this period.</p>
+            {{ empty_state("No confirmed HAI cases in this period.") }}
             {% endif %}
         </div>
     </div>
@@ -164,26 +117,14 @@
             <h3>LLM Classification Quality</h3>
             {% if override_stats and override_stats.completed_reviews > 0 %}
             <div class="quality-metrics">
-                <div class="metric-row">
-                    <span class="metric-label">Completed Reviews</span>
-                    <span class="metric-value">{{ override_stats.completed_reviews }}</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Acceptance Rate</span>
-                    <span class="metric-value {% if override_stats.acceptance_rate_pct and override_stats.acceptance_rate_pct >= 80 %}text-success{% elif override_stats.acceptance_rate_pct and override_stats.acceptance_rate_pct >= 60 %}text-warning{% else %}text-danger{% endif %}">
-                        {{ override_stats.acceptance_rate_pct|default('-', true) }}{% if override_stats.acceptance_rate_pct %}%{% endif %}
-                    </span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">IP Overrides</span>
-                    <span class="metric-value">{{ override_stats.total_overrides }}</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Override Rate</span>
-                    <span class="metric-value {% if override_stats.override_rate_pct and override_stats.override_rate_pct <= 20 %}text-success{% elif override_stats.override_rate_pct and override_stats.override_rate_pct <= 40 %}text-warning{% else %}text-danger{% endif %}">
-                        {{ override_stats.override_rate_pct|default('-', true) }}{% if override_stats.override_rate_pct %}%{% endif %}
-                    </span>
-                </div>
+                {{ metric_row("Completed Reviews", override_stats.completed_reviews) }}
+                {{ metric_row("Acceptance Rate",
+                    (override_stats.acceptance_rate_pct|string ~ "%") if override_stats.acceptance_rate_pct else "-",
+                    "text-success" if override_stats.acceptance_rate_pct and override_stats.acceptance_rate_pct >= 80 else "text-warning" if override_stats.acceptance_rate_pct and override_stats.acceptance_rate_pct >= 60 else "text-danger") }}
+                {{ metric_row("IP Overrides", override_stats.total_overrides) }}
+                {{ metric_row("Override Rate",
+                    (override_stats.override_rate_pct|string ~ "%") if override_stats.override_rate_pct else "-",
+                    "text-success" if override_stats.override_rate_pct and override_stats.override_rate_pct <= 20 else "text-warning" if override_stats.override_rate_pct and override_stats.override_rate_pct <= 40 else "text-danger") }}
             </div>
 
             {% if override_stats.by_llm_decision %}
@@ -277,263 +218,11 @@
         <!-- Quick Links -->
         <div class="report-card">
             <h3>Quick Links</h3>
-            <div class="quick-links-vertical">
-                <a href="{{ url_for('hai_detection.dashboard') }}" class="btn btn-primary btn-block">Active Cases</a>
-                <a href="{{ url_for('hai_detection.history') }}" class="btn btn-info btn-block">Review History</a>
-            </div>
+            {{ quick_links([
+                {"url": url_for('hai_detection.dashboard'), "label": "Active Cases", "class": "btn-primary"},
+                {"url": url_for('hai_detection.history'), "label": "Review History", "class": "btn-info"}
+            ], vertical=true) }}
         </div>
     </div>
 </div>
-
-<style>
-/* HAI Type Badges */
-.badge-hai-clabsi {
-    background: #dc2626;
-    color: white;
-}
-
-.badge-hai-cauti {
-    background: #f59e0b;
-    color: white;
-}
-
-.badge-hai-ssi {
-    background: #8b5cf6;
-    color: white;
-}
-
-.badge-hai-vae {
-    background: #3b82f6;
-    color: white;
-}
-
-/* Type Breakdown */
-.type-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.type-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.type-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.type-count {
-    font-weight: 600;
-    font-size: 1.25rem;
-}
-
-.type-bar-wrapper {
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.type-bar {
-    height: 100%;
-    border-radius: 4px;
-    min-width: 4px;
-}
-
-.type-bar-clabsi { background: #dc2626; }
-.type-bar-cauti { background: #f59e0b; }
-.type-bar-ssi { background: #8b5cf6; }
-.type-bar-vae { background: #3b82f6; }
-
-/* Bar chart */
-.bar-hai {
-    background: linear-gradient(90deg, #dc2626, #f87171);
-}
-
-/* Quick links vertical */
-.quick-links-vertical {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.btn-block {
-    width: 100%;
-    text-align: center;
-}
-
-/* Table styling */
-.table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table th,
-.table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.table th {
-    background: #f8fafc;
-    font-weight: 600;
-}
-
-.table tr:hover {
-    background: #f8fafc;
-}
-
-.btn-small {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-}
-
-.text-muted {
-    color: #64748b;
-}
-
-.no-data {
-    color: #64748b;
-    text-align: center;
-    padding: 2rem;
-    font-style: italic;
-}
-
-/* Breakdown table */
-.breakdown-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.breakdown-table th,
-.breakdown-table td {
-    padding: 0.5rem;
-    text-align: left;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.breakdown-table th {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
-/* LLM Quality Metrics */
-.quality-metrics {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.metric-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.metric-row:last-child {
-    border-bottom: none;
-}
-
-.metric-label {
-    color: #64748b;
-    font-size: 0.9rem;
-}
-
-.metric-value {
-    font-weight: 600;
-    font-size: 1.1rem;
-}
-
-.text-success {
-    color: #16a34a;
-}
-
-.text-warning {
-    color: #d97706;
-}
-
-.text-danger {
-    color: #dc2626;
-}
-
-.subsection-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #64748b;
-    margin: 1rem 0 0.5rem 0;
-    padding-top: 0.5rem;
-    border-top: 1px solid #e2e8f0;
-}
-
-/* Override List */
-.override-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.override-item {
-    padding: 0.75rem;
-    background: #f8fafc;
-    border-radius: 6px;
-    border-left: 3px solid #f59e0b;
-}
-
-.override-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.25rem;
-}
-
-.patient-mrn {
-    font-weight: 600;
-    color: #1e293b;
-}
-
-.override-date {
-    font-size: 0.8rem;
-    color: #64748b;
-}
-
-.override-details {
-    font-size: 0.85rem;
-    color: #475569;
-    margin-bottom: 0.5rem;
-}
-
-.override-decision {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-}
-
-.arrow {
-    color: #94a3b8;
-    font-weight: bold;
-}
-
-.override-notes {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px dashed #e2e8f0;
-    color: #64748b;
-    font-size: 0.8rem;
-}
-
-.badge-sm {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.4rem;
-}
-</style>
 {% endblock %}

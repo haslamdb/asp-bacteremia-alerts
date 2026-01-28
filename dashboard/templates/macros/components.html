@@ -375,3 +375,415 @@
 <p class="text-muted">No VAE-specific data available.</p>
 {% endif %}
 {% endmacro %}
+
+
+{# ==============================================
+   Dashboard & Report Component Macros
+   Used across all dashboard and report pages
+   ============================================== #}
+
+{# Stat Card Macro
+   Renders a single statistics card with value, label, and optional sublabel
+
+   Variants: primary, success, warning, danger, info, critical
+
+   Usage:
+   {% from "macros/components.html" import stat_card %}
+   {{ stat_card(value=42, label="Pending Review", sublabel="Awaiting decision", variant="primary") }}
+#}
+{% macro stat_card(value, label, sublabel=none, variant=none, value_class=none) %}
+<div class="stat-card {{ 'stat-' ~ variant if variant else '' }}">
+    <div class="stat-value {{ value_class or '' }}">{{ value }}</div>
+    <div class="stat-label">{{ label }}</div>
+    {% if sublabel %}<div class="stat-sublabel">{{ sublabel }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+
+{# Stats Grid Macro
+   Renders a grid of stat cards from a list of card definitions
+
+   Usage:
+   {% from "macros/components.html" import stats_grid %}
+   {{ stats_grid([
+       {'value': 42, 'label': 'Pending', 'variant': 'primary'},
+       {'value': 15, 'label': 'Confirmed', 'sublabel': 'This month', 'variant': 'success'},
+       {'value': '85%', 'label': 'Rate', 'variant': 'info'}
+   ]) }}
+#}
+{% macro stats_grid(cards) %}
+<div class="stats-grid">
+    {% for card in cards %}
+    {{ stat_card(
+        value=card.value,
+        label=card.label,
+        sublabel=card.sublabel,
+        variant=card.variant,
+        value_class=card.value_class
+    ) }}
+    {% endfor %}
+</div>
+{% endmacro %}
+
+
+{# Empty State Macro
+   Renders an empty state message with optional link
+
+   Usage:
+   {% from "macros/components.html" import empty_state %}
+   {{ empty_state("No data available.") }}
+   {{ empty_state("No cases found.", link_url=url_for('hai.history'), link_text="View history") }}
+#}
+{% macro empty_state(message, link_url=none, link_text=none) %}
+<p class="empty-state">
+    {{ message }}
+    {% if link_url and link_text %}
+    <a href="{{ link_url }}">{{ link_text }}</a>
+    {% endif %}
+</p>
+{% endmacro %}
+
+
+{# HAI Type Badge Macro
+   Renders a color-coded badge for HAI types
+
+   Colors: CLABSI=red, CAUTI=amber, SSI=purple, VAE=blue, CDI=teal
+
+   Usage:
+   {% from "macros/components.html" import hai_type_badge %}
+   {{ hai_type_badge('clabsi') }}
+   {{ hai_type_badge(candidate.hai_type.value) }}
+#}
+{% macro hai_type_badge(hai_type, size=none) %}
+<span class="badge badge-hai-{{ hai_type }} {{ 'badge-' ~ size if size else '' }}">
+    {{ hai_type | upper }}
+</span>
+{% endmacro %}
+
+
+{# Decision Badge Macro
+   Renders a badge for LLM or reviewer decisions
+
+   Supports: hai_confirmed, not_hai, pending_review, confirmed, rejected, needs_more_info
+
+   Usage:
+   {% from "macros/components.html" import decision_badge %}
+   {{ decision_badge('hai_confirmed') }}
+   {{ decision_badge(classification.decision.value, prefix="LLM:") }}
+#}
+{% macro decision_badge(decision, size=none, prefix=none) %}
+{% set badge_config = {
+    'hai_confirmed': {'class': 'danger', 'text': 'HAI'},
+    'not_hai': {'class': 'success', 'text': 'Not HAI'},
+    'pending_review': {'class': 'warning', 'text': 'Uncertain'},
+    'confirmed': {'class': 'success', 'text': 'Confirmed'},
+    'rejected': {'class': 'secondary', 'text': 'Rejected'},
+    'needs_more_info': {'class': 'warning', 'text': 'Needs Info'}
+} %}
+{% set config = badge_config.get(decision, {'class': 'secondary', 'text': decision | replace('_', ' ') | title}) %}
+{% if prefix %}<span class="badge-prefix">{{ prefix }}</span>{% endif %}
+<span class="badge badge-{{ config.class }} {{ 'badge-' ~ size if size else '' }}">
+    {{ config.text }}
+</span>
+{% endmacro %}
+
+
+{# Priority Badge Macro
+   Renders a priority score badge with automatic color coding
+
+   Colors: >10=high (red), >5=medium (amber), <=5=low (green)
+
+   Usage:
+   {% from "macros/components.html" import priority_badge %}
+   {{ priority_badge(12.5) }}
+   {{ priority_badge(target.priority_score) }}
+#}
+{% macro priority_badge(score) %}
+{% if score is not none %}
+{% set level = 'high' if score > 10 else 'medium' if score > 5 else 'low' %}
+<span class="priority-badge priority-{{ level }}">
+    {{ score | round(1) }}
+</span>
+{% else %}
+<span class="priority-badge priority-none">--</span>
+{% endif %}
+{% endmacro %}
+
+
+{# Metric Row Macro
+   Renders a label/value pair for metrics display
+
+   Usage:
+   {% from "macros/components.html" import metric_row %}
+   {{ metric_row("Acceptance Rate", "85%", value_class="text-success") }}
+   {{ metric_row("Override Rate", stats.override_rate ~ "%") }}
+#}
+{% macro metric_row(label, value, value_class=none) %}
+<div class="metric-row">
+    <span class="metric-label">{{ label }}</span>
+    <span class="metric-value {{ value_class or '' }}">{{ value if value is not none else '--' }}</span>
+</div>
+{% endmacro %}
+
+
+{# Metric Rows Container Macro
+   Renders multiple metric rows from a list
+
+   Usage:
+   {% from "macros/components.html" import metric_rows %}
+   {{ metric_rows([
+       {'label': 'Total Reviews', 'value': 150},
+       {'label': 'Acceptance Rate', 'value': '85%', 'value_class': 'text-success'},
+       {'label': 'Override Rate', 'value': '15%', 'value_class': 'text-warning'}
+   ]) }}
+#}
+{% macro metric_rows(rows) %}
+<div class="quality-metrics">
+    {% for row in rows %}
+    {{ metric_row(row.label, row.value, row.value_class) }}
+    {% endfor %}
+</div>
+{% endmacro %}
+
+
+{# Filter Select Macro
+   Renders a dropdown select for filtering with optional auto-submit
+
+   Usage:
+   {% from "macros/components.html" import filter_select %}
+   {{ filter_select(
+       name="type",
+       options=[('', 'All Types'), ('clabsi', 'CLABSI'), ('cauti', 'CAUTI')],
+       current=current_type,
+       label="HAI Type"
+   ) }}
+#}
+{% macro filter_select(name, options, current=none, label=none, auto_submit=true) %}
+<label class="filter-label">
+    {% if label %}{{ label }}:{% endif %}
+    <select name="{{ name }}" {% if auto_submit %}onchange="this.form.submit()"{% endif %}>
+        {% for value, display in options %}
+        <option value="{{ value }}" {% if current == value or (current is none and value == '') %}selected{% endif %}>
+            {{ display }}
+        </option>
+        {% endfor %}
+    </select>
+</label>
+{% endmacro %}
+
+
+{# Filter Form Macro
+   Renders a complete filter form with multiple selects
+
+   Usage:
+   {% from "macros/components.html" import filter_form %}
+   {{ filter_form([
+       {'name': 'type', 'label': 'HAI Type', 'options': hai_types, 'current': current_type},
+       {'name': 'days', 'label': 'Period', 'options': day_options, 'current': current_days}
+   ]) }}
+#}
+{% macro filter_form(filters) %}
+<div class="filters">
+    <form method="get" class="filter-form">
+        {% for f in filters %}
+        {{ filter_select(
+            name=f.name,
+            options=f.options,
+            current=f.current,
+            label=f.label,
+            auto_submit=f.auto_submit if f.auto_submit is defined else true
+        ) }}
+        {% endfor %}
+    </form>
+</div>
+{% endmacro %}
+
+
+{# Data Table Macro
+   Renders a data table with headers and rows
+
+   Usage:
+   {% from "macros/components.html" import data_table %}
+   {{ data_table(
+       headers=['Date', 'Patient', 'Type', 'Actions'],
+       rows=[
+           ['2024-01-15', 'Smith, John', 'CLABSI', '<a href="...">View</a>'],
+           ['2024-01-14', 'Doe, Jane', 'CAUTI', '<a href="...">View</a>']
+       ],
+       empty_message="No records found."
+   ) }}
+#}
+{% macro data_table(headers, rows, empty_message="No data available.", table_class="", row_classes=none) %}
+{% if rows and rows | length > 0 %}
+<table class="table {{ table_class }}">
+    <thead>
+        <tr>
+            {% for header in headers %}
+            <th>{{ header }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr class="{{ row_classes[loop.index0] if row_classes and loop.index0 < row_classes|length else '' }}">
+            {% for cell in row %}
+            <td>{{ cell | safe }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+{{ empty_state(empty_message) }}
+{% endif %}
+{% endmacro %}
+
+
+{# Bar Chart Macro
+   Renders a simple horizontal bar chart
+
+   Supports flexible key names:
+   - Standard: label/value
+   - Alternative: date/count (for report_data.by_day format)
+
+   Usage:
+   {% from "macros/components.html" import bar_chart %}
+   {{ bar_chart(
+       items=[
+           {'label': '2024-01-15', 'value': 5},
+           {'label': '2024-01-14', 'value': 3},
+           {'label': '2024-01-13', 'value': 8}
+       ],
+       bar_class="bar-hai"
+   ) }}
+#}
+{% macro bar_chart(items, bar_class="bar-primary", show_values=true) %}
+{% if items and items | length > 0 %}
+<div class="chart-container">
+    <div class="bar-chart">
+        {% set max_val = namespace(v=1) %}
+        {% for item in items %}
+            {% set val = item.value if item.value is defined else item.count %}
+            {% if val > max_val.v %}{% set max_val.v = val %}{% endif %}
+        {% endfor %}
+        {% for item in items %}
+        {% set item_label = item.label if item.label is defined else item.date %}
+        {% set item_value = item.value if item.value is defined else item.count %}
+        <div class="bar-row">
+            <span class="bar-label">{{ item_label }}</span>
+            <div class="bar-wrapper">
+                <div class="bar {{ bar_class }}" style="width: {{ (item_value / max_val.v * 100) | int }}%;">
+                    {% if show_values %}<span class="bar-value">{{ item_value }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+{{ empty_state("No chart data available.") }}
+{% endif %}
+{% endmacro %}
+
+
+{# Quick Links Macro
+   Renders a row of action buttons/links
+
+   Supports both 'text' and 'label' keys for button text
+
+   Usage:
+   {% from "macros/components.html" import quick_links %}
+   {{ quick_links([
+       {'url': url_for('hai.history'), 'label': 'History', 'class': 'btn-secondary'},
+       {'url': url_for('hai.reports'), 'label': 'Reports', 'class': 'btn-success'},
+       {'url': url_for('hai.help'), 'label': 'Help', 'class': 'btn-info'}
+   ]) }}
+#}
+{% macro quick_links(links, vertical=false) %}
+<div class="quick-links {{ 'quick-links-vertical' if vertical else '' }}">
+    {% for link in links %}
+    <a href="{{ link.url }}" class="btn {{ link.class or 'btn-secondary' }} {{ 'btn-block' if vertical else '' }}">
+        {{ link.label if link.label is defined else link.text }}
+    </a>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+
+{# Page Header Macro
+   Renders a consistent page header with title and optional actions
+
+   Usage:
+   {% from "macros/components.html" import page_header %}
+   {{ page_header(
+       title="HAI Detection",
+       subtitle="Healthcare-Associated Infection Candidate Detection",
+       actions=[{'url': url_for('main.index'), 'text': 'Back', 'class': 'btn-secondary'}]
+   ) }}
+#}
+{% macro page_header(title, subtitle=none, actions=none) %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1>{{ title }}</h1>
+        {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if actions %}
+    <div class="header-actions">
+        {% for action in actions %}
+        <a href="{{ action.url }}" class="btn {{ action.class or 'btn-secondary' }}">{{ action.text }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# Alert Box Macro
+   Renders an alert/notification box
+
+   Variants: success, warning, danger, info
+
+   Usage:
+   {% from "macros/components.html" import alert_box %}
+   {{ alert_box("Operation completed successfully!", variant="success") }}
+   {{ alert_box("Unable to load data.", variant="warning", details=error_message) }}
+#}
+{% macro alert_box(message, variant="info", details=none, dismissible=false) %}
+<div class="alert alert-{{ variant }}">
+    <strong>{{ {'success': 'Success:', 'warning': 'Note:', 'danger': 'Error:', 'info': 'Info:'}.get(variant, '') }}</strong>
+    {{ message }}
+    {% if details %}
+    <br><small>{{ details }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# Dashboard Card Macro
+   Renders a card container for dashboard sections
+
+   Usage:
+   {% from "macros/components.html" import dashboard_card %}
+   {% call dashboard_card("Activity by Module") %}
+       <table>...</table>
+   {% endcall %}
+#}
+{% macro dashboard_card(title, subtitle=none) %}
+<div class="dashboard-card">
+    <h3>{{ title }}</h3>
+    {% if subtitle %}<p class="card-subtitle">{{ subtitle }}</p>{% endif %}
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+
+{# Report Card Macro
+   Renders a card container for report sections (alias for dashboard_card)
+#}
+{% macro report_card(title, subtitle=none) %}
+<div class="report-card">
+    <h3>{{ title }}</h3>
+    {% if subtitle %}<p class="card-subtitle">{{ subtitle }}</p>{% endif %}
+    {{ caller() }}
+</div>
+{% endmacro %}

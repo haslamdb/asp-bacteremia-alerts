@@ -2332,3 +2332,648 @@ table a.btn:hover {
     color: var(--color-gray-600);
     margin-bottom: 0.5rem;
 }
+
+/* ============================================
+   Shared Stats Grid Pattern
+   Used by: All dashboards
+   ============================================ */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card.stat-primary {
+    border-left: 4px solid var(--color-primary);
+    background: linear-gradient(135deg, #E0F2FE 0%, var(--color-white) 100%);
+}
+.stat-card.stat-primary .stat-value { color: var(--color-primary-dark); }
+
+.stat-card.stat-success {
+    border-left: 4px solid var(--color-success);
+}
+.stat-card.stat-success .stat-value { color: var(--color-success); }
+
+.stat-card.stat-warning {
+    border-left: 4px solid var(--color-warning);
+}
+.stat-card.stat-warning .stat-value { color: var(--color-warning); }
+
+.stat-card.stat-danger {
+    border-left: 4px solid var(--color-danger);
+}
+.stat-card.stat-danger .stat-value { color: var(--color-danger); }
+
+.stat-card.stat-info {
+    border-left: 4px solid var(--color-primary);
+}
+
+.stat-card.stat-critical {
+    border-left: 4px solid var(--color-danger);
+    background: linear-gradient(135deg, #FEE2E2 0%, var(--color-white) 100%);
+}
+.stat-card.stat-critical .stat-value { color: var(--color-danger); }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-gray-800);
+}
+
+.stat-value.stat-date {
+    font-size: 1.25rem;
+}
+
+.stat-label {
+    color: var(--color-gray-500);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.stat-sublabel {
+    color: var(--color-gray-400);
+    font-size: 0.75rem;
+    margin-top: 0.125rem;
+}
+
+/* ============================================
+   Shared HAI Type Badges
+   Used by: HAI dashboards and reports
+   ============================================ */
+.badge-hai-clabsi {
+    background: #dc2626;
+    color: white;
+}
+
+.badge-hai-cauti {
+    background: #f59e0b;
+    color: white;
+}
+
+.badge-hai-ssi {
+    background: #8b5cf6;
+    color: white;
+}
+
+.badge-hai-vae {
+    background: #3b82f6;
+    color: white;
+}
+
+.badge-hai-cdi {
+    background: #0d9488;
+    color: white;
+}
+
+/* ============================================
+   Shared Priority Badges
+   Used by: ASP Metrics, Targets
+   ============================================ */
+.priority-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.priority-high {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+}
+
+.priority-medium {
+    background: var(--color-warning-light);
+    color: #d97706;
+}
+
+.priority-low {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.priority-none {
+    background: var(--color-gray-100);
+    color: var(--color-gray-500);
+}
+
+/* ============================================
+   Shared Status Badges
+   Used by: ASP Metrics, Interventions
+   ============================================ */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.status-identified {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-planned {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status-in_progress {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-completed {
+    background: var(--color-gray-100);
+    color: var(--color-gray-700);
+}
+
+/* ============================================
+   Shared Metric Rows
+   Used by: Reports, Quality Metrics
+   ============================================ */
+.quality-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.metric-row:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    color: var(--color-gray-500);
+    font-size: 0.9rem;
+}
+
+.metric-value {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.text-success { color: var(--color-success); }
+.text-warning { color: #d97706; }
+.text-danger { color: var(--color-danger); }
+
+/* ============================================
+   Shared Filter Forms
+   Used by: Reports, List views
+   ============================================ */
+.filters {
+    margin-bottom: 1.5rem;
+}
+
+.filter-form {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.filter-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--color-gray-600);
+}
+
+.filter-label select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    background: var(--color-white);
+}
+
+.filter-label select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.1);
+}
+
+/* ============================================
+   Shared Quick Links
+   Used by: Dashboards
+   ============================================ */
+.quick-links {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.quick-links-vertical {
+    flex-direction: column;
+}
+
+.quick-links-vertical .btn {
+    width: 100%;
+    text-align: center;
+}
+
+/* ============================================
+   Shared Bar Chart Pattern
+   Used by: Reports
+   ============================================ */
+.chart-container {
+    margin: 1rem 0;
+}
+
+.bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.bar-label {
+    flex: 0 0 80px;
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    text-align: right;
+}
+
+.bar-wrapper {
+    flex: 1;
+    height: 24px;
+    background: var(--color-gray-100);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.bar {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.5rem;
+    transition: width 0.3s ease;
+}
+
+.bar-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+}
+
+.bar-primary {
+    background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+}
+
+.bar-hai {
+    background: linear-gradient(90deg, #dc2626, #f87171);
+}
+
+.bar-success {
+    background: linear-gradient(90deg, var(--color-success), #34d399);
+}
+
+/* ============================================
+   Shared Dashboard/Report Cards
+   Used by: All dashboards and reports
+   ============================================ */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-card,
+.report-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+
+.dashboard-card h3,
+.report-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: var(--color-gray-800);
+}
+
+.dashboard-card h4,
+.report-card h4 {
+    margin: 1rem 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--color-gray-600);
+}
+
+.card-subtitle {
+    color: var(--color-gray-500);
+    font-size: 0.875rem;
+    margin-top: -0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* ============================================
+   Shared Reports Layout
+   Used by: hai_reports.html
+   ============================================ */
+.reports-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.reports-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.reports-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .reports-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   Shared Data Tables
+   Used by: All list views
+   ============================================ */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.data-table th {
+    background: var(--color-gray-50);
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+}
+
+.data-table tr:hover {
+    background: var(--color-gray-50);
+}
+
+.data-table .row-warning {
+    background: var(--color-warning-light);
+}
+
+/* ============================================
+   Shared Empty State
+   Used by: All views
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-gray-500);
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+}
+
+.empty-state a {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+/* ============================================
+   Shared Alert Boxes
+   Used by: All views
+   ============================================ */
+.alert {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background: var(--color-success-light);
+    border: 1px solid var(--color-success);
+    color: #065f46;
+}
+
+.alert-warning {
+    background: var(--color-warning-light);
+    border: 1px solid var(--color-warning);
+    color: #92400e;
+}
+
+.alert-danger,
+.alert-error {
+    background: var(--color-danger-light);
+    border: 1px solid var(--color-danger);
+    color: #991b1b;
+}
+
+.alert-info {
+    background: #E0F2FE;
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary-dark);
+}
+
+/* ============================================
+   HAI Type Breakdown (Reports Page)
+   ============================================ */
+.type-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.type-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.type-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.type-count {
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.type-bar-wrapper {
+    height: 8px;
+    background: var(--color-gray-100);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.type-bar {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 4px;
+}
+
+.type-bar-clabsi { background: #dc2626; }
+.type-bar-cauti { background: #f59e0b; }
+.type-bar-ssi { background: #8b5cf6; }
+.type-bar-vae { background: #3b82f6; }
+.type-bar-cdi { background: #0d9488; }
+
+/* ============================================
+   Override List (Reports Page)
+   ============================================ */
+.override-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.override-item {
+    padding: 0.75rem;
+    background: var(--color-gray-50);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--color-warning);
+}
+
+.override-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.override-date {
+    font-size: 0.8rem;
+    color: var(--color-gray-500);
+}
+
+.override-details {
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+    margin-bottom: 0.5rem;
+}
+
+.override-decision {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.arrow {
+    color: var(--color-gray-400);
+    font-weight: bold;
+}
+
+.override-notes {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--color-gray-200);
+    color: var(--color-gray-500);
+    font-size: 0.8rem;
+}
+
+/* ============================================
+   Subsection Title (Reports Page)
+   ============================================ */
+.subsection-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    margin: 1rem 0 0.5rem 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-gray-200);
+}
+
+/* ============================================
+   Small Badges
+   ============================================ */
+.badge-sm {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+}
+
+/* ============================================
+   Section Containers
+   ============================================ */
+.section {
+    margin-bottom: 2rem;
+}
+
+.section h2 {
+    color: var(--color-gray-800);
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+/* ============================================
+   Button Variants
+   ============================================ */
+.btn-info {
+    background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%);
+    color: white;
+}
+
+.btn-nhsn {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+}
+
+.btn-au-ar {
+    background: linear-gradient(135deg, #A4367B 0%, #831843 100%);
+    color: white;
+}
+
+.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* ============================================
+   Text Utilities
+   ============================================ */
+.text-muted {
+    color: var(--color-gray-500);
+}
+
+.text-center {
+    text-align: center;
+}
