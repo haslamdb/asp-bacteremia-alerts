@@ -30,7 +30,7 @@ def _get_approval_store() -> AbxApprovalStore:
 
 def _get_fhir_service() -> FHIRService | None:
     """Get the FHIR service from config."""
-    fhir_url = current_app.config.get("FHIR_SERVER_URL")
+    fhir_url = current_app.config.get("FHIR_BASE_URL")
     if fhir_url:
         return FHIRService(fhir_url)
     return None

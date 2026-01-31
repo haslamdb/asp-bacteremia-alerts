@@ -88,6 +88,17 @@
         </div>
     </a>
 
+    <a href="{{ url_for('abx_approvals.dashboard') }}" class="section-card section-approvals">
+        <div class="section-icon">&#x1F4DE;</div>
+        <h2>ABX Approvals</h2>
+        <p>Phone-based antibiotic approval requests with allergy-aware recommendations.</p>
+        <div class="section-features">
+            <span>Approval Workflow</span>
+            <span>Allergy Alerts</span>
+            <span>Clinical Context</span>
+        </div>
+    </a>
+
     <a href="{{ url_for('dashboards.index') }}" class="section-card section-dashboards">
         <div class="section-icon">&#x1F4C8;</div>
         <h2>Dashboards</h2>
@@ -268,6 +279,17 @@
 }
 .section-drugbug .section-icon {
     color: #7C3AED;
+}
+
+.section-approvals {
+    border-left-color: #F59E0B;
+}
+.section-approvals:hover {
+    border-left-color: #F59E0B;
+    background: linear-gradient(135deg, var(--color-white) 0%, rgba(245, 158, 11, 0.1) 100%);
+}
+.section-approvals .section-icon {
+    color: #F59E0B;
 }
 
 .coming-soon-badge {

@@ -180,39 +180,8 @@
                 </datalist>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="antibiotic_dose">Dose</label>
-                    <input type="text"
-                           id="antibiotic_dose"
-                           name="antibiotic_dose"
-                           placeholder="e.g., 1g q8h"
-                           class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="antibiotic_route">Route</label>
-                    <select id="antibiotic_route" name="antibiotic_route" class="form-control">
-                        <option value="">Select...</option>
-                        <option value="IV">IV</option>
-                        <option value="PO">PO</option>
-                        <option value="IM">IM</option>
-                        <option value="Inhaled">Inhaled</option>
-                        <option value="Topical">Topical</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="form-group">
-                <label for="indication">Indication</label>
-                <input type="text"
-                       id="indication"
-                       name="indication"
-                       placeholder="e.g., Hospital-acquired pneumonia"
-                       class="form-control">
-            </div>
-
-            <div class="form-group">
-                <label for="duration_requested_hours">Duration Requested (hours)</label>
+                <label for="duration_requested_hours">Duration</label>
                 <select id="duration_requested_hours" name="duration_requested_hours" class="form-control">
                     <option value="">Select...</option>
                     <option value="24">24 hours (1 day)</option>
@@ -224,24 +193,48 @@
                 </select>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="prescriber_name">Prescriber Name</label>
-                    <input type="text"
-                           id="prescriber_name"
-                           name="prescriber_name"
-                           placeholder="Dr. Smith"
-                           class="form-control">
+            <details class="optional-details">
+                <summary>Optional Details</summary>
+                <div class="optional-fields">
+                    <div class="form-group">
+                        <label for="indication">Indication</label>
+                        <input type="text"
+                               id="indication"
+                               name="indication"
+                               placeholder="e.g., Hospital-acquired pneumonia"
+                               class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="prescriber_name">Prescriber Name</label>
+                        <input type="text"
+                               id="prescriber_name"
+                               name="prescriber_name"
+                               placeholder="Dr. Smith"
+                               class="form-control">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="antibiotic_dose">Dose</label>
+                            <input type="text"
+                                   id="antibiotic_dose"
+                                   name="antibiotic_dose"
+                                   placeholder="e.g., 1g q8h"
+                                   class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="antibiotic_route">Route</label>
+                            <select id="antibiotic_route" name="antibiotic_route" class="form-control">
+                                <option value="">Select...</option>
+                                <option value="IV">IV</option>
+                                <option value="PO">PO</option>
+                                <option value="IM">IM</option>
+                                <option value="Inhaled">Inhaled</option>
+                                <option value="Topical">Topical</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="prescriber_pager">Pager</label>
-                    <input type="text"
-                           id="prescriber_pager"
-                           name="prescriber_pager"
-                           placeholder="12345"
-                           class="form-control">
-                </div>
-            </div>
+            </details>
 
             <hr>
 
@@ -364,7 +357,6 @@ document.getElementById('submit-btn').addEventListener('click', async function()
         indication: document.getElementById('indication').value.trim() || null,
         duration_requested_hours: parseInt(document.getElementById('duration_requested_hours').value) || null,
         prescriber_name: document.getElementById('prescriber_name').value.trim() || null,
-        prescriber_pager: document.getElementById('prescriber_pager').value.trim() || null,
     };
 
     try {
@@ -565,6 +557,41 @@ document.getElementById('submit-btn').addEventListener('click', async function()
 .patient-mrn {
     font-family: monospace;
     font-weight: 600;
+}
+
+.optional-details {
+    margin: 1rem 0;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 8px;
+    background: var(--color-gray-50);
+}
+
+.optional-details summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+    user-select: none;
+}
+
+.optional-details summary:hover {
+    color: var(--color-gray-800);
+}
+
+.optional-details[open] summary {
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.optional-fields {
+    padding: 1rem;
+}
+
+.optional-fields .form-group {
+    margin-bottom: 0.75rem;
+}
+
+.optional-fields .form-group:last-child {
+    margin-bottom: 0;
 }
 </style>
 
