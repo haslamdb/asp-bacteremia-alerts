@@ -133,12 +133,41 @@ class DrugBugMismatchMonitor:
 
         return alert_id
 
-    def run_once(self) -> int:
+    def auto_accept_old_alerts(self, hours: int = 48) -> int:
+        """Auto-accept alerts older than specified hours without human resolution.
+
+        This prevents the alert queue from growing indefinitely.
+
+        Args:
+            hours: Hours after which to auto-accept. Default 48.
+
+        Returns:
+            Number of alerts auto-accepted.
+        """
+        return self.alert_store.auto_accept_old_alerts(
+            alert_type=AlertType.DRUG_BUG_MISMATCH,
+            hours=hours,
+        )
+
+    def run_once(self, auto_accept_hours: int = 48) -> int:
         """
         Run a single check cycle.
 
+        Also auto-accepts alerts older than auto_accept_hours to prevent
+        queue buildup.
+
+        Args:
+            auto_accept_hours: Hours after which to auto-accept unresolved alerts.
+                Set to 0 to disable auto-accept.
+
         Returns the number of alerts generated this cycle.
         """
+        # Auto-accept old alerts first
+        if auto_accept_hours > 0:
+            auto_accepted = self.auto_accept_old_alerts(hours=auto_accept_hours)
+            if auto_accepted > 0:
+                print(f"  Auto-accepted {auto_accepted} old alerts")
+
         print(
             f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
             f"Checking for drug-bug mismatches..."

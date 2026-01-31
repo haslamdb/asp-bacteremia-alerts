@@ -54,6 +54,7 @@ class ResolutionReason(Enum):
     THERAPY_CHANGED = "therapy_changed"     # Therapy was changed
     THERAPY_STOPPED = "therapy_stopped"     # Therapy was discontinued
     PATIENT_DISCHARGED = "patient_discharged"  # Patient discharged
+    AUTO_ACCEPTED = "auto_accepted"         # Auto-accepted after timeout
     OTHER = "other"                         # Other reason (see notes)
 
     @classmethod
@@ -72,6 +73,7 @@ class ResolutionReason(Enum):
             cls.THERAPY_CHANGED: "Therapy Changed",
             cls.THERAPY_STOPPED: "Therapy Stopped",
             cls.PATIENT_DISCHARGED: "Patient Discharged",
+            cls.AUTO_ACCEPTED: "Auto Accepted",
             cls.OTHER: "Other",
         }
         # If it's a string, try to convert to enum first

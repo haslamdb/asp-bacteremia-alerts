@@ -950,3 +950,85 @@ class AlertStore:
                 logger.info(f"Cleaned up {count} old resolved alerts")
 
             return count
+
+    def auto_accept_old_alerts(
+        self,
+        alert_type: AlertType,
+        hours: int = 48,
+    ) -> int:
+        """Auto-accept alerts older than specified hours without human resolution.
+
+        This prevents the alert queue from growing indefinitely. Alerts
+        that haven't been resolved within the time limit are auto-accepted.
+
+        Args:
+            alert_type: Type of alerts to auto-accept.
+            hours: Hours after which to auto-accept. Default 48.
+
+        Returns:
+            Number of alerts auto-accepted.
+        """
+        cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
+        auto_accepted = 0
+
+        with self._connect() as conn:
+            # Find alerts that:
+            # 1. Match the alert type
+            # 2. Are not resolved
+            # 3. Were created more than `hours` ago
+            cursor = conn.execute(
+                """
+                SELECT id, patient_mrn, title
+                FROM alerts
+                WHERE alert_type = ?
+                AND status != ?
+                AND created_at < ?
+                """,
+                (alert_type.value, AlertStatus.RESOLVED.value, cutoff),
+            )
+
+            alerts_to_accept = cursor.fetchall()
+
+            for row in alerts_to_accept:
+                alert_id = row[0]
+
+                # Resolve the alert
+                conn.execute(
+                    """
+                    UPDATE alerts
+                    SET status = ?, resolved_at = ?, resolved_by = ?,
+                        resolution_reason = ?, notes = COALESCE(notes || ' | ', '') || ?
+                    WHERE id = ?
+                    """,
+                    (
+                        AlertStatus.RESOLVED.value,
+                        datetime.now().isoformat(),
+                        "Auto accepted",
+                        ResolutionReason.AUTO_ACCEPTED.value,
+                        f"Auto-accepted after {hours} hours without human review",
+                        alert_id,
+                    ),
+                )
+
+                # Add audit entry
+                conn.execute(
+                    """
+                    INSERT INTO alert_audit (alert_id, action, performed_by, details)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        alert_id,
+                        AuditAction.RESOLVED.value,
+                        "Auto accepted",
+                        f"Auto-accepted after {hours} hours without human review",
+                    ),
+                )
+
+                auto_accepted += 1
+
+            conn.commit()
+
+        if auto_accepted > 0:
+            logger.info(f"Auto-accepted {auto_accepted} {alert_type.value} alerts older than {hours} hours")
+
+        return auto_accepted
