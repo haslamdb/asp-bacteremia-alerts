@@ -211,14 +211,14 @@ def submit_review(candidate_id: str):
             return jsonify({"success": False, "error": "Candidate not found"}), 404
 
         # Check for new syndrome-based review (JC-compliant)
-        syndrome_decision = data.get("syndrome_decision", "").strip()
-        agent_decision = data.get("agent_decision", "").strip() or None
-        agent_notes = data.get("agent_notes", "").strip() or None
+        syndrome_decision = (data.get("syndrome_decision") or "").strip()
+        agent_decision = (data.get("agent_decision") or "").strip() or None
+        agent_notes = (data.get("agent_notes") or "").strip() or None
 
         if syndrome_decision:
             # New JC-compliant syndrome review workflow
-            confirmed_syndrome = data.get("confirmed_syndrome", "").strip() or None
-            confirmed_syndrome_display = data.get("confirmed_syndrome_display", "").strip() or None
+            confirmed_syndrome = (data.get("confirmed_syndrome") or "").strip() or None
+            confirmed_syndrome_display = (data.get("confirmed_syndrome_display") or "").strip() or None
 
             # Determine if syndrome was corrected
             is_override = (

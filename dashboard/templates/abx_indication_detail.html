@@ -267,88 +267,148 @@
     <div class="alert-detail-sidebar">
         {% if candidate.status != 'reviewed' %}
         <div class="action-card">
-            <h3>Submit Review</h3>
+            <h3>Review Indication</h3>
 
             {{ reviewer_input() }}
 
-            <div class="classification-divider">
-                <span>Confirm Classification:</span>
-            </div>
+            <!-- Step 1: Syndrome Review -->
+            <div class="review-step">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <span class="step-title">Is the extracted indication correct?</span>
+                </div>
 
-            <div class="confirm-buttons">
-                {% if candidate.final_classification == 'A' %}
-                <button type="button" class="btn btn-appropriate btn-block" data-decision="confirm_appropriate">
-                    Confirm Appropriate (A)
-                </button>
-                {% elif candidate.final_classification == 'S' %}
-                <button type="button" class="btn btn-sometimes btn-block" data-decision="confirm_sometimes">
-                    Confirm Sometimes (S)
-                </button>
-                {% elif candidate.final_classification == 'N' %}
-                <button type="button" class="btn btn-inappropriate btn-block" data-decision="confirm_inappropriate">
-                    Confirm Not Appropriate (N)
-                </button>
-                {% else %}
-                <button type="button" class="btn btn-secondary btn-block" data-decision="confirm_appropriate">
-                    Confirm as Classified
-                </button>
+                {% if extraction and extraction.indications %}
+                <div class="extracted-indication-box">
+                    <strong>LLM Extracted:</strong> {{ extraction.indications[0] if extraction.indications else 'None' }}
+                </div>
                 {% endif %}
-            </div>
 
-            <div class="classification-divider">
-                <span>Or Override To:</span>
-            </div>
+                <div class="syndrome-buttons">
+                    <button type="button" class="btn btn-syndrome-confirm btn-block" data-syndrome-decision="confirm_syndrome">
+                        Yes, Indication is Correct
+                    </button>
+                    <button type="button" class="btn btn-syndrome-correct btn-block" data-syndrome-decision="correct_syndrome">
+                        No, Change Indication
+                    </button>
+                </div>
 
-            <div class="override-buttons">
-                {% if candidate.final_classification != 'A' %}
-                <button type="button" class="btn btn-override-appropriate" data-decision="override_to_appropriate">
-                    Appropriate (A)
-                </button>
-                {% endif %}
-                {% if candidate.final_classification != 'S' %}
-                <button type="button" class="btn btn-override-sometimes" data-decision="override_to_sometimes">
-                    Sometimes (S)
-                </button>
-                {% endif %}
-                {% if candidate.final_classification != 'N' %}
-                <button type="button" class="btn btn-override-inappropriate" data-decision="override_to_inappropriate">
-                    Never (N)
-                </button>
-                {% endif %}
-                {% if candidate.final_classification != 'P' %}
-                <button type="button" class="btn btn-override-prophylaxis" data-decision="override_to_prophylaxis">
-                    Prophylaxis (P)
-                </button>
-                {% endif %}
-            </div>
+                <!-- Correction dropdown (shown when "correct_syndrome" selected) -->
+                <div id="syndrome-correction-section" class="hidden">
+                    <div class="form-group">
+                        <label for="corrected_syndrome">Select correct indication:</label>
+                        <select id="corrected_syndrome" class="form-control">
+                            <option value="">-- Select indication --</option>
+                            <optgroup label="Respiratory">
+                                <option value="cap">Community-Acquired Pneumonia</option>
+                                <option value="hap">Hospital-Acquired Pneumonia</option>
+                                <option value="vap">Ventilator-Associated Pneumonia</option>
+                                <option value="aspiration_pneumonia">Aspiration Pneumonia</option>
+                                <option value="empyema">Empyema / Parapneumonic Effusion</option>
+                            </optgroup>
+                            <optgroup label="Bloodstream">
+                                <option value="bacteremia_gpc">Gram-Positive Bacteremia</option>
+                                <option value="bacteremia_gnr">Gram-Negative Bacteremia</option>
+                                <option value="sepsis">Sepsis</option>
+                                <option value="line_infection">Central Line Infection / CLABSI</option>
+                                <option value="endocarditis">Endocarditis</option>
+                            </optgroup>
+                            <optgroup label="Urinary">
+                                <option value="uti_simple">Uncomplicated UTI / Cystitis</option>
+                                <option value="uti_complicated">Complicated UTI / Pyelonephritis</option>
+                                <option value="cauti">Catheter-Associated UTI</option>
+                            </optgroup>
+                            <optgroup label="Intra-abdominal">
+                                <option value="appendicitis">Appendicitis</option>
+                                <option value="intraabdominal_infection">Intra-abdominal Infection</option>
+                                <option value="cdiff">C. difficile Infection</option>
+                            </optgroup>
+                            <optgroup label="Skin/Soft Tissue">
+                                <option value="cellulitis">Cellulitis</option>
+                                <option value="abscess">Skin Abscess</option>
+                                <option value="wound_infection">Wound Infection / SSI</option>
+                                <option value="necrotizing_fasciitis">Necrotizing Fasciitis</option>
+                            </optgroup>
+                            <optgroup label="CNS">
+                                <option value="meningitis">Bacterial Meningitis</option>
+                                <option value="shunt_infection">VP Shunt Infection</option>
+                                <option value="brain_abscess">Brain Abscess</option>
+                            </optgroup>
+                            <optgroup label="Bone/Joint">
+                                <option value="osteomyelitis">Osteomyelitis</option>
+                                <option value="septic_arthritis">Septic Arthritis</option>
+                            </optgroup>
+                            <optgroup label="ENT">
+                                <option value="acute_otitis_media">Acute Otitis Media</option>
+                                <option value="sinusitis">Acute Bacterial Sinusitis</option>
+                                <option value="peritonsillar_abscess">Peritonsillar Abscess</option>
+                                <option value="strep_pharyngitis">Strep Pharyngitis</option>
+                                <option value="mastoiditis">Acute Mastoiditis</option>
+                            </optgroup>
+                            <optgroup label="Eye">
+                                <option value="orbital_cellulitis">Orbital Cellulitis</option>
+                                <option value="periorbital_cellulitis">Periorbital / Preseptal Cellulitis</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="febrile_neutropenia">Febrile Neutropenia</option>
+                                <option value="surgical_prophylaxis">Surgical Prophylaxis</option>
+                                <option value="pcp_prophylaxis">PCP Prophylaxis</option>
+                                <option value="empiric_unknown">Empiric - Source Unknown</option>
+                                <option value="culture_directed">Culture-Directed Therapy</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
 
-            <div id="override-reason-section" class="hidden">
-                <div class="form-group">
-                    <label for="override_reason">Override Reason (required)</label>
-                    <input type="text" name="override_reason" id="override_reason" placeholder="Why are you overriding?" class="form-control">
+                <div class="classification-divider">
+                    <span>Or flag as:</span>
+                </div>
+
+                <div class="flag-buttons">
+                    <button type="button" class="btn btn-flag-viral" data-syndrome-decision="viral_illness">
+                        Viral Illness
+                    </button>
+                    <button type="button" class="btn btn-flag-asb" data-syndrome-decision="asymptomatic_bacteriuria">
+                        Asymptomatic Bacteriuria
+                    </button>
+                    <button type="button" class="btn btn-flag-none" data-syndrome-decision="no_indication">
+                        No Indication Documented
+                    </button>
                 </div>
             </div>
 
+            <!-- Step 2: Agent Appropriateness (Optional) -->
+            <div class="review-step" id="agent-review-step">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <span class="step-title">Is {{ candidate.medication.medication_name }} appropriate? <span class="optional-tag">(optional)</span></span>
+                </div>
+
+                <div class="agent-buttons">
+                    <button type="button" class="btn btn-agent-appropriate" data-agent-decision="agent_appropriate">
+                        Appropriate
+                    </button>
+                    <button type="button" class="btn btn-agent-acceptable" data-agent-decision="agent_acceptable">
+                        Acceptable
+                    </button>
+                    <button type="button" class="btn btn-agent-inappropriate" data-agent-decision="agent_inappropriate">
+                        Inappropriate
+                    </button>
+                    <button type="button" class="btn btn-agent-skip" data-agent-decision="agent_skip">
+                        Skip
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notes -->
             <div class="form-group" style="margin-top: 1rem;">
                 <label for="notes">Notes (optional)</label>
-                <textarea name="notes" id="notes" rows="3" class="form-textarea" placeholder="Add details about your review decision..."></textarea>
-                <p class="form-help">Your notes help improve future AI classifications.</p>
+                <textarea name="notes" id="notes" rows="2" class="form-textarea" placeholder="Additional context..."></textarea>
             </div>
 
             <button type="button" id="submit-review-btn" class="btn btn-primary btn-block" style="margin-top: 1rem; padding: 1rem; font-size: 1rem;">
                 Submit Review
             </button>
-
-            <div class="classification-divider" style="margin-top: 1.5rem;">
-                <span>Or Quick Actions:</span>
-            </div>
-
-            <button type="button" id="acknowledge-btn" class="btn btn-secondary btn-block" style="margin-top: 0.5rem;">
-                Acknowledge &amp; Clear
-            </button>
-            <p class="form-help" style="margin-top: 0.25rem; font-size: 0.75rem;">
-                Mark as reviewed without changing classification
-            </p>
         </div>
 
         <div id="review-result" class="hidden"></div>
@@ -367,44 +427,52 @@
 </div>
 
 <script>
-let selectedDecision = null;
+let selectedSyndromeDecision = null;
+let selectedAgentDecision = null;
 
-document.querySelectorAll('.confirm-buttons button, .override-buttons button').forEach(btn => {
+// Syndrome decision buttons
+document.querySelectorAll('[data-syndrome-decision]').forEach(btn => {
     btn.addEventListener('click', function() {
-        const decision = this.getAttribute('data-decision');
-        selectedDecision = decision;
+        const decision = this.getAttribute('data-syndrome-decision');
+        selectedSyndromeDecision = decision;
 
         // Highlight selected button
-        document.querySelectorAll('.confirm-buttons button, .override-buttons button').forEach(b => {
+        document.querySelectorAll('[data-syndrome-decision]').forEach(b => {
             b.classList.remove('selected');
         });
         this.classList.add('selected');
 
-        // Show override reason if needed
-        const overrideSection = document.getElementById('override-reason-section');
-        if (decision.startsWith('override_')) {
-            overrideSection.classList.remove('hidden');
+        // Show/hide correction dropdown
+        const correctionSection = document.getElementById('syndrome-correction-section');
+        if (decision === 'correct_syndrome') {
+            correctionSection.classList.remove('hidden');
         } else {
-            overrideSection.classList.add('hidden');
+            correctionSection.classList.add('hidden');
         }
+    });
+});
+
+// Agent decision buttons
+document.querySelectorAll('[data-agent-decision]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const decision = this.getAttribute('data-agent-decision');
+        selectedAgentDecision = decision;
+
+        // Highlight selected button
+        document.querySelectorAll('[data-agent-decision]').forEach(b => {
+            b.classList.remove('selected');
+        });
+        this.classList.add('selected');
     });
 });
 
 // Submit button click handler
 document.getElementById('submit-review-btn').addEventListener('click', submitReview);
 
-// Acknowledge button click handler
-document.getElementById('acknowledge-btn')?.addEventListener('click', acknowledgeCandidate);
-
 async function submitReview() {
-    if (!selectedDecision) {
-        alert('Please select a decision first (click one of the buttons above)');
-        return;
-    }
-
     const reviewer = document.getElementById('reviewer').value.trim();
     const notes = document.getElementById('notes').value.trim();
-    const overrideReason = document.getElementById('override_reason')?.value?.trim() || '';
+    const correctedSyndrome = document.getElementById('corrected_syndrome')?.value || '';
     const resultDiv = document.getElementById('review-result');
 
     if (!reviewer) {
@@ -414,18 +482,25 @@ async function submitReview() {
         return;
     }
 
-    if (selectedDecision.startsWith('override_') && !overrideReason) {
-        resultDiv.innerHTML = '<div class="alert alert-danger">Please provide an override reason</div>';
+    if (!selectedSyndromeDecision) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Please select whether the indication is correct (Step 1)</div>';
         resultDiv.classList.remove('hidden');
-        document.getElementById('override_reason').focus();
+        return;
+    }
+
+    if (selectedSyndromeDecision === 'correct_syndrome' && !correctedSyndrome) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Please select the correct indication</div>';
+        resultDiv.classList.remove('hidden');
+        document.getElementById('corrected_syndrome').focus();
         return;
     }
 
     const data = {
         reviewer: reviewer,
-        decision: selectedDecision,
-        notes: notes,
-        override_reason: overrideReason
+        syndrome_decision: selectedSyndromeDecision,
+        confirmed_syndrome: correctedSyndrome || null,
+        agent_decision: selectedAgentDecision || 'agent_skip',
+        notes: notes
     };
 
     try {
@@ -447,39 +522,6 @@ async function submitReview() {
         }
     } catch (err) {
         resultDiv.innerHTML = '<div class="alert alert-danger">Failed to submit: ' + err.message + '</div>';
-        resultDiv.classList.remove('hidden');
-    }
-}
-
-async function acknowledgeCandidate() {
-    const reviewer = document.getElementById('reviewer').value.trim() || 'reviewer';
-    const notes = document.getElementById('notes').value.trim();
-    const resultDiv = document.getElementById('review-result');
-
-    const data = {
-        reviewer: reviewer,
-        notes: notes || 'Acknowledged via detail page'
-    };
-
-    try {
-        const response = await fetch('{{ url_for("abx_indications.acknowledge_candidate", candidate_id=candidate.id) }}', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            resultDiv.innerHTML = '<div class="alert alert-success">Acknowledged! Returning to dashboard...</div>';
-            resultDiv.classList.remove('hidden');
-            setTimeout(() => window.location.href = '{{ url_for("abx_indications.dashboard") }}', 1000);
-        } else {
-            resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + result.error + '</div>';
-            resultDiv.classList.remove('hidden');
-        }
-    } catch (err) {
-        resultDiv.innerHTML = '<div class="alert alert-danger">Failed: ' + err.message + '</div>';
         resultDiv.classList.remove('hidden');
     }
 }
@@ -747,79 +789,71 @@ async function acknowledgeCandidate() {
     font-size: 0.875rem;
 }
 
-/* Action buttons */
-.confirm-buttons,
-.override-buttons {
+/* Review Steps */
+.review-step {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.step-number {
+    width: 1.5rem;
+    height: 1.5rem;
+    background: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.step-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.optional-tag {
+    font-weight: 400;
+    color: var(--color-gray-500);
+    font-size: 0.8rem;
+}
+
+.extracted-indication-box {
+    background: var(--color-gray-100);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+/* Syndrome buttons */
+.syndrome-buttons {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
-.override-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-}
-
-.btn-appropriate {
+.btn-syndrome-confirm {
     background: var(--color-success);
     color: white;
     border: 2px solid var(--color-success);
-    padding: 1rem;
+    padding: 0.75rem;
     font-weight: 600;
 }
 
-.btn-appropriate:hover { background: #15803d; }
+.btn-syndrome-confirm:hover { background: #15803d; }
 
-.btn-sometimes {
-    background: var(--color-warning);
-    color: var(--color-gray-900);
-    border: 2px solid var(--color-warning);
-    padding: 1rem;
-    font-weight: 600;
-}
-
-.btn-inappropriate {
-    background: var(--color-danger);
-    color: white;
-    border: 2px solid var(--color-danger);
-    padding: 1rem;
-    font-weight: 600;
-}
-
-.btn-inappropriate:hover { background: #b91c1c; }
-
-.btn-override-appropriate {
-    background: white;
-    color: var(--color-success);
-    border: 2px solid var(--color-success);
-    padding: 0.75rem;
-    font-weight: 500;
-}
-
-.btn-override-appropriate:hover { background: var(--color-success); color: white; }
-
-.btn-override-sometimes {
-    background: white;
-    color: var(--color-warning);
-    border: 2px solid var(--color-warning);
-    padding: 0.75rem;
-    font-weight: 500;
-}
-
-.btn-override-sometimes:hover { background: var(--color-warning); }
-
-.btn-override-inappropriate {
-    background: white;
-    color: var(--color-danger);
-    border: 2px solid var(--color-danger);
-    padding: 0.75rem;
-    font-weight: 500;
-}
-
-.btn-override-inappropriate:hover { background: var(--color-danger); color: white; }
-
-.btn-override-prophylaxis {
+.btn-syndrome-correct {
     background: white;
     color: var(--color-primary);
     border: 2px solid var(--color-primary);
@@ -827,10 +861,94 @@ async function acknowledgeCandidate() {
     font-weight: 500;
 }
 
-.btn-override-prophylaxis:hover { background: var(--color-primary); color: white; }
+.btn-syndrome-correct:hover { background: var(--color-primary); color: white; }
 
-.confirm-buttons button.selected,
-.override-buttons button.selected {
+/* Flag buttons */
+.flag-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.flag-buttons button {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+.btn-flag-viral {
+    background: white;
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
+}
+
+.btn-flag-viral:hover { background: var(--color-warning); color: white; }
+
+.btn-flag-asb {
+    background: white;
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
+}
+
+.btn-flag-asb:hover { background: var(--color-warning); color: white; }
+
+.btn-flag-none {
+    background: white;
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger);
+    grid-column: span 2;
+}
+
+.btn-flag-none:hover { background: var(--color-danger); color: white; }
+
+/* Agent buttons */
+.agent-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.agent-buttons button {
+    padding: 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+}
+
+.btn-agent-appropriate {
+    background: white;
+    color: var(--color-success);
+    border: 2px solid var(--color-success);
+}
+
+.btn-agent-appropriate:hover { background: var(--color-success); color: white; }
+
+.btn-agent-acceptable {
+    background: white;
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+}
+
+.btn-agent-acceptable:hover { background: var(--color-primary); color: white; }
+
+.btn-agent-inappropriate {
+    background: white;
+    color: var(--color-danger);
+    border: 2px solid var(--color-danger);
+}
+
+.btn-agent-inappropriate:hover { background: var(--color-danger); color: white; }
+
+.btn-agent-skip {
+    background: white;
+    color: var(--color-gray-500);
+    border: 2px solid var(--color-gray-300);
+}
+
+.btn-agent-skip:hover { background: var(--color-gray-100); }
+
+/* Selected state for all buttons */
+[data-syndrome-decision].selected,
+[data-agent-decision].selected {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
 }
 

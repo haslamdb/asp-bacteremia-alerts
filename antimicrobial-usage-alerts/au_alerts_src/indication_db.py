@@ -1134,3 +1134,84 @@ class IndicationDatabase:
                 )
 
             return cursor.fetchone()["count"]
+
+    def auto_accept_old_candidates(self, hours: int = 48) -> int:
+        """Auto-accept candidates older than specified hours without human review.
+
+        This prevents the review queue from growing indefinitely. Candidates
+        that haven't been reviewed within the time limit are auto-accepted
+        with the LLM's classification.
+
+        Args:
+            hours: Hours after which to auto-accept. Default 48.
+
+        Returns:
+            Number of candidates auto-accepted.
+        """
+        auto_accepted = 0
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Find candidates that:
+            # 1. Are not yet reviewed (status != 'reviewed')
+            # 2. Were created more than `hours` ago
+            # 3. Don't already have a review
+            cursor.execute(
+                """
+                SELECT c.id, c.clinical_syndrome, c.clinical_syndrome_display
+                FROM indication_candidates c
+                LEFT JOIN indication_reviews r ON c.id = r.candidate_id
+                WHERE c.status != 'reviewed'
+                AND c.created_at < datetime('now', ?)
+                AND r.id IS NULL
+                """,
+                (f"-{hours} hours",),
+            )
+
+            candidates = cursor.fetchall()
+
+            for row in candidates:
+                candidate_id = row["id"]
+                clinical_syndrome = row["clinical_syndrome"]
+                clinical_syndrome_display = row["clinical_syndrome_display"]
+
+                # Create auto-accept review
+                review_id = str(uuid.uuid4())
+                cursor.execute(
+                    """
+                    INSERT INTO indication_reviews (
+                        id, candidate_id, reviewer, reviewer_decision,
+                        is_override, notes,
+                        syndrome_decision, confirmed_syndrome, confirmed_syndrome_display,
+                        agent_decision
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        review_id,
+                        candidate_id,
+                        "Auto accepted",
+                        "confirm_appropriate",
+                        0,  # Not an override
+                        f"Auto-accepted after {hours} hours without human review",
+                        "confirm_syndrome",
+                        clinical_syndrome,
+                        clinical_syndrome_display,
+                        "agent_skip",
+                    ),
+                )
+
+                # Update candidate status
+                cursor.execute(
+                    "UPDATE indication_candidates SET status = 'reviewed', updated_at = ? WHERE id = ?",
+                    (datetime.now().isoformat(), candidate_id),
+                )
+
+                auto_accepted += 1
+
+            conn.commit()
+
+        if auto_accepted > 0:
+            logger.info(f"Auto-accepted {auto_accepted} candidates older than {hours} hours")
+
+        return auto_accepted

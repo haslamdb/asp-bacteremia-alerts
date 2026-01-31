@@ -75,7 +75,11 @@ class HAIMonitor:
         """
         if hai_type not in self._classifiers:
             if hai_type == HAIType.CLABSI:
-                self._classifiers[hai_type] = CLABSIClassifierV2(db=self.db)
+                self._classifiers[hai_type] = CLABSIClassifierV2(
+                    db=self.db,
+                    use_triage=True,  # Use fast 7B model for triage, only escalate complex cases
+                    triage_model="qwen2.5:7b",
+                )
             elif hai_type == HAIType.SSI:
                 self._classifiers[hai_type] = SSIClassifierV2(db=self.db)
             elif hai_type == HAIType.VAE:

@@ -155,15 +155,40 @@ class IndicationMonitor:
             logger.warning(f"Failed to load taxonomy extractor: {e}")
             return None
 
-    def check_new_orders(self, since_hours: int = 24) -> list[IndicationAssessment]:
+    def auto_accept_old_candidates(self, hours: int = 48) -> int:
+        """Auto-accept candidates older than specified hours without human review.
+
+        This prevents the review queue from growing indefinitely. Should be called
+        periodically (e.g., every few hours or daily).
+
+        Args:
+            hours: Hours after which to auto-accept. Default 48.
+
+        Returns:
+            Number of candidates auto-accepted.
+        """
+        return self.db.auto_accept_old_candidates(hours=hours)
+
+    def check_new_orders(self, since_hours: int = 24, auto_accept_hours: int = 48) -> list[IndicationAssessment]:
         """Check new antibiotic orders for indications.
+
+        Also auto-accepts candidates older than auto_accept_hours to prevent
+        queue buildup.
 
         Args:
             since_hours: How far back to look for new orders.
+            auto_accept_hours: Hours after which to auto-accept unreviewed candidates.
+                Set to 0 to disable auto-accept.
 
         Returns:
             List of IndicationAssessment objects.
         """
+        # Auto-accept old candidates first
+        if auto_accept_hours > 0:
+            auto_accepted = self.auto_accept_old_candidates(hours=auto_accept_hours)
+            if auto_accepted > 0:
+                logger.info(f"Auto-accepted {auto_accepted} old candidates")
+
         if self.classifier is None:
             logger.error("Classifier not available, cannot check orders")
             return []

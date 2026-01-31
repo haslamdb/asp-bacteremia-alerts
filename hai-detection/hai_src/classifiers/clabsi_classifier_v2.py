@@ -98,7 +98,7 @@ class CLABSIClassifierV2(BaseHAIClassifier):
         llm_client=None,
         db: HAIDatabase | None = None,
         strict_mode: bool = True,
-        use_triage: bool = False,
+        use_triage: bool = True,
         triage_model: str | None = None,
         collect_training_data: bool = True,
     ):

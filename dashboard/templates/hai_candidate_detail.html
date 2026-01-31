@@ -380,13 +380,6 @@
             {% endif %}
         </div>
 
-        <div class="action-card">
-            <h3>Notes</h3>
-            <div class="form-group">
-                <textarea name="notes" id="notes" rows="4" class="form-textarea" placeholder="Add details about your classification decision..."></textarea>
-            </div>
-        </div>
-
         <!-- Override Reason (shown when disagreeing with LLM) -->
         <div class="action-card hidden" id="override-reason-section">
             <h3>Override Reason</h3>
@@ -394,7 +387,7 @@
                 You are overriding the LLM classification. Please indicate why:
             </p>
             <div class="form-group">
-                <select id="override-reason-category" class="form-control">
+                <select id="override-reason-category" class="form-control" onchange="toggleSubcategories(this.value)">
                     <option value="">-- Select a reason --</option>
                     <option value="extraction_error">Extraction Error - LLM misread the notes</option>
                     <option value="rules_error">Rules Error - Classification logic was wrong</option>
@@ -403,6 +396,91 @@
                     <option value="nhsn_interpretation">NHSN Interpretation - Different criteria reading</option>
                     <option value="other">Other</option>
                 </select>
+            </div>
+
+            <!-- Extraction Error Subcategories -->
+            <div id="extraction-error-details" class="override-subcategories hidden">
+                <p class="subcategory-prompt">What did the LLM miss or get wrong? (select all that apply)</p>
+                <div class="checkbox-grid">
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="extraction_issue" value="symptoms">
+                        <span>Symptoms (fever, hypothermia, hypotension)</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="extraction_issue" value="alternative_source">
+                        <span>Alternative infection source</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="extraction_issue" value="line_assessment">
+                        <span>Line/catheter assessment</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="extraction_issue" value="mbi_factors">
+                        <span>MBI factors (mucositis, GVHD, neutropenia)</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="extraction_issue" value="timeline">
+                        <span>Timeline/dates</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="extraction_issue" value="organism">
+                        <span>Organism interpretation</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Rules Error Subcategories -->
+            <div id="rules-error-details" class="override-subcategories hidden">
+                <p class="subcategory-prompt">Which rule was applied incorrectly? (select all that apply)</p>
+                <div class="checkbox-grid">
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="rules_issue" value="timing_criteria">
+                        <span>NHSN timing criteria</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="rules_issue" value="organism_eligibility">
+                        <span>Organism eligibility</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="rules_issue" value="secondary_infection">
+                        <span>Secondary infection logic</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="rules_issue" value="mbi_lcbi">
+                        <span>MBI-LCBI classification</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="rules_issue" value="device_association">
+                        <span>Device association criteria</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="rules_issue" value="repeat_infection">
+                        <span>Repeat infection period</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Override Notes -->
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="override-notes" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem; display: block;">Additional notes (optional)</label>
+                <textarea id="override-notes" rows="2" class="form-textarea" placeholder="Any additional context about this override..."></textarea>
+            </div>
+
+            <!-- Submit Override Button -->
+            <div class="override-submit-container">
+                <button type="button" class="btn btn-override-submit" id="submit-override-btn">
+                    Submit Override
+                </button>
+            </div>
+        </div>
+
+        <div class="action-card" id="notes-section">
+            <h3>Notes</h3>
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">
+                Add any notes about your classification decision (optional)
+            </p>
+            <div class="form-group">
+                <textarea name="notes" id="notes" rows="3" class="form-textarea" placeholder="Additional details..."></textarea>
             </div>
         </div>
 
@@ -447,9 +525,49 @@
 </div>
 
 <script>
+// Toggle subcategory checkboxes based on override reason selection
+function toggleSubcategories(category) {
+    const extractionDetails = document.getElementById('extraction-error-details');
+    const rulesDetails = document.getElementById('rules-error-details');
+
+    // Hide all subcategory sections first
+    extractionDetails.classList.add('hidden');
+    rulesDetails.classList.add('hidden');
+
+    // Show relevant section based on category
+    if (category === 'extraction_error') {
+        extractionDetails.classList.remove('hidden');
+    } else if (category === 'rules_error') {
+        rulesDetails.classList.remove('hidden');
+    }
+}
+
+// Collect checked subcategories for training feedback
+function getExtractionCorrections() {
+    const corrections = {};
+    const category = document.getElementById('override-reason-category').value;
+
+    if (category === 'extraction_error') {
+        const checked = document.querySelectorAll('input[name="extraction_issue"]:checked');
+        if (checked.length > 0) {
+            corrections.extraction_issues = Array.from(checked).map(cb => cb.value);
+        }
+    } else if (category === 'rules_error') {
+        const checked = document.querySelectorAll('input[name="rules_issue"]:checked');
+        if (checked.length > 0) {
+            corrections.rules_issues = Array.from(checked).map(cb => cb.value);
+        }
+    }
+
+    return Object.keys(corrections).length > 0 ? corrections : null;
+}
+
 (function() {
     // LLM's decision for this candidate
     const llmDecision = '{{ classifications[0].decision.value if classifications else "" }}';
+
+    // Track the currently selected override decision
+    let pendingOverrideDecision = null;
 
     // Check if decision is an override
     function isOverride(decision) {
@@ -465,23 +583,81 @@
         return false;
     }
 
-    // Show/hide override reason section based on selection
+    // Show/hide override reason section and notes section based on selection
     function updateOverrideSection(decision) {
         const overrideSection = document.getElementById('override-reason-section');
+        const notesSection = document.getElementById('notes-section');
+
         if (isOverride(decision)) {
             overrideSection.classList.remove('hidden');
+            notesSection.classList.add('hidden'); // Hide main notes, use override notes instead
+            pendingOverrideDecision = decision;
         } else {
             overrideSection.classList.add('hidden');
+            notesSection.classList.remove('hidden');
+            pendingOverrideDecision = null;
         }
     }
 
+    // Submit the review to the API
+    async function submitReview(decision, notes, overrideData) {
+        const reviewer = document.getElementById('reviewer').value;
+        const resultDiv = document.getElementById('review-result');
+
+        if (!reviewer.trim()) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Please enter your name</div>';
+            resultDiv.classList.remove('hidden');
+            document.getElementById('reviewer').focus();
+            return false;
+        }
+
+        const data = {
+            candidate_id: '{{ candidate.id }}',
+            reviewer: reviewer,
+            decision: decision,
+            notes: notes
+        };
+
+        // Add override data if provided
+        if (overrideData) {
+            data.override_reason_category = overrideData.category;
+            if (overrideData.corrections) {
+                data.extraction_corrections = overrideData.corrections;
+            }
+        }
+
+        try {
+            const response = await fetch('{{ url_for("hai_detection.api_submit_review", candidate_id=candidate.id) }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                resultDiv.innerHTML = '<div class="alert alert-success">Classification submitted! Redirecting...</div>';
+                resultDiv.classList.remove('hidden');
+                setTimeout(() => window.location.reload(), 1500);
+                return true;
+            } else {
+                resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + result.error + '</div>';
+                resultDiv.classList.remove('hidden');
+                return false;
+            }
+        } catch (err) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Failed to submit: ' + err.message + '</div>';
+            resultDiv.classList.remove('hidden');
+            return false;
+        }
+    }
+
+    // Handle classification button clicks
     document.querySelectorAll('.classification-buttons button, .classification-buttons-single button, .secondary-buttons button, .ssi-type-buttons button').forEach(btn => {
         btn.addEventListener('click', async function() {
             const decision = this.getAttribute('data-decision');
             const reviewer = document.getElementById('reviewer').value;
-            const notes = document.getElementById('notes').value;
             const resultDiv = document.getElementById('review-result');
-            const overrideReasonCategory = document.getElementById('override-reason-category');
 
             if (!reviewer.trim()) {
                 resultDiv.innerHTML = '<div class="alert alert-danger">Please enter your name</div>';
@@ -490,57 +666,65 @@
                 return;
             }
 
-            // Highlight selected button and show override section if needed
+            // Highlight selected button
             document.querySelectorAll('.classification-buttons button, .classification-buttons-single button, .secondary-buttons button, .ssi-type-buttons button').forEach(b => {
                 b.classList.remove('selected');
             });
             this.classList.add('selected');
+
+            // Clear any previous messages
+            resultDiv.classList.add('hidden');
+
+            // Check if this is an override
+            const override = isOverride(decision);
             updateOverrideSection(decision);
 
-            // If override and no reason selected, prompt user
-            const override = isOverride(decision);
-            if (override && overrideReasonCategory && !overrideReasonCategory.value) {
-                resultDiv.innerHTML = '<div class="alert alert-warning">Please select an override reason before submitting.</div>';
+            if (override) {
+                // Don't submit yet - wait for override form completion
+                resultDiv.innerHTML = '<div class="alert alert-info">Please complete the override reason above, then click "Submit Override".</div>';
+                resultDiv.classList.remove('hidden');
+                document.getElementById('override-reason-category').focus();
+            } else {
+                // Non-override: submit immediately
+                const notes = document.getElementById('notes').value;
+                await submitReview(decision, notes, null);
+            }
+        });
+    });
+
+    // Handle Submit Override button click
+    const submitOverrideBtn = document.getElementById('submit-override-btn');
+    if (submitOverrideBtn) {
+        submitOverrideBtn.addEventListener('click', async function() {
+            const resultDiv = document.getElementById('review-result');
+            const overrideReasonCategory = document.getElementById('override-reason-category');
+            const overrideNotes = document.getElementById('override-notes');
+
+            if (!pendingOverrideDecision) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">Please select a classification decision first.</div>';
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+
+            if (!overrideReasonCategory.value) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">Please select an override reason.</div>';
                 resultDiv.classList.remove('hidden');
                 overrideReasonCategory.focus();
                 return;
             }
 
-            const data = {
-                candidate_id: '{{ candidate.id }}',
-                reviewer: reviewer,
-                decision: decision,
-                notes: notes
+            // Collect override data
+            const overrideData = {
+                category: overrideReasonCategory.value,
+                corrections: getExtractionCorrections()
             };
 
-            // Add override reason category if this is an override
-            if (override && overrideReasonCategory && overrideReasonCategory.value) {
-                data.override_reason_category = overrideReasonCategory.value;
-            }
+            // Use override notes (or fall back to main notes if empty)
+            const notes = overrideNotes.value || document.getElementById('notes').value;
 
-            try {
-                const response = await fetch('{{ url_for("hai_detection.api_submit_review", candidate_id=candidate.id) }}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    resultDiv.innerHTML = '<div class="alert alert-success">Classification submitted! Redirecting...</div>';
-                    resultDiv.classList.remove('hidden');
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + result.error + '</div>';
-                    resultDiv.classList.remove('hidden');
-                }
-            } catch (err) {
-                resultDiv.innerHTML = '<div class="alert alert-danger">Failed to submit: ' + err.message + '</div>';
-                resultDiv.classList.remove('hidden');
-            }
+            await submitReview(pendingOverrideDecision, notes, overrideData);
         });
-    });
+    }
 })();
 </script>
 
@@ -982,6 +1166,85 @@
 
 #override-reason-section .form-control {
     background: white;
+}
+
+/* Override Subcategory Checkboxes */
+.override-subcategories {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-warning);
+}
+
+.subcategory-prompt {
+    font-size: 0.85rem;
+    color: var(--color-warning-dark, #92400e);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+    .checkbox-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s;
+}
+
+.checkbox-item:hover {
+    background: #fef3c7;
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin-top: 2px;
+    accent-color: var(--color-warning-dark, #d97706);
+}
+
+.checkbox-item span {
+    line-height: 1.3;
+}
+
+/* Override Submit Button */
+.override-submit-container {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-warning);
+}
+
+.btn-override-submit {
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    background: var(--color-warning-dark, #d97706);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.btn-override-submit:hover {
+    background: #b45309;
+}
+
+.btn-override-submit:active {
+    transform: scale(0.98);
 }
 
 /* Alerts */
