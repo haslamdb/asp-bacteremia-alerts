@@ -109,6 +109,17 @@
             <span>Reports</span>
         </div>
     </a>
+
+    <a href="{{ url_for('dashboards.index') }}" class="section-card section-training">
+        <div class="section-icon">&#x1F9E0;</div>
+        <h2>Model Training</h2>
+        <p>Your expert reviews train AEGIS models. Track progress toward fine-tuned local LLMs.</p>
+        <div class="section-features">
+            <span>HAI Detection</span>
+            <span>ABX Indications</span>
+            <span>Fine-Tuning</span>
+        </div>
+    </a>
 </div>
 
 <style>
@@ -290,6 +301,17 @@
 }
 .section-approvals .section-icon {
     color: #F59E0B;
+}
+
+.section-training {
+    border-left-color: #0284c7;
+}
+.section-training:hover {
+    border-left-color: #0284c7;
+    background: linear-gradient(135deg, var(--color-white) 0%, rgba(2, 132, 199, 0.1) 100%);
+}
+.section-training .section-icon {
+    color: #0284c7;
 }
 
 .coming-soon-badge {
