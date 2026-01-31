@@ -15,18 +15,10 @@
 <div class="alert alert-danger">Error: {{ error }}</div>
 {% endif %}
 
-<!-- Summary Cards -->
-<div class="summary-grid">
-    <div class="summary-card summary-card-total">
-        <div class="summary-value">{{ total_reviewed }}</div>
-        <div class="summary-label">Total Reviewed</div>
-    </div>
-</div>
-
 <!-- Top Clinical Syndromes -->
-{% if top_syndromes %}
 <div class="syndromes-section">
-    <h3>Top Clinical Syndromes (Last 30 Days)</h3>
+    <h3>Reviewed by Indication <span class="total-count">({{ total_reviewed }} total)</span></h3>
+    {% if top_syndromes %}
     <div class="syndrome-grid">
         {% for syndrome in top_syndromes %}
         <div class="syndrome-card">
@@ -35,12 +27,10 @@
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <p class="text-muted">No syndrome data available</p>
+    {% endif %}
 </div>
-{% endif %}
-
-<p class="info-text">
-    These episodes have been reviewed by a human and are retained for audit and analytics purposes.
-</p>
 
 {% if candidates %}
 <div class="data-card">
@@ -93,15 +83,6 @@
 {% endif %}
 
 <style>
-.info-text {
-    background: var(--color-info-light);
-    border-left: 4px solid var(--color-primary);
-    padding: 0.75rem 1rem;
-    margin-bottom: 1.5rem;
-    border-radius: var(--radius-sm);
-    color: var(--color-gray-700);
-}
-
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -125,42 +106,10 @@
     margin-bottom: 1.5rem;
 }
 
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.summary-card {
-    background: var(--color-white);
-    padding: 1rem;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    text-align: center;
-}
-
-.summary-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--color-gray-800);
-}
-
-.summary-label {
+.total-count {
     font-size: 0.875rem;
+    font-weight: 400;
     color: var(--color-gray-500);
-}
-
-.summary-card-total {
-    background: var(--color-primary);
-}
-
-.summary-card-total .summary-value {
-    color: white;
-}
-
-.summary-card-total .summary-label {
-    color: rgba(255, 255, 255, 0.9);
 }
 
 /* Syndromes section */
