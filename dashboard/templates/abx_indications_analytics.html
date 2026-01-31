@@ -108,7 +108,9 @@
         <thead>
             <tr>
                 <th>Antibiotic</th>
-                <th>Total Orders</th>
+                <th>Orders</th>
+                <th>Top Indications</th>
+                <th>Appropriateness</th>
             </tr>
         </thead>
         <tbody>
@@ -116,6 +118,25 @@
             <tr>
                 <td>{{ row['medication_name'] }}</td>
                 <td>{{ row['total_orders'] }}</td>
+                <td class="syndromes-cell">
+                    {% if row.get('top_syndromes') %}
+                        {% for syn in row['top_syndromes'] %}
+                        <span class="syndrome-tag">{{ syn }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.get('agent_assessed') and row['agent_assessed'] > 0 %}
+                        <span class="rate-badge {% if row['agent_appropriate_rate'] >= 0.8 %}rate-good{% elif row['agent_appropriate_rate'] >= 0.6 %}rate-ok{% else %}rate-poor{% endif %}">
+                            {{ "%.0f"|format(row['agent_appropriate_rate'] * 100) }}%
+                        </span>
+                        <span class="assessed-count">({{ row['agent_assessed'] }})</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -131,7 +152,9 @@
         <thead>
             <tr>
                 <th>Location</th>
-                <th>Total Orders</th>
+                <th>Orders</th>
+                <th>Top Indications</th>
+                <th>Appropriateness</th>
             </tr>
         </thead>
         <tbody>
@@ -139,6 +162,25 @@
             <tr>
                 <td>{{ row.get('location') or 'Unknown' }}</td>
                 <td>{{ row['total_orders'] }}</td>
+                <td class="syndromes-cell">
+                    {% if row.get('top_syndromes') %}
+                        {% for syn in row['top_syndromes'] %}
+                        <span class="syndrome-tag">{{ syn }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.get('agent_assessed') and row['agent_assessed'] > 0 %}
+                        <span class="rate-badge {% if row['agent_appropriate_rate'] >= 0.8 %}rate-good{% elif row['agent_appropriate_rate'] >= 0.6 %}rate-ok{% else %}rate-poor{% endif %}">
+                            {{ "%.0f"|format(row['agent_appropriate_rate'] * 100) }}%
+                        </span>
+                        <span class="assessed-count">({{ row['agent_assessed'] }})</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -154,7 +196,9 @@
         <thead>
             <tr>
                 <th>Service</th>
-                <th>Total Orders</th>
+                <th>Orders</th>
+                <th>Top Indications</th>
+                <th>Appropriateness</th>
             </tr>
         </thead>
         <tbody>
@@ -162,6 +206,25 @@
             <tr>
                 <td>{{ row.get('service') or 'Unknown' }}</td>
                 <td>{{ row['total_orders'] }}</td>
+                <td class="syndromes-cell">
+                    {% if row.get('top_syndromes') %}
+                        {% for syn in row['top_syndromes'] %}
+                        <span class="syndrome-tag">{{ syn }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.get('agent_assessed') and row['agent_assessed'] > 0 %}
+                        <span class="rate-badge {% if row['agent_appropriate_rate'] >= 0.8 %}rate-good{% elif row['agent_appropriate_rate'] >= 0.6 %}rate-ok{% else %}rate-poor{% endif %}">
+                            {{ "%.0f"|format(row['agent_appropriate_rate'] * 100) }}%
+                        </span>
+                        <span class="assessed-count">({{ row['agent_assessed'] }})</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -444,6 +507,32 @@
 
 .analytics-table tbody tr:hover {
     background: var(--color-gray-50);
+}
+
+/* Syndrome tags in tables */
+.syndromes-cell {
+    max-width: 300px;
+}
+
+.syndrome-tag {
+    display: inline-block;
+    background: var(--color-info-light);
+    color: var(--color-primary);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 9999px;
+    margin: 0.1rem;
+    white-space: nowrap;
+}
+
+.assessed-count {
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+    margin-left: 0.25rem;
+}
+
+.text-muted {
+    color: var(--color-gray-400);
 }
 
 .rate-badge {

@@ -688,23 +688,24 @@ class IndicationDatabase:
     def get_usage_by_antibiotic(self, days: int = 30) -> list[dict]:
         """Get antibiotic usage statistics grouped by medication.
 
+        Includes top syndromes and agent appropriateness stats.
+
         Args:
             days: Number of days to include.
 
         Returns:
-            List of dicts with medication stats (name, total, appropriate, inappropriate).
+            List of dicts with medication stats including syndromes and appropriateness.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
+
+            # Get basic counts per antibiotic
             cursor.execute(
                 """
                 SELECT
                     medication_name,
                     rxnorm_code,
-                    COUNT(*) as total_orders,
-                    SUM(CASE WHEN final_classification IN ('A', 'S', 'P') THEN 1 ELSE 0 END) as appropriate,
-                    SUM(CASE WHEN final_classification = 'N' THEN 1 ELSE 0 END) as inappropriate,
-                    SUM(CASE WHEN final_classification IN ('U', 'FN') THEN 1 ELSE 0 END) as unknown
+                    COUNT(*) as total_orders
                 FROM indication_candidates
                 WHERE created_at >= datetime('now', ?)
                 GROUP BY medication_name, rxnorm_code
@@ -712,39 +713,80 @@ class IndicationDatabase:
                 """,
                 (f"-{days} days",),
             )
+            antibiotics = cursor.fetchall()
+
             results = []
-            for r in cursor.fetchall():
-                total = r["total_orders"]
+            for abx in antibiotics:
+                med_name = abx["medication_name"]
+
+                # Get top 3 syndromes for this antibiotic
+                cursor.execute(
+                    """
+                    SELECT clinical_syndrome_display, COUNT(*) as cnt
+                    FROM indication_candidates
+                    WHERE medication_name = ?
+                    AND created_at >= datetime('now', ?)
+                    AND clinical_syndrome IS NOT NULL
+                    AND clinical_syndrome != ''
+                    GROUP BY clinical_syndrome
+                    ORDER BY cnt DESC
+                    LIMIT 3
+                    """,
+                    (med_name, f"-{days} days"),
+                )
+                top_syndromes = [row["clinical_syndrome_display"] for row in cursor.fetchall()]
+
+                # Get agent appropriateness for this antibiotic
+                cursor.execute(
+                    """
+                    SELECT
+                        SUM(CASE WHEN r.agent_decision = 'agent_appropriate' THEN 1 ELSE 0 END) as appropriate,
+                        SUM(CASE WHEN r.agent_decision = 'agent_acceptable' THEN 1 ELSE 0 END) as acceptable,
+                        SUM(CASE WHEN r.agent_decision = 'agent_inappropriate' THEN 1 ELSE 0 END) as inappropriate,
+                        COUNT(CASE WHEN r.agent_decision IN ('agent_appropriate', 'agent_acceptable', 'agent_inappropriate') THEN 1 END) as assessed
+                    FROM indication_candidates c
+                    JOIN indication_reviews r ON c.id = r.candidate_id
+                    WHERE c.medication_name = ?
+                    AND c.created_at >= datetime('now', ?)
+                    """,
+                    (med_name, f"-{days} days"),
+                )
+                agent_row = cursor.fetchone()
+                assessed = agent_row["assessed"] or 0
+                agent_appropriate = (agent_row["appropriate"] or 0) + (agent_row["acceptable"] or 0)
+
                 results.append({
-                    "medication_name": r["medication_name"],
-                    "rxnorm_code": r["rxnorm_code"],
-                    "total_orders": total,
-                    "appropriate": r["appropriate"],
-                    "inappropriate": r["inappropriate"],
-                    "unknown": r["unknown"],
-                    "appropriate_rate": r["appropriate"] / total if total > 0 else 0,
+                    "medication_name": med_name,
+                    "rxnorm_code": abx["rxnorm_code"],
+                    "total_orders": abx["total_orders"],
+                    "top_syndromes": top_syndromes,
+                    "agent_assessed": assessed,
+                    "agent_appropriate": agent_appropriate,
+                    "agent_inappropriate": agent_row["inappropriate"] or 0,
+                    "agent_appropriate_rate": agent_appropriate / assessed if assessed > 0 else None,
                 })
             return results
 
     def get_usage_by_location(self, days: int = 30) -> list[dict]:
         """Get antibiotic usage statistics grouped by location/unit.
 
+        Includes top syndromes and agent appropriateness stats.
+
         Args:
             days: Number of days to include.
 
         Returns:
-            List of dicts with location stats.
+            List of dicts with location stats including syndromes and appropriateness.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
+
+            # Get basic counts per location
             cursor.execute(
                 """
                 SELECT
                     COALESCE(location, 'Unknown') as location,
-                    COUNT(*) as total_orders,
-                    SUM(CASE WHEN final_classification IN ('A', 'S', 'P') THEN 1 ELSE 0 END) as appropriate,
-                    SUM(CASE WHEN final_classification = 'N' THEN 1 ELSE 0 END) as inappropriate,
-                    SUM(CASE WHEN final_classification IN ('U', 'FN') THEN 1 ELSE 0 END) as unknown
+                    COUNT(*) as total_orders
                 FROM indication_candidates
                 WHERE created_at >= datetime('now', ?)
                 GROUP BY location
@@ -752,38 +794,79 @@ class IndicationDatabase:
                 """,
                 (f"-{days} days",),
             )
+            locations = cursor.fetchall()
+
             results = []
-            for r in cursor.fetchall():
-                total = r["total_orders"]
+            for loc in locations:
+                loc_name = loc["location"]
+
+                # Get top 3 syndromes for this location
+                cursor.execute(
+                    """
+                    SELECT clinical_syndrome_display, COUNT(*) as cnt
+                    FROM indication_candidates
+                    WHERE COALESCE(location, 'Unknown') = ?
+                    AND created_at >= datetime('now', ?)
+                    AND clinical_syndrome IS NOT NULL
+                    AND clinical_syndrome != ''
+                    GROUP BY clinical_syndrome
+                    ORDER BY cnt DESC
+                    LIMIT 3
+                    """,
+                    (loc_name, f"-{days} days"),
+                )
+                top_syndromes = [row["clinical_syndrome_display"] for row in cursor.fetchall()]
+
+                # Get agent appropriateness for this location
+                cursor.execute(
+                    """
+                    SELECT
+                        SUM(CASE WHEN r.agent_decision = 'agent_appropriate' THEN 1 ELSE 0 END) as appropriate,
+                        SUM(CASE WHEN r.agent_decision = 'agent_acceptable' THEN 1 ELSE 0 END) as acceptable,
+                        SUM(CASE WHEN r.agent_decision = 'agent_inappropriate' THEN 1 ELSE 0 END) as inappropriate,
+                        COUNT(CASE WHEN r.agent_decision IN ('agent_appropriate', 'agent_acceptable', 'agent_inappropriate') THEN 1 END) as assessed
+                    FROM indication_candidates c
+                    JOIN indication_reviews r ON c.id = r.candidate_id
+                    WHERE COALESCE(c.location, 'Unknown') = ?
+                    AND c.created_at >= datetime('now', ?)
+                    """,
+                    (loc_name, f"-{days} days"),
+                )
+                agent_row = cursor.fetchone()
+                assessed = agent_row["assessed"] or 0
+                agent_appropriate = (agent_row["appropriate"] or 0) + (agent_row["acceptable"] or 0)
+
                 results.append({
-                    "location": r["location"],
-                    "total_orders": total,
-                    "appropriate": r["appropriate"],
-                    "inappropriate": r["inappropriate"],
-                    "unknown": r["unknown"],
-                    "appropriate_rate": r["appropriate"] / total if total > 0 else 0,
+                    "location": loc_name,
+                    "total_orders": loc["total_orders"],
+                    "top_syndromes": top_syndromes,
+                    "agent_assessed": assessed,
+                    "agent_appropriate": agent_appropriate,
+                    "agent_inappropriate": agent_row["inappropriate"] or 0,
+                    "agent_appropriate_rate": agent_appropriate / assessed if assessed > 0 else None,
                 })
             return results
 
     def get_usage_by_service(self, days: int = 30) -> list[dict]:
         """Get antibiotic usage statistics grouped by ordering service.
 
+        Includes top syndromes and agent appropriateness stats.
+
         Args:
             days: Number of days to include.
 
         Returns:
-            List of dicts with service stats.
+            List of dicts with service stats including syndromes and appropriateness.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
+
+            # Get basic counts per service
             cursor.execute(
                 """
                 SELECT
                     COALESCE(service, 'Unknown') as service,
-                    COUNT(*) as total_orders,
-                    SUM(CASE WHEN final_classification IN ('A', 'S', 'P') THEN 1 ELSE 0 END) as appropriate,
-                    SUM(CASE WHEN final_classification = 'N' THEN 1 ELSE 0 END) as inappropriate,
-                    SUM(CASE WHEN final_classification IN ('U', 'FN') THEN 1 ELSE 0 END) as unknown
+                    COUNT(*) as total_orders
                 FROM indication_candidates
                 WHERE created_at >= datetime('now', ?)
                 GROUP BY service
@@ -791,16 +874,56 @@ class IndicationDatabase:
                 """,
                 (f"-{days} days",),
             )
+            services = cursor.fetchall()
+
             results = []
-            for r in cursor.fetchall():
-                total = r["total_orders"]
+            for svc in services:
+                svc_name = svc["service"]
+
+                # Get top 3 syndromes for this service
+                cursor.execute(
+                    """
+                    SELECT clinical_syndrome_display, COUNT(*) as cnt
+                    FROM indication_candidates
+                    WHERE COALESCE(service, 'Unknown') = ?
+                    AND created_at >= datetime('now', ?)
+                    AND clinical_syndrome IS NOT NULL
+                    AND clinical_syndrome != ''
+                    GROUP BY clinical_syndrome
+                    ORDER BY cnt DESC
+                    LIMIT 3
+                    """,
+                    (svc_name, f"-{days} days"),
+                )
+                top_syndromes = [row["clinical_syndrome_display"] for row in cursor.fetchall()]
+
+                # Get agent appropriateness for this service
+                cursor.execute(
+                    """
+                    SELECT
+                        SUM(CASE WHEN r.agent_decision = 'agent_appropriate' THEN 1 ELSE 0 END) as appropriate,
+                        SUM(CASE WHEN r.agent_decision = 'agent_acceptable' THEN 1 ELSE 0 END) as acceptable,
+                        SUM(CASE WHEN r.agent_decision = 'agent_inappropriate' THEN 1 ELSE 0 END) as inappropriate,
+                        COUNT(CASE WHEN r.agent_decision IN ('agent_appropriate', 'agent_acceptable', 'agent_inappropriate') THEN 1 END) as assessed
+                    FROM indication_candidates c
+                    JOIN indication_reviews r ON c.id = r.candidate_id
+                    WHERE COALESCE(c.service, 'Unknown') = ?
+                    AND c.created_at >= datetime('now', ?)
+                    """,
+                    (svc_name, f"-{days} days"),
+                )
+                agent_row = cursor.fetchone()
+                assessed = agent_row["assessed"] or 0
+                agent_appropriate = (agent_row["appropriate"] or 0) + (agent_row["acceptable"] or 0)
+
                 results.append({
-                    "service": r["service"],
-                    "total_orders": total,
-                    "appropriate": r["appropriate"],
-                    "inappropriate": r["inappropriate"],
-                    "unknown": r["unknown"],
-                    "appropriate_rate": r["appropriate"] / total if total > 0 else 0,
+                    "service": svc_name,
+                    "total_orders": svc["total_orders"],
+                    "top_syndromes": top_syndromes,
+                    "agent_assessed": assessed,
+                    "agent_appropriate": agent_appropriate,
+                    "agent_inappropriate": agent_row["inappropriate"] or 0,
+                    "agent_appropriate_rate": agent_appropriate / assessed if assessed > 0 else None,
                 })
             return results
 
