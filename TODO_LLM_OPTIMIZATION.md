@@ -18,12 +18,22 @@
 - [ ] Remove or disable LLM extraction for indication monitoring
 - [ ] Optional: LLM fallback only for "N" or "U" cases flagged for human review
 
-### 3. Module LLM Strategy
+### 3. Guideline Adherence - Tiered LLM Approach
+Currently uses llama3.3:70b for clinical impression extraction (febrile infant risk stratification).
+
+- [ ] **Switch to qwen2.5:7b for triage** - faster initial pass for clinical appearance
+- [ ] **Tiered approach like HAI** - use 7B for quick classification, escalate to 70B only when needed
+- [ ] **Add training data capture** - update review system to collect expert corrections
+- [ ] **Capture override reasons** - when clinician disagrees with LLM appearance assessment
+- [ ] **Track extraction errors** - did model miss key findings (lethargy, mottling, poor feeding)?
+
+### 4. Module LLM Strategy
 
 | Module | Primary Method | LLM Role |
 |--------|---------------|----------|
-| HAI Detection | LLM extraction | **Primary** (optimize) |
-| Antibiotic Indications | ICD-10 classification | **Skip** |
+| HAI Detection | LLM extraction | **Primary** (tiered: 7B triage, 70B full) |
+| Antibiotic Indications | ICD-10 + LLM syndrome | **Primary** (collecting training data) |
+| Guideline Adherence | LLM clinical impression | **TODO** (needs tiered approach) |
 | Drug-Bug Mismatch | Rule-based susceptibility | None needed |
 | Surgical Prophylaxis | CPT/procedure rules | None needed |
 
