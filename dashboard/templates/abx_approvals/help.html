@@ -39,19 +39,26 @@
             <div class="workflow-step">
                 <span class="step-number">3</span>
                 <div class="step-content">
-                    <h3>Review Clinical Data</h3>
-                    <p>Review current antibiotics and recent culture/susceptibility results displayed automatically.</p>
+                    <h3>Review Clinical Alerts</h3>
+                    <p>Check the Clinical Alerts card for MDR history, drug allergies, and renal status that may affect antibiotic selection.</p>
                 </div>
             </div>
             <div class="workflow-step">
                 <span class="step-number">4</span>
                 <div class="step-content">
-                    <h3>Document Request</h3>
-                    <p>Enter the antibiotic details, indication, prescriber information, and your decision.</p>
+                    <h3>Review Cultures &amp; Medications</h3>
+                    <p>Review current antibiotics and recent culture/susceptibility results. Allergy-unsafe options are flagged.</p>
                 </div>
             </div>
             <div class="workflow-step">
                 <span class="step-number">5</span>
+                <div class="step-content">
+                    <h3>Document Request</h3>
+                    <p>Enter the antibiotic name, duration, and your decision. Optional details (indication, dose) can be expanded if needed.</p>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="step-number">6</span>
                 <div class="step-content">
                     <h3>Submit</h3>
                     <p>Your decision is recorded and the request is documented for compliance and reporting.</p>
@@ -78,6 +85,33 @@
             <div class="decision-type">
                 <span class="badge badge-secondary">Deferred</span>
                 <p>Need more information. Plan to call back after reviewing additional data.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="help-section">
+        <h2>Clinical Alerts</h2>
+        <p>
+            The Clinical Alerts card displays critical patient information that may affect antibiotic selection:
+        </p>
+        <div class="clinical-alerts-info">
+            <div class="alert-type">
+                <h4>MDR Pathogen History</h4>
+                <p>Shows if the patient has had resistant organisms in the past year:</p>
+                <ul>
+                    <li><span class="badge badge-danger">MRSA</span> Methicillin-resistant <em>Staphylococcus aureus</em></li>
+                    <li><span class="badge badge-danger">VRE</span> Vancomycin-resistant <em>Enterococcus</em></li>
+                    <li><span class="badge badge-danger">CRE</span> Carbapenem-resistant Enterobacteriaceae</li>
+                    <li><span class="badge badge-warning">ESBL</span> Extended-spectrum beta-lactamase producer</li>
+                </ul>
+            </div>
+            <div class="alert-type">
+                <h4>Drug Allergies</h4>
+                <p>Lists documented drug allergies with severity. <strong>Life-threatening allergies</strong> (anaphylaxis) are highlighted. Culture susceptibility options that conflict with patient allergies are flagged with a warning icon.</p>
+            </div>
+            <div class="alert-type">
+                <h4>Renal Function</h4>
+                <p>Displays CKD stage, dialysis status, and recent creatinine/GFR values. Patients with GFR &lt; 30 or on dialysis may require dose adjustments.</p>
             </div>
         </div>
     </section>
@@ -211,6 +245,38 @@
 
 .help-section li {
     margin-bottom: 0.5rem;
+}
+
+.clinical-alerts-info {
+    display: grid;
+    gap: 1rem;
+}
+
+.clinical-alerts-info .alert-type {
+    padding: 1rem;
+    background: var(--color-gray-50);
+    border-radius: 8px;
+    border-left: 4px solid var(--color-primary);
+}
+
+.clinical-alerts-info .alert-type h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--color-gray-800);
+}
+
+.clinical-alerts-info .alert-type p {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.clinical-alerts-info .alert-type ul {
+    margin-top: 0.5rem;
+}
+
+.clinical-alerts-info .badge {
+    font-size: 0.7rem;
+    margin-right: 0.25rem;
 }
 </style>
 {% endblock %}
