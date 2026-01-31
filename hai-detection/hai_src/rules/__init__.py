@@ -25,7 +25,8 @@ from .schemas import (
     CLABSIClassification,
     ClassificationResult,
 )
-from .clabsi_engine import CLABSIRulesEngine
+from .clabsi_engine import CLABSIRulesEngine, StrictnessLevel, classify_clabsi
+from .discrepancy_logger import DiscrepancyLogger, check_and_log_discrepancy
 from .ssi_schemas import (
     SSIType,
     SSIClassification,
@@ -91,6 +92,11 @@ __all__ = [
     "CLABSIClassification",
     "ClassificationResult",
     "CLABSIRulesEngine",
+    "StrictnessLevel",
+    "classify_clabsi",
+    # Discrepancy logging
+    "DiscrepancyLogger",
+    "check_and_log_discrepancy",
     # SSI
     "SSIType",
     "SSIClassification",

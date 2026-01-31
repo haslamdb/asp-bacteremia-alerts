@@ -10,11 +10,35 @@ The engine follows the NHSN decision tree:
 3. Check for secondary BSI (alternate source with same organism)
 4. Check for contamination (commensals without matching culture)
 5. Default to CLABSI if no exclusions apply
+
+## Strictness Levels
+
+The engine supports configurable strictness levels to handle institutional
+variations in NHSN criteria interpretation:
+
+- **nhsn_strict**: Literal interpretation of NHSN criteria. Requires
+  culture-confirmed alternate sources, documented matching organisms,
+  and explicit MBI documentation. Most conservative classification.
+  Recommended for external benchmarking and CDC comparison.
+
+- **nhsn_moderate** (default): Allows reasonable clinical inference.
+  Accepts probable alternate sources, clinical diagnoses without culture
+  confirmation in some cases. Balanced for daily operations.
+
+- **permissive**: Mirrors common IP practice. More generous in calling
+  secondary BSI and MBI-LCBI based on clinical documentation alone.
+  May reduce CLABSI counts but less defensible externally.
+
+The strictness level affects:
+- Secondary BSI: How much evidence is required for alternate source
+- MBI-LCBI: How strictly mucosal injury must be documented
+- Contamination: Whether clinical judgment alone can exclude
 """
 
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum
 
 from .schemas import (
     ConfidenceLevel,
@@ -38,6 +62,25 @@ from .nhsn_criteria import (
 logger = logging.getLogger(__name__)
 
 
+class StrictnessLevel(str, Enum):
+    """Rules engine strictness levels.
+
+    These levels control how strictly NHSN criteria are interpreted,
+    allowing calibration between institutions and use cases.
+    """
+    NHSN_STRICT = "nhsn_strict"
+    """Literal NHSN interpretation. Requires culture confirmation for
+    secondary BSI, explicit MBI documentation. Most defensible externally."""
+
+    NHSN_MODERATE = "nhsn_moderate"
+    """Balanced interpretation. Allows probable alternate sources,
+    reasonable clinical inference. Default for daily operations."""
+
+    PERMISSIVE = "permissive"
+    """Mirrors common IP practice. More generous secondary BSI and
+    MBI-LCBI calls. May reduce CLABSI counts."""
+
+
 class CLABSIRulesEngine:
     """Deterministic NHSN criteria application for CLABSI classification.
 
@@ -56,6 +99,7 @@ class CLABSIRulesEngine:
         self,
         strict_mode: bool = True,
         review_threshold: float = 0.75,
+        strictness: StrictnessLevel | str = StrictnessLevel.NHSN_MODERATE,
     ):
         """Initialize the rules engine.
 
@@ -63,9 +107,19 @@ class CLABSIRulesEngine:
             strict_mode: If True, flag borderline cases for review.
                         If False, make best-guess classification.
             review_threshold: Confidence below this triggers review.
+            strictness: How strictly to interpret NHSN criteria.
+                       - nhsn_strict: Literal NHSN interpretation (for benchmarking)
+                       - nhsn_moderate: Balanced for daily operations (default)
+                       - permissive: Mirrors common IP practice
         """
         self.strict_mode = strict_mode
         self.review_threshold = review_threshold
+
+        # Parse strictness level
+        if isinstance(strictness, str):
+            self.strictness = StrictnessLevel(strictness)
+        else:
+            self.strictness = strictness
 
     def classify(
         self,
@@ -234,6 +288,11 @@ class CLABSIRulesEngine:
         2. Eligible patient (allo-HSCT <=365 days OR neutropenic ANC<500)
         3. Documented mucosal barrier injury (mucositis, GI GVHD, NEC)
 
+        Strictness levels affect evidence requirements:
+        - nhsn_strict: Requires DEFINITE documentation, lab-confirmed ANC
+        - nhsn_moderate: Accepts DEFINITE/PROBABLE, notes-based ANC
+        - permissive: Accepts POSSIBLE MBI indicators, diarrhea as MBI
+
         Returns ClassificationResult if MBI-LCBI, None otherwise.
         """
         organism = data.organism
@@ -295,40 +354,68 @@ class CLABSIRulesEngine:
 
         reasoning.append(f"MBI-LCBI: Patient meets population criteria - {population_reason}")
 
-        # Step 3: Check for mucosal barrier injury
+        # Step 3: Check for mucosal barrier injury (strictness-dependent)
         has_mbi = False
         mbi_type = None
+        mbi_strictness_note = ""
+
+        # Define confidence thresholds based on strictness
+        if self.strictness == StrictnessLevel.NHSN_STRICT:
+            # Strict: Only DEFINITE documentation counts
+            mbi_confidence_threshold = [ConfidenceLevel.DEFINITE]
+            mbi_strictness_note = " [STRICT: DEFINITE only]"
+        elif self.strictness == StrictnessLevel.PERMISSIVE:
+            # Permissive: Accept POSSIBLE as well
+            mbi_confidence_threshold = [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE, ConfidenceLevel.POSSIBLE]
+            mbi_strictness_note = " [PERMISSIVE]"
+        else:
+            # Moderate (default): DEFINITE or PROBABLE
+            mbi_confidence_threshold = [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]
+            mbi_strictness_note = ""
 
         # Check mucositis
-        if mbi.mucositis_documented in [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]:
+        if mbi.mucositis_documented in mbi_confidence_threshold:
             has_mbi = True
             grade = f" (grade {mbi.mucositis_grade})" if mbi.mucositis_grade else ""
             mbi_type = f"mucositis{grade}"
 
         # Check GI GVHD
-        if mbi.gi_gvhd_documented in [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]:
+        if mbi.gi_gvhd_documented in mbi_confidence_threshold:
             has_mbi = True
             grade = f" (grade {mbi.gi_gvhd_grade})" if mbi.gi_gvhd_grade else ""
             mbi_type = f"GI GVHD{grade}"
 
         # Check NEC (for neonates)
-        if mbi.nec_documented in [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]:
+        if mbi.nec_documented in mbi_confidence_threshold:
             has_mbi = True
             mbi_type = "necrotizing enterocolitis"
+
+        # Permissive mode: severe diarrhea can count as MBI indicator
+        if not has_mbi and self.strictness == StrictnessLevel.PERMISSIVE:
+            if mbi.severe_diarrhea in [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]:
+                has_mbi = True
+                mbi_type = "severe diarrhea (permissive)"
+                review_reasons.append("[PERMISSIVE] Severe diarrhea used as MBI indicator - verify")
 
         if not has_mbi:
             # Check for possible MBI - flag for review
             if mbi.mucositis_documented == ConfidenceLevel.POSSIBLE:
-                review_reasons.append("Possible mucositis mentioned - verify for MBI-LCBI")
+                if self.strictness == StrictnessLevel.NHSN_STRICT:
+                    review_reasons.append("[STRICT] Possible mucositis mentioned - needs DEFINITE for MBI-LCBI")
+                else:
+                    review_reasons.append("Possible mucositis mentioned - verify for MBI-LCBI")
             if mbi.gi_gvhd_documented == ConfidenceLevel.POSSIBLE:
-                review_reasons.append("Possible GI GVHD mentioned - verify for MBI-LCBI")
+                if self.strictness == StrictnessLevel.NHSN_STRICT:
+                    review_reasons.append("[STRICT] Possible GI GVHD mentioned - needs DEFINITE for MBI-LCBI")
+                else:
+                    review_reasons.append("Possible GI GVHD mentioned - verify for MBI-LCBI")
             if mbi.severe_diarrhea in [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]:
                 review_reasons.append("Severe diarrhea documented - consider MBI-LCBI")
 
-            reasoning.append("MBI-LCBI: No definite mucosal barrier injury documented")
+            reasoning.append(f"MBI-LCBI: No mucosal barrier injury documented{mbi_strictness_note}")
             return None
 
-        reasoning.append(f"MBI-LCBI: Mucosal barrier injury documented - {mbi_type}")
+        reasoning.append(f"MBI-LCBI: Mucosal barrier injury documented - {mbi_type}{mbi_strictness_note}")
 
         # All MBI-LCBI criteria met
         review_reasons.append("MBI-LCBI classification requires IP verification")
@@ -362,11 +449,17 @@ class CLABSIRulesEngine:
         2. The same organism is identified at that site
         3. The infection window timing is appropriate
 
+        Strictness levels affect evidence requirements:
+        - nhsn_strict: Requires culture-confirmed matching organism at other site
+        - nhsn_moderate: Accepts probable sources with organism match mentioned
+        - permissive: Accepts clinical diagnosis alone as alternate source
+
         Returns ClassificationResult if secondary BSI, None otherwise.
         """
         organism = data.organism.lower() if data.organism else ""
 
         # Check structured data for matching cultures at other sites
+        # This is culture-confirmed - accepted at all strictness levels
         if data.matching_organism_other_sites:
             sites = ", ".join(data.matching_organism_other_sites)
             reasoning.append(f"Secondary BSI: Same organism found at other site(s): {sites}")
@@ -377,7 +470,8 @@ class CLABSIRulesEngine:
                 reasoning=reasoning + [
                     f"CLASSIFICATION: Secondary BSI",
                     f"Same organism ({data.organism}) isolated from: {sites}",
-                    "BSI is secondary to infection at other site per NHSN criteria"
+                    "BSI is secondary to infection at other site per NHSN criteria",
+                    f"[Strictness: {self.strictness.value}]"
                 ],
                 requires_review=False,
                 review_reasons=[],
@@ -385,50 +479,123 @@ class CLABSIRulesEngine:
             )
 
         # Check LLM-extracted alternate sources
-        high_confidence_sources = []
-        possible_sources = []
+        # Categorize based on strictness level
+        culture_confirmed_sources = []  # Have culture_from_site_positive AND same_organism
+        high_confidence_sources = []    # DEFINITE/PROBABLE with organism match mentioned
+        clinical_only_sources = []      # DEFINITE/PROBABLE without culture confirmation
+        possible_sources = []           # POSSIBLE confidence
 
         for alt_site in extraction.alternate_infection_sites:
-            if alt_site.confidence == ConfidenceLevel.DEFINITE:
+            # Culture-confirmed with matching organism (strictest criteria)
+            if alt_site.culture_from_site_positive and alt_site.same_organism_mentioned:
+                culture_confirmed_sources.append(alt_site)
+            # Organism match mentioned (moderate criteria)
+            elif alt_site.confidence in [ConfidenceLevel.DEFINITE, ConfidenceLevel.PROBABLE]:
                 if alt_site.same_organism_mentioned or alt_site.culture_from_site_positive:
                     high_confidence_sources.append(alt_site)
                 else:
-                    possible_sources.append(alt_site)
-
-            elif alt_site.confidence == ConfidenceLevel.PROBABLE:
-                if alt_site.same_organism_mentioned or alt_site.culture_from_site_positive:
-                    high_confidence_sources.append(alt_site)
-                else:
-                    possible_sources.append(alt_site)
-
+                    clinical_only_sources.append(alt_site)
             elif alt_site.confidence == ConfidenceLevel.POSSIBLE:
                 possible_sources.append(alt_site)
 
-        # High confidence secondary source
-        if high_confidence_sources:
-            source = high_confidence_sources[0]
-            reasoning.append(
-                f"Secondary BSI: {source.site} documented with same organism"
-            )
+        # Apply strictness-based logic
+        if self.strictness == StrictnessLevel.NHSN_STRICT:
+            # Strict: Only culture-confirmed sources count
+            if culture_confirmed_sources:
+                source = culture_confirmed_sources[0]
+                reasoning.append(
+                    f"Secondary BSI [STRICT]: {source.site} - culture-confirmed matching organism"
+                )
+                return ClassificationResult(
+                    classification=CLABSIClassification.SECONDARY_BSI,
+                    confidence=0.95,
+                    reasoning=reasoning + [
+                        f"CLASSIFICATION: Secondary BSI",
+                        f"Primary infection source: {source.site}",
+                        f"Evidence: Culture-confirmed with matching organism",
+                        f"Documentation: {source.supporting_quote[:200]}..." if len(source.supporting_quote) > 200 else f"Documentation: {source.supporting_quote}",
+                        f"[Strictness: nhsn_strict - culture confirmation required]"
+                    ],
+                    requires_review=False,
+                    review_reasons=[],
+                    secondary_bsi_evaluation=f"Culture-confirmed: {source.site}",
+                )
+            # High confidence sources become review items in strict mode
+            if high_confidence_sources or clinical_only_sources:
+                all_unconfirmed = high_confidence_sources + clinical_only_sources
+                for source in all_unconfirmed:
+                    review_reasons.append(
+                        f"[STRICT] Alternate source ({source.site}) lacks culture confirmation"
+                    )
+                reasoning.append(f"Secondary BSI [STRICT]: {len(all_unconfirmed)} source(s) need culture confirmation")
 
-            confidence = 0.90 if source.confidence == ConfidenceLevel.DEFINITE else 0.80
+        elif self.strictness == StrictnessLevel.NHSN_MODERATE:
+            # Moderate (default): Accept culture-confirmed or high-confidence with organism match
+            qualifying_sources = culture_confirmed_sources + high_confidence_sources
+            if qualifying_sources:
+                source = qualifying_sources[0]
+                is_culture_confirmed = source in culture_confirmed_sources
+                reasoning.append(
+                    f"Secondary BSI: {source.site} documented with same organism"
+                )
+                confidence = 0.90 if is_culture_confirmed or source.confidence == ConfidenceLevel.DEFINITE else 0.80
 
-            return ClassificationResult(
-                classification=CLABSIClassification.SECONDARY_BSI,
-                confidence=confidence,
-                reasoning=reasoning + [
-                    f"CLASSIFICATION: Secondary BSI",
-                    f"Primary infection source: {source.site}",
-                    f"Documentation: {source.supporting_quote[:200]}..." if len(source.supporting_quote) > 200 else f"Documentation: {source.supporting_quote}",
-                    "BSI attributed to this infection source per NHSN criteria"
-                ],
-                requires_review=source.confidence != ConfidenceLevel.DEFINITE,
-                review_reasons=[f"Verify {source.site} as primary source"] if source.confidence != ConfidenceLevel.DEFINITE else [],
-                secondary_bsi_evaluation=f"Primary source: {source.site}",
-            )
+                return ClassificationResult(
+                    classification=CLABSIClassification.SECONDARY_BSI,
+                    confidence=confidence,
+                    reasoning=reasoning + [
+                        f"CLASSIFICATION: Secondary BSI",
+                        f"Primary infection source: {source.site}",
+                        f"Documentation: {source.supporting_quote[:200]}..." if len(source.supporting_quote) > 200 else f"Documentation: {source.supporting_quote}",
+                        "BSI attributed to this infection source per NHSN criteria",
+                        f"[Strictness: nhsn_moderate]"
+                    ],
+                    requires_review=source.confidence != ConfidenceLevel.DEFINITE and not is_culture_confirmed,
+                    review_reasons=[f"Verify {source.site} as primary source"] if source.confidence != ConfidenceLevel.DEFINITE and not is_culture_confirmed else [],
+                    secondary_bsi_evaluation=f"Primary source: {source.site}",
+                )
+            # Clinical-only sources get flagged for review
+            if clinical_only_sources:
+                for source in clinical_only_sources:
+                    review_reasons.append(
+                        f"Alternate source ({source.site}) documented without organism confirmation"
+                    )
 
-        # Possible sources - flag for review but don't classify
-        if possible_sources:
+        elif self.strictness == StrictnessLevel.PERMISSIVE:
+            # Permissive: Accept clinical diagnosis alone
+            all_sources = culture_confirmed_sources + high_confidence_sources + clinical_only_sources
+            if all_sources:
+                source = all_sources[0]
+                is_culture_confirmed = source in culture_confirmed_sources
+                reasoning.append(
+                    f"Secondary BSI [PERMISSIVE]: {source.site} documented as infection source"
+                )
+
+                confidence = 0.90 if is_culture_confirmed else 0.75
+
+                return ClassificationResult(
+                    classification=CLABSIClassification.SECONDARY_BSI,
+                    confidence=confidence,
+                    reasoning=reasoning + [
+                        f"CLASSIFICATION: Secondary BSI",
+                        f"Primary infection source: {source.site}",
+                        f"Documentation: {source.supporting_quote[:200]}..." if len(source.supporting_quote) > 200 else f"Documentation: {source.supporting_quote}",
+                        "BSI attributed to clinical infection source",
+                        f"[Strictness: permissive - clinical diagnosis accepted]"
+                    ],
+                    requires_review=not is_culture_confirmed,
+                    review_reasons=[f"Clinical diagnosis only - verify {source.site}"] if not is_culture_confirmed else [],
+                    secondary_bsi_evaluation=f"Clinical source: {source.site}",
+                )
+            # In permissive mode, even POSSIBLE sources get flagged prominently
+            if possible_sources:
+                source = possible_sources[0]
+                review_reasons.append(
+                    f"[PERMISSIVE] Possible alternate source ({source.site}) - consider secondary BSI"
+                )
+
+        # Possible sources - flag for review but don't classify (all modes)
+        if possible_sources and self.strictness != StrictnessLevel.PERMISSIVE:
             for source in possible_sources:
                 review_reasons.append(
                     f"Possible alternate source ({source.site}) mentioned - verify"
@@ -597,6 +764,7 @@ def classify_clabsi(
     extraction: ClinicalExtraction,
     structured_data: StructuredCaseData,
     strict_mode: bool = True,
+    strictness: StrictnessLevel | str = StrictnessLevel.NHSN_MODERATE,
 ) -> ClassificationResult:
     """Convenience function to classify a CLABSI case.
 
@@ -604,9 +772,13 @@ def classify_clabsi(
         extraction: LLM-extracted clinical information
         structured_data: Discrete EHR data
         strict_mode: Whether to flag borderline cases for review
+        strictness: NHSN criteria strictness level:
+                   - nhsn_strict: Literal interpretation for benchmarking
+                   - nhsn_moderate: Balanced for daily operations (default)
+                   - permissive: Mirrors common IP practice
 
     Returns:
         ClassificationResult
     """
-    engine = CLABSIRulesEngine(strict_mode=strict_mode)
+    engine = CLABSIRulesEngine(strict_mode=strict_mode, strictness=strictness)
     return engine.classify(extraction, structured_data)
